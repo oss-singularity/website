@@ -20,6 +20,19 @@ The current certificate does not advertise `www.oss-singularity.io` in the obser
 
 The parking-page response does not currently emit common browser security headers such as HSTS or a Content Security Policy. Microsoft 365 DKIM selectors resolve publicly, while no DMARC TXT record was observed. Recheck all of these against the authoritative DNS and final application response before launch; website deployment must not rewrite the working mail records.
 
+The authoritative cPanel zone contained 21 records during the authenticated read-only audit. Preserve the complete zone rather than reconstructing only the publicly observed records.
+
+## Verified access baseline
+
+- A dedicated encrypted Ed25519 key, isolated SSH alias, and pinned ED25519 host key are in use.
+- Key-only SSH succeeds with password and keyboard-interactive authentication disabled.
+- A separately named, non-expiring cPanel API token was created by explicit owner choice and is stored only in the local Secret Service keyring.
+- HTTPS UAPI succeeds from the keyring without exposing the token.
+- The primary domain and its document-root mapping were verified against the authenticated account.
+- The cPanel account currently has no Git Version Control repositories.
+
+Namecheap's jailed shell exposes `/usr/local/cpanel/bin/uapi`, but the command cannot execute because `/usr/local/cpanel/cpanel` is outside the jail. Account automation therefore uses verified HTTPS UAPI rather than remote UAPI execution.
+
 ## Available platform capabilities
 
 The exported cPanel tools confirm SSH/SFTP, API tokens, Git Version Control, Zone Editor, cron, backups, TLS management, ModSecurity, Imunify360, MariaDB, PHP, and managed Node.js/Python/Ruby application runtimes.
@@ -37,15 +50,9 @@ Shared hosting uses jailed shell access and Namecheap's nonstandard SSH port. It
 
 Do not place the cPanel repository itself in the live document root and do not deploy with a wildcard that can copy `.git`, source-only files, secrets, or build caches.
 
-## Credential bootstrap
+## Credential boundary
 
-The intended local connection uses:
-
-- one dedicated SSH key and host alias for Stellar SSH/SFTP/Git;
-- one separately named, expiring cPanel API token stored outside the repository;
-- cPanel UAPI over verified HTTPS for inventory and narrowly targeted operations.
-
-cPanel API tokens are full-access within the account's enabled features. Creating the key/token pair and the first provider backup therefore requires an explicit, observable bootstrap step before production automation is enabled.
+The access bootstrap is complete, but cPanel API tokens remain full-access within the account's enabled features. The token value, SSH private key, passphrase, cPanel sessions, cookies, account username, and private hosting paths must never enter this repository, CI variables, documentation, screenshots, or chat output. Any new credential, token revocation, or account mutation requires fresh explicit authorization.
 
 ## DNS and mail boundary
 
@@ -57,9 +64,7 @@ Keep Stellar/cPanel as the initial production target. It is already live, expose
 
 ## Pre-launch gates
 
-- Dedicated SSH access works with a pinned host key and no shared private key.
 - A current hosting backup exists and its scope is known.
-- cPanel UAPI read-only inventory succeeds without exposing the token.
 - The exact document root and current contents are backed up and hashed.
 - The build is reproducible in a clean environment.
 - Apex and `www` have an intentional redirect/canonical policy and valid TLS coverage.
