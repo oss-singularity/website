@@ -73,7 +73,7 @@ Project documentation, releases, issue tracking, and installation instructions r
 - Minimum 44×44 CSS-pixel primary interactive targets where practical
 - Text contrast of at least 4.5:1 and non-text contrast of at least 3:1
 - No information conveyed by color alone
-- Motion is decorative, modest, and removed for `prefers-reduced-motion: reduce`
+- Motion is decorative, modest, pointer-reactive, and removed for `prefers-reduced-motion: reduce`
 - Layout remains usable at 320 CSS pixels, 200% zoom, and with long translated text even though v0 ships in English
 
 ## Performance budget
@@ -82,7 +82,7 @@ Measured against a clean production build before launch:
 
 | Budget | Target |
 | --- | --- |
-| Executable JavaScript | 0 bytes |
+| Executable JavaScript | under 8 KB, local and dependency-free |
 | Initial HTML, uncompressed | under 35 KB |
 | CSS, uncompressed | under 40 KB |
 | Initial page transfer, excluding social preview | under 350 KB |
@@ -90,7 +90,7 @@ Measured against a clean production build before launch:
 | Lighthouse mobile | Performance, Accessibility, Best Practices and SEO each at least 95 |
 | Core stability goals | LCP under 2.0 s on a fast 4G profile; CLS under 0.05 |
 
-System fonts, responsive local images, explicit image dimensions, immutable asset caching, and zero client-side framework code support the budget.
+System fonts, responsive local images, explicit image dimensions, immutable asset caching, and zero client-side framework code support the budget. The optional reactive signal field makes no network requests, stores no state, stops in background tabs, caps display density, and is disabled when reduced motion is requested.
 
 ## SEO and social sharing
 
@@ -110,9 +110,9 @@ System fonts, responsive local images, explicit image dimensions, immutable asse
 
 ## Technology decision
 
-Use authored HTML and CSS with a small POSIX-shell build script that copies an explicit allowlist into `dist/` and verifies the required output. There are no package-manager dependencies.
+Use authored HTML, CSS and one small progressive-enhancement script with a POSIX-shell build that copies an explicit allowlist into `dist/` and verifies the required output. There are no package-manager dependencies.
 
-This is the simplest fit because the content is editorial, the interactions are links and anchors, and the verified default Stellar shell exposes no Node/npm runtime. PHP 8.2 is available but adds no value to v0. A static output is reproducible locally and in GitHub Actions, cheap to cache, easy to stage exactly, and easy to roll back.
+This remains the simplest fit because the content is editorial, the primary interactions are links and anchors, and the verified default Stellar shell exposes no Node/npm runtime. A small local Canvas enhancement adds visual reactivity without a framework, runtime service, tracking or third-party request. PHP 8.2 is available but adds no value. The static output remains reproducible locally and in GitHub Actions, cheap to cache, easy to stage exactly, and easy to roll back.
 
 Reconsider a static-site generator only when repeated content, localization, or a larger editorial surface makes hand-authored pages demonstrably harder to maintain. Reconsider a server runtime only for a concrete server-side requirement.
 

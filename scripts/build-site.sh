@@ -21,6 +21,7 @@ rm -rf -- "$output"
 mkdir -p \
   "$output/assets/brand" \
   "$output/assets/projects" \
+  "$output/assets/scripts" \
   "$output/assets/social" \
   "$output/assets/styles"
 
@@ -44,6 +45,7 @@ copy_file assets/brand/oss-singularity-mark.svg assets/brand/oss-singularity-mar
 copy_file assets/projects/pdrive-control-center-v080.webp assets/projects/pdrive-control-center-v080.webp
 copy_file assets/projects/chatgpt-usage-v030.webp assets/projects/chatgpt-usage-v030.webp
 copy_file assets/projects/nemo-action-bar.webp assets/projects/nemo-action-bar.webp
+copy_file assets/scripts/reactive-field.js assets/scripts/reactive-field.js
 copy_file assets/social/oss-singularity-social-preview.png assets/social/oss-singularity-social-preview.png
 copy_file assets/styles/site-v0.css assets/styles/site-v0.css
 
