@@ -2,6 +2,8 @@
 
 [![Repository checks](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml/badge.svg)](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml)
 
+[![OSS Singularity — Open-source engineering beyond the event horizon](site/assets/social/oss-singularity-social-preview.png)](https://oss-singularity.io/)
+
 Source repository for [oss-singularity.io](https://oss-singularity.io/).
 
 Launch Pad is a dependency-free static site shaped around the “Signal Observatory” visual direction: a precise cosmic shell, an adaptive pointer-reactive signal field, authentic project interfaces, and an intentionally human open-source voice. GitHub remains canonical; `dist/` is a reproducible, allowlisted production artifact.
