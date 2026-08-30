@@ -77,7 +77,7 @@ def main() -> int:
         "assets/projects/chatgpt-usage-v030.webp",
         "assets/projects/nemo-action-bar.webp",
         "assets/projects/pdrive-control-center-v080.webp",
-        "assets/scripts/reactive-field.js",
+        "assets/scripts/reactive-field-v2.js",
         "assets/social/oss-singularity-social-preview.png",
         "assets/styles/site-v1.css",
     }
@@ -146,7 +146,7 @@ def main() -> int:
     css_bytes = (root / "assets/styles/site-v1.css").stat().st_size
     if css_bytes > 40_000:
         fail(f"CSS budget exceeded: {css_bytes} bytes")
-    script_bytes = (root / "assets/scripts/reactive-field.js").stat().st_size
+    script_bytes = (root / "assets/scripts/reactive-field-v2.js").stat().st_size
     if script_bytes > 8_000:
         fail(f"JavaScript budget exceeded: {script_bytes} bytes")
     for image in (root / "assets/projects").iterdir():
