@@ -38,7 +38,7 @@ Namecheap's jailed shell exposes `/usr/local/cpanel/bin/uapi`, but the command c
 
 ## GitHub controls and deployment access
 
-The source repository remains private by explicit owner choice. The available private-repository controls are accepted for this project: squash-only merges, branch cleanup, selected Actions, read-only workflow permissions, Dependabot alerts, and automated security updates.
+The source repository is published for transparent inspection and contribution. Repository policy keeps squash-only merges, branch cleanup, selected Actions, read-only workflow permissions, automated dependency updates, private vulnerability reporting, secret scanning with push protection, CodeQL, and a protected linear `main` branch with required repository checks. Public source does not widen the production credential or deployment boundary.
 
 The OSS Singularity organization currently disables deploy keys across its repositories. A repo-specific cPanel deploy key was therefore not retained, no broader personal access token or account key was installed on the shared host, and no cPanel mirror was created. The preferred low-complexity path is an initial reviewed release over the already verified local SSH connection, followed by a GitHub Actions push deployment after successful changes to `main`. The workflow must transfer only the declared build output, serialize production deployments, verify the live result, and retain a rollback target. A repository-scoped GitHub App is reserved for a future requirement that genuinely needs server-initiated pulls; do not add its token-rotation and private-key machinery without that need.
 

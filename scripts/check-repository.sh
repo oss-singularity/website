@@ -11,7 +11,7 @@ cd "$repo_root"
 git diff --check
 git diff --cached --check
 
-for required in README.md SECURITY.md docs/hosting.md docs/brand-inputs.md docs/product-requirements.md docs/design-directions.md; do
+for required in README.md CONTRIBUTING.md LICENSE BRANDING.md SECURITY.md docs/hosting.md docs/brand-inputs.md docs/product-requirements.md docs/design-directions.md; do
     if [ ! -s "$required" ]; then
         printf 'missing required repository baseline: %s\n' "$required" >&2
         exit 1
