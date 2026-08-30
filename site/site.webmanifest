@@ -1,0 +1,17 @@
+{
+  "name": "OSS Singularity",
+  "short_name": "OSS Singularity",
+  "description": "Open-source engineering beyond the event horizon.",
+  "start_url": "/",
+  "display": "minimal-ui",
+  "background_color": "#06101d",
+  "theme_color": "#07111f",
+  "icons": [
+    {
+      "src": "/assets/brand/oss-singularity-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

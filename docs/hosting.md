@@ -44,18 +44,18 @@ The OSS Singularity organization currently disables deploy keys across its repos
 
 The exported cPanel tools confirm SSH/SFTP, API tokens, Git Version Control, Zone Editor, cron, backups, TLS management, ModSecurity, Imunify360, MariaDB, PHP, and managed Node.js/Python/Ruby application runtimes.
 
-Shared hosting uses jailed shell access and Namecheap's nonstandard SSH port. It is suitable for a static build and may support a Passenger-hosted application, but framework selection must wait until runtime versions, resource ceilings, process behavior, and document-root constraints are verified live.
+Shared hosting uses jailed shell access and Namecheap's nonstandard SSH port. A fresh 2026-08-30 read-only check found no Node or npm in the default shell; Python 3.6 and Ruby 2.5 are legacy versions, while PHP 8.2 is available. The selected v0 has no server-runtime requirement: it is built and tested locally or in CI and deployed as static output.
 
 ## Recommended source and deployment model
 
 1. GitHub `oss-singularity/website` is canonical.
-2. CI validates a reproducible build and creates the deployable output.
-3. A separate cPanel-managed repository receives a reviewed commit.
-4. A checked-in `.cpanel.yml` deploys only the declared build output into the exact document root.
-5. Production verification checks commit/content identity, HTTPS, redirects, representative pages/assets, security headers, and server error logs.
-6. Rollback restores the previous staged output or known commit.
+2. CI validates a reproducible, dependency-free build and its exact file allowlist.
+3. The first launch stages only the checked `dist/` output over the verified local SSH path after explicit owner approval.
+4. The previous production tree remains immediately available as the rollback target; `.well-known` and unrelated hosting data are preserved outside replacement scope.
+5. Production verification checks content identity, HTTPS, redirects, representative pages/assets, security headers, caching, compression, the 404 response, and server error logs.
+6. After the first launch is proven, a serialized GitHub Actions SSH push may automate the same checked-output transfer and verification contract.
 
-Do not place the cPanel repository itself in the live document root and do not deploy with a wildcard that can copy `.git`, source-only files, secrets, or build caches.
+Do not deploy with a wildcard that can copy `.git`, source-only files, secrets, prototypes, or build caches. A cPanel-managed mirror is not part of the selected push model.
 
 ## Credential boundary
 

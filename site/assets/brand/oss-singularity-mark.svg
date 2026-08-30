@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048" role="img" aria-labelledby="mark-title mark-desc">
+  <title id="mark-title">OSS Singularity</title>
+  <desc id="mark-desc">A cyan and magenta orbital event horizon surrounding code brackets.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#151721"/>
+      <stop offset="100%" stop-color="#08090f"/>
+    </radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="28" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="2048" height="2048" fill="url(#bg)"/>
+  <g fill="none" stroke-linecap="round" filter="url(#glow)">
+    <path d="M 1605 812 A 604 604 0 0 1 600 604" stroke="#ff46be" stroke-width="48"/>
+    <path d="M 443 1236 A 604 604 0 0 1 1448 1444" stroke="#ff46be" stroke-width="48"/>
+    <path d="M 612 581 A 604 604 0 0 1 443 812" stroke="#50e1ff" stroke-width="48"/>
+    <path d="M 1436 1467 A 604 604 0 0 1 1605 1236" stroke="#50e1ff" stroke-width="48"/>
+  </g>
+  <circle cx="1024" cy="1024" r="207" fill="#020308" stroke="#ff50c3" stroke-width="26"/>
+  <circle cx="1024" cy="1024" r="192" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="10"/>
+  <g stroke="#ffffff" stroke-opacity=".4" stroke-width="14">
+    <path d="M1024 804V629"/><path d="M1244 1024H1419"/><path d="M1024 1244V1419"/><path d="M804 1024H629"/>
+  </g>
+  <g fill="#50e1ff">
+    <circle cx="1024" cy="568" r="32"/><circle cx="1480" cy="1024" r="32"/><circle cx="1024" cy="1480" r="32"/><circle cx="568" cy="1024" r="32"/>
+  </g>
+  <g fill="#080a10">
+    <circle cx="1024" cy="568" r="14"/><circle cx="1480" cy="1024" r="14"/><circle cx="1024" cy="1480" r="14"/><circle cx="568" cy="1024" r="14"/>
+  </g>
+  <g fill="none" stroke="#f5f5fa" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M935 965L890 1024L935 1083"/><path d="M1113 965L1158 1024L1113 1083"/>
+  </g>
+  <circle cx="1024" cy="1024" r="20" fill="#ff4abe"/>
+</svg>

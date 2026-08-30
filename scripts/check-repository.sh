@@ -1,10 +1,17 @@
 #!/bin/sh
 set -eu
 
+repo_root=$(
+    CDPATH=''
+    cd -- "$(dirname -- "$0")/.."
+    pwd
+)
+cd "$repo_root"
+
 git diff --check
 git diff --cached --check
 
-for required in README.md SECURITY.md docs/hosting.md docs/brand-inputs.md; do
+for required in README.md SECURITY.md docs/hosting.md docs/brand-inputs.md docs/product-requirements.md docs/design-directions.md; do
     if [ ! -s "$required" ]; then
         printf 'missing required repository baseline: %s\n' "$required" >&2
         exit 1
@@ -25,5 +32,7 @@ if git grep -nEI \
     printf 'possible secret or session material found\n' >&2
     exit 1
 fi
+
+"$repo_root/scripts/check-site.sh"
 
 printf 'repository baseline checks passed\n'
