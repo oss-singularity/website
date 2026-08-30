@@ -1,0 +1,15 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Build and dependency output
+node_modules/
+dist/
+.cache/
+.tmp/
+coverage/
+
+# Local tooling
+*.log
+.DS_Store
