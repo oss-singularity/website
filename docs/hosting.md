@@ -7,20 +7,22 @@ Verified on 2026-08-30. This document contains no credentials, account username,
 | Area | Verified state |
 | --- | --- |
 | Canonical URL | `https://oss-singularity.io/` |
-| Current page | Namecheap parking page, HTTP 200 |
+| Current page | OSS Singularity Launch Pad v0, HTTP 200 |
 | Hosting | Namecheap Stellar shared hosting |
 | Web server | LiteSpeed |
 | DNS authority | `dns1.namecheaphosting.com`, `dns2.namecheaphosting.com` |
 | Apex address | Stellar shared-hosting address |
 | `www` | CNAME to the apex domain |
 | Mail | Microsoft 365 MX and SPF; separate from website deployment |
-| TLS | Valid certificate for the apex domain |
+| TLS | Valid certificate for the apex domain; `www` follow-up open |
 
-The current certificate does not advertise `www.oss-singularity.io` in the observed SAN list, and a verified HTTPS request to `www` fails hostname validation. Treat a canonical `www` redirect and certificate coverage as a production acceptance gate before publishing links that use `www`.
+The canonical origin is always `https://oss-singularity.io/`. Canonical, Open Graph, social-preview, sitemap, robots, and internal links all use the apex URL; `www` is never published as a content URL. Its only intended function is to redirect a manually entered `www` URL permanently to the equivalent apex path.
 
-The parking-page response does not currently emit common browser security headers such as HSTS or a Content Security Policy. Microsoft 365 mail routing was separately configured and validated by the owner. DMARC is an email-policy concern rather than a website-development gate; this repository makes no mail-policy decision. Recheck the final application response before launch, and preserve all working Microsoft 365 records including any DKIM or DMARC records.
+The installed certificate does not advertise `www.oss-singularity.io` in its SAN list, so an HTTPS request to `www` currently fails hostname validation before the application redirect can run. A 2026-08-30 reissue attempt failed with Namecheap error `1010` while its dashboard reported an SSL.com certificate-issuance incident. The owner explicitly accepted an apex-only launch while the provider is blocked. Reissue with both apex and `www` coverage when issuance recovers, verify both SANs, then verify `https://www.oss-singularity.io/<path>` returns a permanent redirect to `https://oss-singularity.io/<path>`. Do not remove the `www` CNAME and do not switch nameservers merely to use a registrar URL-forwarding service.
 
-The authoritative cPanel zone contained 21 records during the authenticated read-only audit. Preserve the complete zone rather than reconstructing only the publicly observed records.
+The live response emits the intended HSTS, Content Security Policy, browser security, cache, and compression headers. Microsoft 365 mail routing was separately configured and validated by the owner. DMARC is an email-policy concern rather than a website-development gate; this repository makes no mail-policy decision. Preserve all working Microsoft 365 records including any DKIM or DMARC records.
+
+The authoritative cPanel zone contained 22 records during the final authenticated read-only audit. Preserve the complete zone rather than reconstructing only the publicly observed records.
 
 ## Verified access baseline
 
@@ -50,8 +52,8 @@ Shared hosting uses jailed shell access and Namecheap's nonstandard SSH port. A 
 
 1. GitHub `oss-singularity/website` is canonical.
 2. CI validates a reproducible, dependency-free build and its exact file allowlist.
-3. The first launch stages only the checked `dist/` output over the verified local SSH path after explicit owner approval.
-4. The previous production tree remains immediately available as the rollback target; `.well-known` and unrelated hosting data are preserved outside replacement scope.
+3. The first launch staged only the checked `dist/` output over the verified local SSH path after explicit owner approval.
+4. The previous production tree remains available as a verified remote rollback archive; `.well-known`, `cgi-bin`, and unrelated hosting data were preserved outside replacement scope.
 5. Production verification checks content identity, HTTPS, redirects, representative pages/assets, security headers, caching, compression, the 404 response, and server error logs.
 6. After the first launch is proven, a serialized GitHub Actions SSH push may automate the same checked-output transfer and verification contract.
 
@@ -69,12 +71,11 @@ Because the domain uses Namecheap Web Hosting DNS, DNS records are managed by cP
 
 Keep Stellar/cPanel as the initial production target. It is already live, exposes the native CLI/API/Git capabilities required for a pleasant workflow, and leaves room for both static and managed application deployments. Reconsider GitHub Pages only if the final site is purely static and its simpler CDN/Actions model materially outweighs losing the existing cPanel runtime and deployment surface.
 
-## Pre-launch gates
+## Production verification and follow-up
 
-- Refresh and re-verify the local document-root backup immediately before the first deployment if production content has changed.
-- The build is reproducible in a clean environment.
-- Apex and `www` have an intentional redirect/canonical policy and valid TLS coverage.
-- Security headers, caching, compression, error pages, and `robots.txt` are intentional.
-- The mail owner has made an explicit DMARC policy decision.
-- Mail DNS remains unchanged and mail flow is unaffected.
-- Deployment and rollback are both tested before the parking page is replaced.
+- Launch Pad v0 is live from the checked source commit and the deployed build files match its SHA-256 manifest.
+- HTTPS apex, homepage, direct index, representative assets, the social image, custom 404, security headers, immutable asset caching, Brotli, and gzip were verified live.
+- A TelegramBot user-agent receives HTTP 200, the exact production HTML, apex-only Open Graph/Twitter metadata, and the 1200×630 social-preview URL.
+- The previous parking tree is retained in a hash-verified remote rollback archive; the complete local backup remains separately verified.
+- `.well-known`, `cgi-bin`, mail DNS, TLS configuration, and unrelated hosting data remain preserved.
+- **Next hosting task:** retry the Namecheap SSL reissue after incident/error `1010` clears, require apex plus `www` SANs, and verify the redirect-only `www` path without changing the canonical apex URL.
