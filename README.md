@@ -1,8 +1,18 @@
 # OSS Singularity Website
 
+[![Repository checks](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml/badge.svg)](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml)
+
 Source repository for [oss-singularity.io](https://oss-singularity.io/).
 
 Launch Pad is a dependency-free static site shaped around the “Signal Observatory” visual direction: a precise cosmic shell, an adaptive pointer-reactive signal field, authentic project interfaces, and an intentionally human open-source voice. GitHub remains canonical; `dist/` is a reproducible, allowlisted production artifact.
+
+## Why inspect the source?
+
+- Authored HTML and CSS with one small, dependency-free Canvas enhancement
+- No framework, package install, analytics, cookies, storage, third-party runtime assets, or automatic network requests
+- Deterministic allowlisted builds with an exact SHA-256 production manifest
+- Repository checks for accessibility structure, metadata, links, security policy, immutable assets, privacy boundaries, and explicit performance budgets
+- Real design exploration and decisions preserved in `design/` and `docs/`, not hidden behind a generated theme
 
 ## Development
 
@@ -30,14 +40,20 @@ See [docs/hosting.md](docs/hosting.md) for the verified baseline, safety boundar
 
 See [docs/brand-inputs.md](docs/brand-inputs.md) for the verified identity and messaging sources that will inform the design process.
 
+## Contributing
+
+Thoughtful fixes and improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the repository boundaries and local verification command. Please report security-sensitive findings privately as described in [SECURITY.md](SECURITY.md).
+
+## License
+
+Source code and technical documentation are available under the [MIT License](LICENSE). The OSS Singularity identity and visual assets are excluded as described in [BRANDING.md](BRANDING.md).
+
 ## Status
 
 - Hosting access baseline: verified
-- Repository security baseline: verified
+- Repository security baseline: verified; public-repository protections tracked separately from source checks
 - Existing brand inputs: inventoried; canonical vector avatar source located and preserved
 - Requirements, architecture, visual direction, and static technology stack: selected and documented
 - Launch Pad v0: live and production-verified at [oss-singularity.io](https://oss-singularity.io/)
 - Canonical host: apex only; no published URL uses `www`
 - Open hosting follow-up: reissue TLS with the `www` SAN after Namecheap/SSL.com issuance error `1010` clears, then verify the redirect-only alias
-
-Security-sensitive findings should be reported privately as described in [SECURITY.md](SECURITY.md).

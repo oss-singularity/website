@@ -28,7 +28,7 @@ The organization Sponsors listing is not active yet. Until activation is verifie
 - Primary audiences, journeys, content hierarchy, calls to action and the relationship to GitHub are specified in `docs/product-requirements.md`.
 - “Signal Observatory” is the selected visual direction; the comparison and source prototypes are in `docs/design-directions.md` and `design/prototypes/`.
 - The canonical mark keeps its cyan/magenta event-horizon geometry. The website uses a deep observatory palette, system typography, restrained motion, and authentic project screenshots.
-- The launch target is WCAG 2.2 AA with explicit performance and privacy budgets. No analytics, cookies, tracking, third-party runtime requests, or executable client-side JavaScript ship in v0.
+- The launch target is WCAG 2.2 AA with explicit performance and privacy budgets. The only executable client-side JavaScript is a small, dependency-free decorative Canvas enhancement; it performs no analytics, tracking, storage, or third-party runtime requests and is removed for reduced-motion users.
 - GitHub remains canonical for repositories, releases, documentation and issues. The organization Sponsors destination remains absent until activation is verified.
 
 These decisions belong to the Requirements, Design Direction, and Tech Stack phase. Existing sources constrain authenticity, not creativity.
