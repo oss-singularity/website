@@ -16,7 +16,9 @@ Verified on 2026-08-30. This document contains no credentials, account username,
 | Mail | Microsoft 365 MX and SPF; separate from website deployment |
 | TLS | Valid certificate for the apex domain |
 
-The current certificate does not advertise `www.oss-singularity.io` in the observed SAN list. Treat a canonical `www` redirect and certificate coverage as a production acceptance gate before publishing links that use `www`.
+The current certificate does not advertise `www.oss-singularity.io` in the observed SAN list, and a verified HTTPS request to `www` fails hostname validation. Treat a canonical `www` redirect and certificate coverage as a production acceptance gate before publishing links that use `www`.
+
+The parking-page response does not currently emit common browser security headers such as HSTS or a Content Security Policy. Microsoft 365 DKIM selectors resolve publicly, while no DMARC TXT record was observed. Recheck all of these against the authoritative DNS and final application response before launch; website deployment must not rewrite the working mail records.
 
 ## Available platform capabilities
 
@@ -62,5 +64,6 @@ Keep Stellar/cPanel as the initial production target. It is already live, expose
 - The build is reproducible in a clean environment.
 - Apex and `www` have an intentional redirect/canonical policy and valid TLS coverage.
 - Security headers, caching, compression, error pages, and `robots.txt` are intentional.
+- The mail owner has made an explicit DMARC policy decision.
 - Mail DNS remains unchanged and mail flow is unaffected.
 - Deployment and rollback are both tested before the parking page is replaced.
