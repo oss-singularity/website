@@ -18,7 +18,7 @@ Verified on 2026-08-30. This document contains no credentials, account username,
 
 The current certificate does not advertise `www.oss-singularity.io` in the observed SAN list, and a verified HTTPS request to `www` fails hostname validation. Treat a canonical `www` redirect and certificate coverage as a production acceptance gate before publishing links that use `www`.
 
-The parking-page response does not currently emit common browser security headers such as HSTS or a Content Security Policy. Microsoft 365 DKIM selectors resolve publicly, while no DMARC TXT record was observed. Recheck all of these against the authoritative DNS and final application response before launch; website deployment must not rewrite the working mail records.
+The parking-page response does not currently emit common browser security headers such as HSTS or a Content Security Policy. Microsoft 365 mail routing was separately configured and validated by the owner. DMARC is an email-policy concern rather than a website-development gate; this repository makes no mail-policy decision. Recheck the final application response before launch, and preserve all working Microsoft 365 records including any DKIM or DMARC records.
 
 The authoritative cPanel zone contained 21 records during the authenticated read-only audit. Preserve the complete zone rather than reconstructing only the publicly observed records.
 
@@ -29,9 +29,16 @@ The authoritative cPanel zone contained 21 records during the authenticated read
 - A separately named, non-expiring cPanel API token was created by explicit owner choice and is stored only in the local Secret Service keyring.
 - HTTPS UAPI succeeds from the keyring without exposing the token.
 - The primary domain and its document-root mapping were verified against the authenticated account.
-- The cPanel account currently has no Git Version Control repositories.
+- A timestamped local backup of the complete current document root exists outside the repository. Its archive hash, manifest hash, safe paths, and all 45 source files were verified before the temporary server-side copy was removed.
+- The cPanel account currently has no Git Version Control repositories and no deployment connection to the document root.
 
-Namecheap's jailed shell exposes `/usr/local/cpanel/bin/uapi`, but the command cannot execute because `/usr/local/cpanel/cpanel` is outside the jail. Account automation therefore uses verified HTTPS UAPI rather than remote UAPI execution.
+Namecheap's jailed shell exposes `/usr/local/cpanel/bin/uapi`, but the command cannot execute because `/usr/local/cpanel/cpanel` is outside the provider-controlled jail. The account cannot safely repair that server-level boundary. The operational fix is the verified local HTTPS-UAPI helper; it avoids storing the cPanel token on the hosting server.
+
+## GitHub controls and deployment access
+
+The source repository remains private by explicit owner choice. The available private-repository controls are accepted for this project: squash-only merges, branch cleanup, selected Actions, read-only workflow permissions, Dependabot alerts, and automated security updates.
+
+The OSS Singularity organization currently disables deploy keys across its repositories. A repo-specific cPanel deploy key was therefore not retained, no broader personal access token or account key was installed on the shared host, and no cPanel mirror was created. Before production automation, choose deliberately between a repository-scoped GitHub App, a GitHub Actions push deployment to cPanel, or an explicitly authorized organization policy change. An initial reviewed release may also deploy from the already verified local SSH path without weakening the organization policy.
 
 ## Available platform capabilities
 
@@ -64,8 +71,7 @@ Keep Stellar/cPanel as the initial production target. It is already live, expose
 
 ## Pre-launch gates
 
-- A current hosting backup exists and its scope is known.
-- The exact document root and current contents are backed up and hashed.
+- Refresh and re-verify the local document-root backup immediately before the first deployment if production content has changed.
 - The build is reproducible in a clean environment.
 - Apex and `www` have an intentional redirect/canonical policy and valid TLS coverage.
 - Security headers, caching, compression, error pages, and `robots.txt` are intentional.
