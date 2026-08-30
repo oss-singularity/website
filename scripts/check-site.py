@@ -77,15 +77,13 @@ def main() -> int:
         "assets/projects/chatgpt-usage-v030.webp",
         "assets/projects/nemo-action-bar.webp",
         "assets/projects/pdrive-control-center-v080.webp",
+        "assets/scripts/reactive-field.js",
         "assets/social/oss-singularity-social-preview.png",
         "assets/styles/site-v0.css",
     }
     actual = {str(path.relative_to(root)) for path in root.rglob("*") if path.is_file()}
     if actual != required:
         fail(f"build allowlist mismatch: missing={sorted(required - actual)} extra={sorted(actual - required)}")
-
-    if any(path.suffix == ".js" for path in root.rglob("*")):
-        fail("executable JavaScript is outside the v0 budget")
 
     html_bytes = 0
     for document in (root / "index.html", root / "404.html"):
@@ -99,8 +97,9 @@ def main() -> int:
             fail(f"{document.name} has no title")
         if parser.h1_count != 1:
             fail(f"{document.name} must contain exactly one h1")
-        if parser.scripts:
-            fail(f"{document.name} contains script elements")
+        expected_scripts = 1 if document.name == "index.html" else 0
+        if parser.scripts != expected_scripts:
+            fail(f"{document.name} must contain {expected_scripts} script elements")
         if len(parser.ids) != len(set(parser.ids)):
             fail(f"{document.name} contains duplicate ids")
 
@@ -147,6 +146,9 @@ def main() -> int:
     css_bytes = (root / "assets/styles/site-v0.css").stat().st_size
     if css_bytes > 40_000:
         fail(f"CSS budget exceeded: {css_bytes} bytes")
+    script_bytes = (root / "assets/scripts/reactive-field.js").stat().st_size
+    if script_bytes > 8_000:
+        fail(f"JavaScript budget exceeded: {script_bytes} bytes")
     for image in (root / "assets/projects").iterdir():
         if image.stat().st_size > 180_000:
             fail(f"project image budget exceeded: {image.name} is {image.stat().st_size} bytes")
@@ -163,7 +165,10 @@ def main() -> int:
     ElementTree.parse(root / "sitemap.xml")
     ElementTree.parse(root / "assets/brand/oss-singularity-mark.svg")
 
-    print(f"site checks passed: html={html_bytes} css={css_bytes} transfer={transfer}")
+    print(
+        f"site checks passed: html={html_bytes} css={css_bytes} "
+        f"js={script_bytes} transfer={transfer}"
+    )
     return 0
 
 

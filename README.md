@@ -2,7 +2,7 @@
 
 Source repository for [oss-singularity.io](https://oss-singularity.io/).
 
-Launch Pad v0 is a dependency-free static site shaped around the “Signal Observatory” visual direction: a precise cosmic shell, authentic project interfaces, and an intentionally human open-source voice. GitHub remains canonical; `dist/` is a reproducible, allowlisted production artifact.
+Launch Pad is a dependency-free static site shaped around the “Signal Observatory” visual direction: a precise cosmic shell, an adaptive pointer-reactive signal field, authentic project interfaces, and an intentionally human open-source voice. GitHub remains canonical; `dist/` is a reproducible, allowlisted production artifact.
 
 ## Development
 
@@ -12,7 +12,7 @@ Build and validate the complete site with:
 ./scripts/check-repository.sh
 ```
 
-The build uses authored HTML and CSS plus local optimized assets. It requires a POSIX shell and Python 3 for validation, installs no packages, executes no client-side JavaScript, and writes only to ignored `dist/`.
+The build uses authored HTML and CSS, one small dependency-free Canvas enhancement, and local optimized assets. It requires a POSIX shell and Python 3 for validation, installs no packages, makes no runtime network requests, and writes only to ignored `dist/`.
 
 To preview the production tree locally after a successful build:
 
