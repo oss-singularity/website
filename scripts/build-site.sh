@@ -47,7 +47,7 @@ copy_file assets/projects/chatgpt-usage-v030.webp assets/projects/chatgpt-usage-
 copy_file assets/projects/nemo-action-bar.webp assets/projects/nemo-action-bar.webp
 copy_file assets/scripts/reactive-field.js assets/scripts/reactive-field.js
 copy_file assets/social/oss-singularity-social-preview.png assets/social/oss-singularity-social-preview.png
-copy_file assets/styles/site-v0.css assets/styles/site-v0.css
+copy_file assets/styles/site-v1.css assets/styles/site-v1.css
 
 (
   cd "$output"

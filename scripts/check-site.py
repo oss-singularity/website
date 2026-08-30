@@ -79,7 +79,7 @@ def main() -> int:
         "assets/projects/pdrive-control-center-v080.webp",
         "assets/scripts/reactive-field.js",
         "assets/social/oss-singularity-social-preview.png",
-        "assets/styles/site-v0.css",
+        "assets/styles/site-v1.css",
     }
     actual = {str(path.relative_to(root)) for path in root.rglob("*") if path.is_file()}
     if actual != required:
@@ -143,7 +143,7 @@ def main() -> int:
 
     if html_bytes > 35_000:
         fail(f"HTML budget exceeded: {html_bytes} bytes")
-    css_bytes = (root / "assets/styles/site-v0.css").stat().st_size
+    css_bytes = (root / "assets/styles/site-v1.css").stat().st_size
     if css_bytes > 40_000:
         fail(f"CSS budget exceeded: {css_bytes} bytes")
     script_bytes = (root / "assets/scripts/reactive-field.js").stat().st_size
