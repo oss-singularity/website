@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -71,7 +72,8 @@ def main() -> int:
         fail(f"missing build directory {root}")
 
     required = {
-        ".htaccess", "404.html", "dist-manifest.sha256", "index.html",
+        ".htaccess", ".well-known/security.txt", "404.html",
+        "dist-manifest.sha256", "index.html",
         "robots.txt", "sitemap.xml", "site.webmanifest",
         "assets/brand/oss-singularity-mark.svg",
         "assets/projects/chatgpt-usage-v030.webp",
@@ -140,6 +142,41 @@ def main() -> int:
             fail(f"missing index metadata: {marker}")
     if 'name="robots" content="noindex"' not in (root / "404.html").read_text(encoding="utf-8"):
         fail("404 page must be noindex")
+
+    security_txt = (root / ".well-known/security.txt").read_text(encoding="utf-8")
+    if not security_txt.endswith("\n") or "\r" in security_txt:
+        fail("security.txt must be LF-terminated UTF-8 text")
+    security_fields: dict[str, list[str]] = {}
+    for line in security_txt.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        name, separator, value = line.partition(":")
+        if not separator or not value.strip():
+            fail(f"malformed security.txt line: {line!r}")
+        security_fields.setdefault(name, []).append(value.strip())
+    expected_security_fields = {
+        "Contact": ["mailto:mail@oss-singularity.io"],
+        "Canonical": ["https://oss-singularity.io/.well-known/security.txt"],
+        "Policy": ["https://github.com/oss-singularity/website/security/policy"],
+        "Preferred-Languages": ["en, de"],
+    }
+    for name, expected in expected_security_fields.items():
+        if security_fields.get(name) != expected:
+            fail(f"security.txt {name} must be {expected[0]!r}")
+    expires_values = security_fields.get("Expires", [])
+    if len(expires_values) != 1:
+        fail("security.txt must contain exactly one Expires field")
+    try:
+        expires = datetime.fromisoformat(expires_values[0].replace("Z", "+00:00"))
+    except ValueError as error:
+        fail(f"security.txt Expires is not RFC 3339: {error}")
+    if expires.tzinfo is None:
+        fail("security.txt Expires must include a timezone")
+    now = datetime.now(timezone.utc)
+    if expires <= now:
+        fail("security.txt has expired")
+    if expires - now > timedelta(days=366):
+        fail("security.txt Expires must be less than one year ahead")
 
     if html_bytes > 35_000:
         fail(f"HTML budget exceeded: {html_bytes} bytes")
