@@ -19,6 +19,7 @@ esac
 
 rm -rf -- "$output"
 mkdir -p \
+  "$output/.well-known" \
   "$output/assets/brand" \
   "$output/assets/projects" \
   "$output/assets/scripts" \
@@ -41,6 +42,7 @@ copy_file .htaccess .htaccess
 copy_file robots.txt robots.txt
 copy_file sitemap.xml sitemap.xml
 copy_file site.webmanifest site.webmanifest
+copy_file .well-known/security.txt .well-known/security.txt
 copy_file assets/brand/oss-singularity-mark.svg assets/brand/oss-singularity-mark.svg
 copy_file assets/projects/pdrive-control-center-v080.webp assets/projects/pdrive-control-center-v080.webp
 copy_file assets/projects/chatgpt-usage-v030.webp assets/projects/chatgpt-usage-v030.webp
