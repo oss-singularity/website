@@ -1,6 +1,16 @@
 # Hosting baseline
 
-Verified on 2026-08-30. This document contains no credentials, account username, private paths, API tokens, keys, cookies, or cPanel session URLs.
+Baseline verified on 2026-08-30. The Cloudflare cache-safety addendum below was verified on 2026-09-04. This document contains no credentials, account username, private paths, API tokens, keys, cookies, or cPanel session URLs.
+
+## Cloudflare edge-cache safety (2026-09-04)
+
+The `oss-singularity.io` Cloudflare zone has the enabled response-stage Cache Rule `Upstream no-cache response guard` (`ref: upstream_no_cache_response_guard`, Cloudflare ruleset ID `22b1cb235f094e469a16ec51bcfe7c34`, rule ID `1a5b282700224ebdb07ec090c301535a`). It matches:
+
+```text
+any(http.response.headers["cf-edge-cache"][*] == "no-cache")
+```
+
+For matching origin responses it sets Cloudflare-only `no-store`. This prevents a Namecheap/Imunify360 verification response carrying `CF-Edge-Cache: no-cache` from being stored at the edge and served as the website to later visitors. It does not disable or configure Imunify360 at Namecheap; it only protects Cloudflare's cache. Ordinary website responses remain eligible for the normal cache policy. After creation, only this zone's cache was purged; live verification showed the normal page and normal `MISS` to `HIT` caching behavior. Revalidate this guard if Namecheap changes the header name or semantics.
 
 ## Current public state
 
