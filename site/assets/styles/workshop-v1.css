@@ -63,6 +63,13 @@
 .workshop-privacy-grid article { border-top: 1px solid var(--line); padding-top: 18px; }
 .workshop-privacy-grid h3 { font-size: 1rem; }
 .workshop-privacy-grid p { color: var(--muted); font-size: .83rem; }
+.workshop-identity { border-top: 1px solid var(--line); padding-bottom: 50px; }
+.workshop-identity > p, .workshop-identity details > p { color: var(--muted); font-size: .9rem; max-width: 880px; }
+.workshop-identity details { background: #0a1a28; border: 1px solid var(--line); border-radius: 8px; margin-top: 28px; padding: 5px 26px; }
+.workshop-identity details[open] { padding-bottom: 24px; }
+.workshop-identity details > .workshop-form { margin-block: 24px; }
+.workshop-identity .notice h3 { color: var(--text); }
+.workshop-identity code { overflow-wrap: anywhere; }
 #workshop-board-status { font-size: .77rem; margin-bottom: 20px; padding: 14px 18px; }
 #workshop-updated { color: var(--dim); font-size: .59rem; letter-spacing: .02em; text-transform: none; }
 #workshop-proposal-result h3 { color: var(--text); margin-top: 0; overflow-wrap: anywhere; }
@@ -77,6 +84,8 @@
   .workshop-receipt .button { font-size: .72rem; padding: 12px 14px; }
   .workshop-empty { padding: 26px; }
   .workshop-privacy-grid { gap: 14px; }
+  .workshop-identity details { padding-inline: 18px; }
+  .workshop-identity details .workshop-form { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .workshop-filter { transition: none; }

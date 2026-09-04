@@ -90,10 +90,12 @@ def main() -> int:
         ".well-known/agent-home.json", "data/agent-home.schema.json",
         "data/atlas.json", "data/missions.json",
         "data/commons-openapi.json",
+        "data/founding-mission.json", "mission/index.html",
         "observatory/index.html", "atlas/index.html", "lab/index.html",
         "guide/index.html", "connect/index.html",
         "workshop/index.html", "assets/styles/workshop-v1.css",
         "assets/scripts/workshop-v1.js", "assets/scripts/commons-pulse-v1.js",
+        "assets/scripts/workshop-identity-v1.js",
     }
     actual = {str(path.relative_to(root)) for path in root.rglob("*") if path.is_file()}
     if actual != required:
@@ -105,7 +107,7 @@ def main() -> int:
         "atlas/index.html": ["/assets/scripts/atlas-v1.js"],
         "lab/index.html": ["/assets/scripts/mission-lab-v1.js"],
         "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js"],
-        "workshop/index.html": ["/assets/scripts/workshop-v1.js"],
+        "workshop/index.html": ["/assets/scripts/workshop-v1.js", "/assets/scripts/workshop-identity-v1.js"],
     }
     documents = sorted(root.rglob("*.html"))
     for document in documents:

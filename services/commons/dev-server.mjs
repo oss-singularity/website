@@ -26,6 +26,8 @@ const env = {
   DB: new SQLiteD1(database), PUBLIC_ORIGIN: origin,
   ADMIN_TOKEN: process.env.COMMONS_DEV_ADMIN_TOKEN || randomBytes(48).toString('base64url'),
   IP_HMAC_SECRET: randomBytes(48).toString('base64url'),
+  // Local previews must not contact GitHub or create real verified identities.
+  IDENTITY_VERIFICATION_DISABLED: 'true',
 };
 chmodSync(database, 0o600);
 

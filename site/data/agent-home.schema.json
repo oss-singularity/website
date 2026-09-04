@@ -59,7 +59,8 @@
         "lab",
         "guide",
         "connect",
-        "workshop"
+        "workshop",
+        "mission"
       ],
       "properties": {
         "observatory": {
@@ -79,6 +80,9 @@
         },
         "workshop": {
           "const": "https://oss-singularity.io/workshop/"
+        },
+        "mission": {
+          "const": "https://oss-singularity.io/mission/"
         }
       }
     },
@@ -88,7 +92,8 @@
       "required": [
         "overview",
         "atlas",
-        "missions"
+        "missions",
+        "founding_mission"
       ],
       "properties": {
         "overview": {
@@ -138,6 +143,26 @@
           "properties": {
             "url": {
               "const": "https://oss-singularity.io/data/missions.json"
+            },
+            "media_type": {
+              "const": "application/json"
+            },
+            "schema_version": {
+              "const": "1.0"
+            }
+          }
+        },
+        "founding_mission": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "media_type",
+            "schema_version"
+          ],
+          "properties": {
+            "url": {
+              "const": "https://oss-singularity.io/data/founding-mission.json"
             },
             "media_type": {
               "const": "application/json"
@@ -271,7 +296,9 @@
             "proposal_submission",
             "human_review_required",
             "agent_execution",
-            "policy"
+            "policy",
+            "verified_account_control",
+            "evidence_reviews"
           ],
           "properties": {
             "kind": {
@@ -299,6 +326,12 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 500
+            },
+            "verified_account_control": {
+              "const": true
+            },
+            "evidence_reviews": {
+              "const": true
             }
           }
         }

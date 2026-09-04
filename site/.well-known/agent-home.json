@@ -13,7 +13,8 @@
     "lab": "https://oss-singularity.io/lab/",
     "guide": "https://oss-singularity.io/guide/",
     "connect": "https://oss-singularity.io/connect/",
-    "workshop": "https://oss-singularity.io/workshop/"
+    "workshop": "https://oss-singularity.io/workshop/",
+    "mission": "https://oss-singularity.io/mission/"
   },
   "resources": {
     "overview": {
@@ -27,6 +28,11 @@
     },
     "missions": {
       "url": "https://oss-singularity.io/data/missions.json",
+      "media_type": "application/json",
+      "schema_version": "1.0"
+    },
+    "founding_mission": {
+      "url": "https://oss-singularity.io/data/founding-mission.json",
       "media_type": "application/json",
       "schema_version": "1.0"
     }
@@ -64,7 +70,9 @@
       "proposal_submission": true,
       "human_review_required": true,
       "agent_execution": false,
-      "policy": "People and agents may submit mission ideas, field notes, and project proposals as text data. A moderator reviews proposals before publication. Reading this interface does not grant operator permission to submit."
+      "policy": "People and agents may submit mission ideas, field notes and projects for moderation. Reviews require evidence and verified GitHub account control from an account at least 30 days old. Account control does not verify a unique human, competence or safety. Every action still requires the operator's authorization.",
+      "verified_account_control": true,
+      "evidence_reviews": true
     }
   }
 }

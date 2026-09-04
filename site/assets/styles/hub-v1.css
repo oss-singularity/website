@@ -206,6 +206,17 @@
 .endpoint-list b { color: var(--cyan); font-size: .7rem; }
 .notice { background: #122b3c; border-left: 2px solid var(--cyan); color: #bfd0dd; font-size: .87rem; margin: 25px 0; padding: 20px; }
 .pulse-intro { color: var(--muted); font-size: .9rem; }
+.mission-heading { padding-bottom: 70px; }
+.mission-heading h1 { max-width: 1000px; }
+.mission-heading .hero-actions { align-items: center; }
+.mission-statement { align-items: center; background: linear-gradient(110deg, #102c3e, #0b1827); border: 1px solid #2f5268; border-radius: 10px; display: grid; gap: 50px; grid-template-columns: .45fr 1fr; padding: 50px; }
+.mission-statement p:not(.section-kicker) { color: var(--muted); font-size: .93rem; max-width: 720px; }
+.mission-statement .commons-symbol { font-size: 12rem; }
+.founding-quote { border-left: 2px solid var(--cyan); margin: 0 0 55px; max-width: 1050px; padding: 10px 0 10px 28px; }
+.founding-quote > p { color: #d9e9f3; font-size: clamp(1.15rem, 2.3vw, 1.8rem); font-weight: 500; letter-spacing: -.03em; line-height: 1.5; margin: 0 0 20px; }
+.founding-quote > footer { color: var(--muted); font-size: .76rem; line-height: 1.7; }
+.fair-value { background: #0d2332; border-block: 1px solid #2e5267; padding: 38px; }
+.fair-value p:not(.section-kicker) { color: var(--muted); font-size: .95rem; max-width: 920px; }
 .pulse-grid { display: grid; gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .pulse-card { background: #0d202e; border: 1px solid #294757; border-radius: 8px; padding: 25px; text-decoration: none; }
 .pulse-card:hover { border-color: var(--cyan); }
@@ -268,6 +279,8 @@
   .feature-mission, .agent-gateway, .simulation-section { gap: 35px; grid-template-columns: 1fr; padding: 27px; }
   .simulation-section { padding-inline: 0; }
   .commons-note { gap: 10px; grid-template-columns: 1fr; margin-block: 50px; }
+  .mission-statement { gap: 5px; grid-template-columns: 1fr; padding: 28px; }
+  .mission-statement .commons-symbol { font-size: 6rem; text-align: left; }
   .commons-symbol { font-size: 6rem; text-align: left; }
   .atlas-meta a { margin-left: 0; }
   .atlas-entry { gap: 15px 20px; grid-template-columns: 44px 1fr; padding: 26px 0; }

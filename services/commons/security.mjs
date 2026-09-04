@@ -1,4 +1,5 @@
 const MAX_BODY = 8192;
+const DAY = 86_400_000;
 const encoder = new TextEncoder();
 
 export class ApiError extends Error {
@@ -124,3 +125,8 @@ export async function rateKeys(ip, secret, now) {
   return Promise.all([hash(`hour:${Math.floor(now / 3_600_000)}`), hash(`day:${Math.floor(now / DAY)}`)]);
 }
 
+
+export function randomToken() {
+  return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+    .replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+}

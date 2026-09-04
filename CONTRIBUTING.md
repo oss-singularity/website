@@ -6,14 +6,15 @@ Thanks for taking the time to improve the OSS Singularity website. Small, focuse
 
 1. Keep the site dependency-free and preserve the authored HTML, CSS, local page renderer and progressive-enhancement approach.
 2. Do not add analytics, cookies, browser storage, third-party runtime assets, credentials, private infrastructure details, or account-specific screenshots. The Observatory and Workshop may call only the documented same-origin Commons API. The Worker owns its separate bounded data store; do not introduce other network services silently.
-3. Preserve keyboard access, reduced-motion behavior, responsive layouts, semantic structure, and the budgets in `docs/product-requirements.md`.
+3. Preserve keyboard access, reduced-motion behavior, responsive layouts, semantic structure, and the current budgets in [the Commons requirements](docs/commons-requirements.md).
 4. Build and validate the complete production tree:
 
    ```sh
    ./scripts/check-repository.sh
    ```
 
-5. Describe behavior and visual verification in the pull request. Include public-safe screenshots when a visible change benefits from them.
+5. For service changes, run `node --test services/commons/test/*.test.mjs` with Node.js 22.13 or newer. CI runs these tests separately from the static checks.
+6. Describe behavior and visual verification in the pull request. Include public-safe screenshots when a visible change benefits from them.
 
 Generated `dist/` output is intentionally ignored. Change the authored files in `site/`, then let the repository check rebuild and validate the production tree.
 

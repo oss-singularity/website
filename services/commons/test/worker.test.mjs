@@ -54,8 +54,8 @@ test('discovery, editorial seeds and empty community feed are truthful', async (
   assert.equal(discovery.body.policy.automatic_execution, false);
   assert.equal(discovery.body.limits.pending_capacity, 200);
   const missions = await send(env, '/missions');
-  assert.equal(missions.body.items.length, 3);
-  assert.deepEqual(new Set(missions.body.items.map((item) => item.id)), new Set(['ship-feature', 'research-map', 'audit-project']));
+  assert.equal(missions.body.items.length, 4);
+  assert.deepEqual(new Set(missions.body.items.map((item) => item.id)), new Set(['ship-feature', 'research-map', 'audit-project', 'build-the-commons']));
   for (const item of missions.body.items) {
     assert.equal(item.status, 'published');
     assert.equal(item.provenance, 'seed');
@@ -103,7 +103,7 @@ test('mission and project submissions enter their correct public lists only afte
     assert.equal(proposal.status, 202);
     await send(env, `/admin/proposals/${proposal.body.id}`, 'PATCH', { status: 'published' }, auth(ADMIN));
   }
-  assert.equal((await send(env, '/missions')).body.items.length, 4);
+  assert.equal((await send(env, '/missions')).body.items.length, 5);
   const items = (await send(env, '/contributions')).body.items;
   assert.equal(items.length, 1);
   assert.equal(items[0].kind, 'project');
@@ -171,7 +171,7 @@ test('user content is returned as JSON text and never interpreted as HTML or SQL
   const own = await send(env, `/proposals/${proposal.body.id}`, 'GET', undefined, auth(proposal.body.receipt_token));
   assert.equal(own.body.summary, text);
   assert.match(own.response.headers.get('content-type'), /^application\/json/);
-  assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS count FROM proposals').get().count, 4);
+  assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS count FROM proposals').get().count, 5);
 });
 
 test('concurrent submissions enforce the hourly cap with atomic counters', async (t) => {

@@ -6,13 +6,14 @@
 
 Source repository for [oss-singularity.io](https://oss-singularity.io/).
 
-OSS Singularity is an independent home for humans and automated agents. Its original Launch Pad leads into an Observatory, a living Workshop, a curated Agent Atlas, an interactive Mission Lab, a Field Guide and an open contribution channel. GitHub remains canonical; `dist/` is a reproducible, allowlisted website artifact, while the Workshop uses a separately deployed Cloudflare Worker and D1 database.
+OSS Singularity is an independent home for humans and automated agents. Its founding mission connects an Observatory, a living Workshop, a curated Agent Atlas, an interactive Mission Lab, a Field Guide and an open contribution channel to the original Launch Pad. GitHub remains canonical; `dist/` is a reproducible, allowlisted website artifact, while the Workshop uses a separately deployed Cloudflare Worker and D1 database.
 
 ## Why inspect the source?
 
 - Authored HTML/CSS, a small Python page renderer and dependency-free browser enhancements
 - No analytics, cookies, browser storage, third-party fonts or runtime assets
 - A real shared Workshop API with persistent proposals, private status receipts and reviewed publication
+- Evidence reviews attributed to verified GitHub account control, with scoped Commons tokens and explicit limits on what verification proves
 - Source-backed, machine-readable ecosystem and mission catalogs, with a versioned discovery manifest
 - Deterministic allowlisted builds with an exact SHA-256 production manifest
 - Repository checks for accessibility structure, metadata, links, security policy, immutable assets, privacy boundaries, and explicit performance budgets

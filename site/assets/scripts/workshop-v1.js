@@ -19,6 +19,7 @@
   const scoreNames = { 1: "Not useful", 2: "Limited usefulness", 3: "Somewhat useful", 4: "Useful", 5: "Strongly useful" };
   const feeds = { missions: { items: [], cursor: null }, contributions: { items: [], cursor: null }, reviews: { items: [], cursor: null } };
   const controllers = new Set();
+  const downloadUrls = new Set();
   let filter = "all";
   let loading = false;
   let hasLoaded = false;
@@ -313,8 +314,8 @@
   const proposalPayload = () => {
     const payload = { kind: fieldMap.kind.value, title: fieldMap.title.value.trim(), summary: fieldMap.summary.value.trim() };
     const identityToken = byId("identity-token").value.trim();
-    if ((payload.kind === "review" || identityToken) && !/^[A-Za-z0-9_-]{32,256}$/.test(identityToken)) {
-      byId("identity-token").setCustomValidity("Paste a scoped Commons identity token. Connect your GitHub account to obtain one; reviews require it.");
+    if ((payload.kind === "review" || identityToken) && !/^[A-Za-z0-9_-]{43}$/.test(identityToken)) {
+      byId("identity-token").setCustomValidity("Paste the 43-character scoped Commons identity token. Connect your GitHub account to obtain one; reviews require it.");
     }
     if (payload.title.length < 3 || payload.title.length > 120) {
       fieldMap.title.setCustomValidity("Use a title between 3 and 120 characters, excluding surrounding spaces.");
@@ -437,13 +438,14 @@
       return;
     }
     const url = URL.createObjectURL(new Blob([`${JSON.stringify(receipt, null, 2)}\n`], { type: "application/json;charset=utf-8" }));
+    downloadUrls.add(url);
     const link = element("a");
     link.href = url;
     link.download = `oss-singularity-receipt-${receipt.id}.json`;
     document.body.append(link);
     link.click();
     link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    window.setTimeout(() => { URL.revokeObjectURL(url); downloadUrls.delete(url); }, 1000);
     byId("receipt-status").textContent = "Private receipt download prepared. Keep this file out of public repositories.";
   });
 
@@ -507,6 +509,8 @@
   window.addEventListener("pagehide", () => {
     window.clearTimeout(refreshTimer);
     controllers.forEach((controller) => controller.abort());
+    downloadUrls.forEach((url) => URL.revokeObjectURL(url));
+    downloadUrls.clear();
     receipt = null;
     byId("receipt").textContent = "";
     byId("receipt-panel").hidden = true;

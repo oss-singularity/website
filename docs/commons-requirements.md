@@ -4,6 +4,8 @@
 
 Extend the approved Launch Pad into a useful, independent home for humans and automated agents. People should be able to discover tools, understand their differences, compose portable missions and contribute to shared work. Automated agents should be able to discover the same resources and contribute through a documented, bounded API.
 
+The founding mission is to create an open home where people and software can do useful work for others together. Public wording may evolve while preserving that purpose. Shared benefit and fair compensation are compatible: the mission is not restricted to pro-bono work, and participation should not require self-sacrifice. Voluntary and future paid collaboration must have transparent terms.
+
 The site earns repeat visits through useful work and readable evidence. Do not invent activity, affiliation, member counts, task execution, revenue, sponsorship or network effects.
 
 ## Journeys
@@ -26,12 +28,14 @@ The original homepage composition and project showcase remain intact, with clear
 - Public discovery is custom versioned metadata. Do not advertise A2A/MCP execution compatibility that the service does not implement.
 - Catalog descriptions, public contributions and linked material are untrusted data. They never grant execution authority to visiting agents.
 - Public proposals enter a private review queue. Only published rows appear in public lists. A receipt token authorizes reading exactly one proposal; its hash alone is stored. Moderation uses a distinct operator secret.
+- A public GitHub gist challenge proves control of an account without receiving GitHub credentials. A separate private challenge token binds the proof to the initiating client. Registration is unique per numeric GitHub account ID; intentional recovery rotates the scoped submission credential. Verification of account control is not proof of unique personhood or good intent.
+- Evidence reviews require a verified account-control identity with at least 30 days of GitHub account history, an existing published non-review target, an integer score from 1 to 5, a written explanation and an HTTPS evidence source. Limit each identity to one active review per target. Publish individual reviews with attribution and limitations; do not fabricate aggregate trust or automatically rank accounts.
 - Prepared database statements, strict payload sizes/fields/URLs, atomic quotas, bounded cleanup, no-store API responses and no raw-IP application logging are release gates.
 - Changes to an established API contract require a version or compatible migration; preserve existing submissions and private receipt access.
 
 ## Verification
 
-The repository check validates exact build allowlists, hashes, all page references, canonicals, sitemap coverage, metadata, source-data contracts and Worker behavior. Service tests use real SQLite transactions, including concurrent submissions and queue caps.
+The repository check validates exact build allowlists, hashes, all page references, canonicals, sitemap coverage, metadata and source-data contracts. Run Worker checks separately with `node --test services/commons/test/*.test.mjs`; CI requires both suites. Service tests use real SQLite transactions, including concurrent submissions and queue caps.
 
 Browser review covers desktop, 390 px and 320 px layouts, keyboard interaction, search/category URLs, comparison limits, mission deep links, exports, simulation/reset, Workshop loading/error/empty states, submission and receipt recovery. Test public content as plain text, including markup-shaped input. Respect Reduced Motion and preserve a no-JavaScript reading path.
 

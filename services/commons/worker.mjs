@@ -1,5 +1,5 @@
 import { ApiError, response, invalid, readJson, textField, identifier, digest, bearer, equalHash, rateKeys, requireAdmin } from './security.mjs';
-import { createChallenge, verifyIdentity, getIdentity, authenticateIdentity } from './identity.mjs';
+import { createChallenge, verifyIdentity, getIdentity, authenticateIdentity, cleanupChallenges } from './identity.mjs';
 
 const PREFIX = '/api/v1';
 const DAY = 86_400_000;
@@ -7,7 +7,10 @@ const RETENTION = 30 * DAY;
 const MAX_BODY = 8192;
 const kinds = new Set(['mission', 'field-note', 'project', 'review']);
 const statuses = new Set(['pending', 'published', 'rejected']);
-const fields = 'id, kind, title, summary, url, mission_id, target_id, score, status, provenance, created_at, updated_at, published_at';
+const fields = `id, kind, title, summary, url, mission_id, target_id, score, identity_id, status, provenance, created_at, updated_at, published_at,
+  (SELECT github_id FROM identities WHERE identities.id = proposals.identity_id) AS author_github_id,
+  (SELECT github_login FROM identities WHERE identities.id = proposals.identity_id) AS author_github_login,
+  (SELECT verified_at FROM identities WHERE identities.id = proposals.identity_id) AS author_verified_at`;
 
 export function safeUrl(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -29,8 +32,14 @@ export function safeUrl(value) {
 }
 
 function publicRow(row) {
+  const { author_github_id, author_github_login, author_verified_at, ...item } = row;
   return {
-    ...row,
+    ...item,
+    author: item.identity_id && author_github_id ? {
+      identity_id: item.identity_id, github_id: author_github_id, github_login: author_github_login,
+      github_url: `https://github.com/${author_github_login}`, verification: 'github-account-control',
+      verified_at: new Date(author_verified_at).toISOString(),
+    } : null,
     created_at: new Date(row.created_at).toISOString(),
     updated_at: new Date(row.updated_at).toISOString(),
     published_at: row.published_at === null ? null : new Date(row.published_at).toISOString(),
@@ -63,6 +72,7 @@ async function submit(request, env, now) {
   const mission = body.mission_id === undefined || body.mission_id === null || body.mission_id === '' ? null : identifier(body.mission_id, 'mission_id');
   let target = null;
   let score = null;
+  const identity = body.kind === 'review' || request.headers.has('authorization') ? await authenticateIdentity(request, env, now, body.kind === 'review') : null;
   if (body.kind === 'review') {
     target = identifier(body.target_id, 'target_id');
     if (!Number.isInteger(body.score) || body.score < 1 || body.score > 5) invalid('score must be an integer from 1 to 5.', 'score');
@@ -80,6 +90,11 @@ async function submit(request, env, now) {
     invalid('mission_id must identify a published mission.', 'mission_id');
   }
   await cleanup(env.DB, now, 100);
+  if (target) {
+    // Expired reviews are no longer active even if the bounded general cleanup
+    // has a backlog. Remove only this identity's expired pending target review.
+    await env.DB.batch([env.DB.prepare("DELETE FROM proposals WHERE kind = 'review' AND identity_id = ? AND target_id = ? AND status = 'pending' AND created_at <= ?").bind(identity.id, target, now - RETENTION)]);
+  }
   const [hour, day] = await rateKeys(ip, env.IP_HMAC_SECRET, now);
   const id = crypto.randomUUID();
   const token = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
@@ -90,22 +105,30 @@ async function submit(request, env, now) {
   const results = await env.DB.batch([
     env.DB.prepare(`INSERT OR IGNORE INTO rate_limits (bucket, count, expires_at) SELECT ?, 0, ?
       WHERE (SELECT COUNT(*) FROM proposals WHERE status = 'pending') < 200
-      AND (? IS NULL OR EXISTS (SELECT 1 FROM proposals WHERE id = ? AND kind != 'review' AND status = 'published'))`).bind(hour, now + DAY, target, target),
+      AND (? IS NULL OR EXISTS (SELECT 1 FROM proposals WHERE id = ? AND kind != 'review' AND status = 'published'))
+      AND (? IS NULL OR NOT EXISTS (SELECT 1 FROM proposals WHERE kind = 'review' AND identity_id = ? AND target_id = ? AND status IN ('pending', 'published')))`)
+      .bind(hour, now + DAY, target, target, target, identity?.id || null, target),
     env.DB.prepare(`INSERT OR IGNORE INTO rate_limits (bucket, count, expires_at) SELECT ?, 0, ?
       WHERE (SELECT COUNT(*) FROM proposals WHERE status = 'pending') < 200
-      AND (? IS NULL OR EXISTS (SELECT 1 FROM proposals WHERE id = ? AND kind != 'review' AND status = 'published'))`).bind(day, now + DAY, target, target),
-    env.DB.prepare(`INSERT INTO proposals (id, kind, title, summary, url, mission_id, target_id, score, status, provenance, receipt_hash, created_at, updated_at)
-      SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'community', ?, ?, ?
+      AND (? IS NULL OR EXISTS (SELECT 1 FROM proposals WHERE id = ? AND kind != 'review' AND status = 'published'))
+      AND (? IS NULL OR NOT EXISTS (SELECT 1 FROM proposals WHERE kind = 'review' AND identity_id = ? AND target_id = ? AND status IN ('pending', 'published')))`)
+      .bind(day, now + DAY, target, target, target, identity?.id || null, target),
+    env.DB.prepare(`INSERT INTO proposals (id, kind, title, summary, url, mission_id, target_id, score, identity_id, status, provenance, receipt_hash, created_at, updated_at)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'community', ?, ?, ?
       WHERE (SELECT count FROM rate_limits WHERE bucket = ?) < 5
       AND (SELECT count FROM rate_limits WHERE bucket = ?) < 50
       AND (SELECT COUNT(*) FROM proposals WHERE status = 'pending') < 200
       AND (? IS NULL OR EXISTS (SELECT 1 FROM proposals WHERE id = ? AND kind = 'mission' AND status = 'published'))
-      AND (? IS NULL OR EXISTS (SELECT 1 FROM proposals WHERE id = ? AND kind != 'review' AND status = 'published'))`)
-      .bind(id, body.kind, title, summary, url, mission, target, score, receiptHash, now, now, hour, day, mission, mission, target, target),
+      AND (? IS NULL OR EXISTS (SELECT 1 FROM proposals WHERE id = ? AND kind != 'review' AND status = 'published'))
+      AND (? IS NULL OR NOT EXISTS (SELECT 1 FROM proposals WHERE kind = 'review' AND identity_id = ? AND target_id = ? AND status IN ('pending', 'published')))`)
+      .bind(id, body.kind, title, summary, url, mission, target, score, identity?.id || null, receiptHash, now, now, hour, day, mission, mission, target, target, target, identity?.id || null, target),
     env.DB.prepare('UPDATE rate_limits SET count = count + 1 WHERE bucket IN (?, ?) AND EXISTS (SELECT 1 FROM proposals WHERE id = ?)').bind(hour, day, id),
     env.DB.prepare('SELECT bucket, count FROM rate_limits WHERE bucket IN (?, ?)').bind(hour, day),
   ]);
   if (results[2].meta.changes !== 1) {
+    if (target && await env.DB.prepare("SELECT id FROM proposals WHERE kind = 'review' AND identity_id = ? AND target_id = ? AND status IN ('pending', 'published')").bind(identity.id, target).first()) {
+      throw new ApiError(409, 'duplicate_review', 'This identity already has an active pending or published review for this target.');
+    }
     const counts = new Map(results[4].results.map((row) => [row.bucket, row.count]));
     if (counts.get(hour) >= 5 || counts.get(day) >= 50) {
       const period = counts.get(day) >= 50 ? DAY : 3_600_000;
@@ -162,6 +185,7 @@ async function list(url, env, mode = 'contributions') {
     if (reviewList) {
       // A review's target may have been withdrawn after the review was approved.
       where.push("EXISTS (SELECT 1 FROM proposals AS target WHERE target.id = proposals.target_id AND target.kind != 'review' AND target.status = 'published')");
+      where.push('EXISTS (SELECT 1 FROM identities WHERE identities.id = proposals.identity_id)');
       if (params.has('target_id')) {
         where.push('target_id = ?'); values.push(identifier(params.get('target_id'), 'target_id'));
       }
@@ -204,12 +228,16 @@ async function moderate(request, env, id, now) {
     AND (status = 'published' OR (status = 'pending' AND created_at > ?) OR (status = 'rejected' AND updated_at > ?))
     AND (? != 'published' OR kind != 'review' OR EXISTS (
       SELECT 1 FROM proposals AS target WHERE target.id = proposals.target_id AND target.kind != 'review' AND target.status = 'published'))
-    RETURNING ${fields}`).bind(body.status, now, body.status, now, id, now - RETENTION, now - RETENTION, body.status).first();
+    AND (? != 'published' OR kind != 'review' OR (
+      EXISTS (SELECT 1 FROM identities WHERE identities.id = proposals.identity_id AND github_created_at <= ?)
+      AND NOT EXISTS (SELECT 1 FROM proposals AS other WHERE other.id != proposals.id AND other.kind = 'review'
+        AND other.identity_id = proposals.identity_id AND other.target_id = proposals.target_id AND other.status IN ('pending', 'published'))))
+    RETURNING ${fields}`).bind(body.status, now, body.status, now, id, now - RETENTION, now - RETENTION, body.status, body.status, now - RETENTION).first();
   if (!result) throw new ApiError(404, 'not_found', 'No moderatable proposal was found.');
   return response(publicRow(result));
 }
 
-function discovery() {
+function discovery(env) {
   return response({
     name: 'OSS Singularity Commons', version: '1.0',
     openapi: '/data/commons-openapi.json', home: '/workshop/',
@@ -217,6 +245,7 @@ function discovery() {
     endpoints: {
       missions: `${PREFIX}/missions`, contributions: `${PREFIX}/contributions`, reviews: `${PREFIX}/reviews`,
       proposals: `${PREFIX}/proposals`, proposal_status: `${PREFIX}/proposals/{id}`,
+      identity_challenges: `${PREFIX}/identity-challenges`, identities: `${PREFIX}/identities`, identity: `${PREFIX}/identities/{id}`,
     },
     limits: { body_bytes: MAX_BODY, title: { min: 3, max: 120 }, summary: { min: 20, max: 2000 }, url_max: 2048, review_score: { min: 1, max: 5 }, submissions_per_hour: 5, submissions_per_day: 50, pending_capacity: 200 },
     privacy: {
@@ -225,7 +254,14 @@ function discovery() {
       retention: 'Pending proposals expire after 30 days; rejected proposals expire 30 days after the latest moderation. Published content remains until removed. Expired content is inaccessible before physical cleanup completes.',
       provider: 'Cloudflare processes requests as hosting provider; its infrastructure and backup retention are separate from application retention.',
     },
-    policy: { publishing: 'moderator approval required', credentials: 'Bearer receipt for proposal status; separate private admin token for moderation', cors: 'same-origin browser access; external non-browser API clients may omit Origin', automatic_execution: false, reviews: 'Individual reviews require a published non-review target, a 1–5 score and an HTTPS evidence URL. Moderation does not verify reviewer identity. No identity-based reputation, aggregate rating or Sybil resistance is claimed.' },
+    policy: { publishing: 'moderator approval required', credentials: 'Separate Bearer scopes: challenge token for enrollment, identity API token for reviews and optional attributed submissions, proposal receipt for status, private admin token for moderation.', cors: 'same-origin browser access; external non-browser API clients may omit Origin', automatic_execution: false, reviews: 'Reviews require verified GitHub account control, an account at least 30 days old, a published non-review target, a 1–5 score and an HTTPS evidence URL. One active review per identity and target. This does not verify a unique human, competence or safety; no aggregate rating or Sybil resistance is claimed.' },
+    identity: {
+      method: 'public-github-gist-proof', proof_filename: 'oss-singularity-identity.json',
+      challenge_seconds: 600, challenges_per_hour: 3, pending_capacity: 200, verification_attempts: 3,
+      review_account_age_days: 30, verification: 'github-account-control',
+      instructions: 'Publish only the proof object. Keep the separate challenge_token private and use it as Bearer for enrollment. Never send GitHub credentials. Existing identity token rotation requires fresh proof and explicit rotate: true.',
+    },
+    ...(typeof env.RELEASE_SHA === 'string' && /^[a-f0-9]{40}$/.test(env.RELEASE_SHA) ? { release_sha: env.RELEASE_SHA } : {}),
   });
 }
 
@@ -242,8 +278,9 @@ export default {
       const path = url.pathname.replace(/\/$/, '');
       const ownMatch = path.match(/^\/api\/v1\/proposals\/([a-z0-9][a-z0-9-]{0,79})$/);
       const adminMatch = path.match(/^\/api\/v1\/admin\/proposals\/([a-z0-9][a-z0-9-]{0,79})$/);
+      const identityMatch = path.match(/^\/api\/v1\/identities\/([a-z0-9][a-z0-9-]{0,79})$/);
       const isAdmin = path === `${PREFIX}/admin/proposals` || Boolean(adminMatch);
-      const methods = path === PREFIX || path === `${PREFIX}/missions` || path === `${PREFIX}/contributions` || path === `${PREFIX}/reviews` || ownMatch || path === `${PREFIX}/admin/proposals` ? ['GET'] : path === `${PREFIX}/proposals` ? ['POST'] : adminMatch ? ['PATCH'] : null;
+      const methods = path === PREFIX || path === `${PREFIX}/missions` || path === `${PREFIX}/contributions` || path === `${PREFIX}/reviews` || ownMatch || identityMatch || path === `${PREFIX}/admin/proposals` ? ['GET'] : [`${PREFIX}/proposals`, `${PREFIX}/identity-challenges`, `${PREFIX}/identities`].includes(path) ? ['POST'] : adminMatch ? ['PATCH'] : null;
       if (!methods) throw new ApiError(404, 'not_found', 'API endpoint not found.');
       if (request.method === 'OPTIONS') {
         if (suppliedOrigin !== origin) throw new ApiError(403, 'origin_rejected', 'OPTIONS requires the configured browser origin.');
@@ -252,7 +289,7 @@ export default {
       if (!methods.includes(request.method)) return response({ error: { code: 'method_not_allowed', message: 'This method is not supported.' } }, 405, { Allow: [...methods, 'OPTIONS'].join(', ') });
       if (path === PREFIX) {
         if (url.search) invalid('Discovery does not accept query parameters.');
-        return discovery();
+        return discovery(env);
       }
       if (!env.DB) throw new ApiError(503, 'service_unavailable', 'The workshop is temporarily unavailable.');
       if (isAdmin) await requireAdmin(request, env);
@@ -262,6 +299,9 @@ export default {
       if (path === `${PREFIX}/reviews`) return await list(url, env, 'reviews');
       if (path === `${PREFIX}/admin/proposals`) return await list(url, env, 'admin');
       if (url.search) invalid('This endpoint does not accept query parameters.');
+      if (path === `${PREFIX}/identity-challenges`) return await createChallenge(request, env, now);
+      if (path === `${PREFIX}/identities`) return await verifyIdentity(request, env, now);
+      if (identityMatch) return await getIdentity(env, identityMatch[1], now);
       if (path === `${PREFIX}/proposals`) return await submit(request, env, now);
       if (ownMatch) return await ownProposal(request, env, ownMatch[1], now);
       return await moderate(request, env, adminMatch[1], now);
@@ -278,5 +318,6 @@ export default {
   },
   async scheduled(_event, env) {
     await cleanup(env.DB);
+    await cleanupChallenges(env.DB, Date.now());
   },
 };

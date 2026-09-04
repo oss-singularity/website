@@ -209,7 +209,8 @@ def validate_openapi(spec: dict) -> None:
             "Commons OpenAPI must target only the canonical origin")
     operations = {
         "/api/v1": "get", "/api/v1/missions": "get", "/api/v1/contributions": "get",
-        "/api/v1/proposals": "post", "/api/v1/proposals/{id}": "get",
+        "/api/v1/reviews": "get", "/api/v1/proposals": "post", "/api/v1/proposals/{id}": "get",
+        "/api/v1/identity-challenges": "post", "/api/v1/identities": "post", "/api/v1/identities/{id}": "get",
     }
     require(set(spec.get("paths", {})) == set(operations), "Commons OpenAPI public route set differs")
     require(spec.get("security") == [], "Commons public reads and submission must not claim account authentication")
@@ -220,7 +221,11 @@ def validate_openapi(spec: dict) -> None:
         name = operation.get("operationId")
         require(isinstance(name, str) and name not in names, f"Commons OpenAPI operationId missing or repeated: {path}")
         names.add(name)
-        expected_security = [{"ReceiptBearer": []}] if path.endswith("/{id}") else []
+        expected_security = {
+            "/api/v1/proposals/{id}": [{"ReceiptBearer": []}],
+            "/api/v1/proposals": [{}, {"IdentityBearer": []}],
+            "/api/v1/identities": [{"ChallengeBearer": []}],
+        }.get(path, [])
         require(operation.get("security", []) == expected_security,
                 f"Commons OpenAPI receipt security differs: {path}")
     components = spec.get("components", {})
@@ -231,7 +236,7 @@ def validate_openapi(spec: dict) -> None:
     request = schemas.get("ProposalRequest", {})
     require(request.get("required") == ["kind", "title", "summary"] and request.get("additionalProperties") is False,
             "Commons proposal request contract differs")
-    require(set(request.get("properties", {})) == {"kind", "title", "summary", "url", "mission_id"},
+    require(set(request.get("properties", {})) == {"kind", "title", "summary", "url", "mission_id", "target_id", "score"},
             "Commons proposal request declares unsupported fields")
     receipt = schemas.get("ProposalReceipt", {})
     require(set(receipt.get("required", [])) == {"id", "status", "poll_url", "receipt_token"},
@@ -240,6 +245,16 @@ def validate_openapi(spec: dict) -> None:
             "Commons submissions must begin pending")
     require("receipt_hash" not in schemas.get("Proposal", {}).get("properties", {}),
             "Commons OpenAPI must not expose stored receipt hashes")
+    for name in ("IdentityBearer", "ChallengeBearer"):
+        credential = components.get("securitySchemes", {}).get(name, {})
+        require(credential.get("type") == "http" and credential.get("scheme") == "bearer",
+                f"Commons {name} must use a distinct HTTP Bearer scope")
+    require("challenge_token" in schemas.get("IdentityChallenge", {}).get("required", []),
+            "Commons enrollment needs a private challenge token")
+    require(set(schemas.get("ChallengeProof", {}).get("properties", {})) == {"network", "challenge_id", "nonce"},
+            "Commons public proof must not contain a private token")
+    require(set(schemas.get("Identity", {}).get("properties", {})).isdisjoint({"token_hash", "api_token", "challenge_token"}),
+            "Commons public identities must not expose credentials")
 
     def references(value: object) -> None:
         if isinstance(value, dict):
@@ -260,6 +275,33 @@ def validate_openapi(spec: dict) -> None:
                 references(child)
 
     references(spec)
+
+
+def validate_founding_mission(value: dict) -> None:
+    fields(value, {"schema_version", "id", "title", "status", "founding_statement", "summary", "homepage", "source",
+                   "updated", "participants", "value_principle", "outcomes", "first_contributions", "participation_url", "api", "trust_boundary"}, "founding mission")
+    require(value["schema_version"] == "1.0" and value["id"] == "build-the-commons" and value["status"] == "open",
+            "founding mission contract differs")
+    calendar_date(value["updated"], "founding mission.updated")
+    for name in ("title", "summary", "value_principle", "trust_boundary"):
+        text_field(value[name], f"founding mission.{name}", 1000)
+    fields(value["founding_statement"], {"de", "en"}, "founding statement")
+    for language, statement in value["founding_statement"].items():
+        text_field(statement, f"founding statement.{language}")
+    for name in ("participants", "outcomes"):
+        string_array(value[name], f"founding mission.{name}")
+    require(value["homepage"] == ORIGIN + "/mission/" and value["participation_url"] == ORIGIN + "/workshop/" and value["api"] == ORIGIN + "/api/v1",
+            "founding mission routes differ")
+    https_url(value["source"], "founding mission.source")
+    require(isinstance(value["first_contributions"], list) and len(value["first_contributions"]) == 4,
+            "founding mission must describe four initial contribution types")
+    kinds = set()
+    for contribution in value["first_contributions"]:
+        fields(contribution, {"kind", "task"}, "founding contribution")
+        text_field(contribution["task"], "founding contribution.task")
+        require(contribution["kind"] in {"mission", "field-note", "project", "review"}, "unsupported founding contribution kind")
+        kinds.add(contribution["kind"])
+    require(len(kinds) == 4, "founding contribution kinds must be distinct")
 
 
 def check(root: Path) -> tuple[int, int]:
@@ -284,6 +326,7 @@ def check(root: Path) -> tuple[int, int]:
     atlas = read_json(local_target(root, manifest["resources"]["atlas"]["url"]))
     missions = read_json(local_target(root, manifest["resources"]["missions"]["url"]))
     validate_openapi(read_json(local_target(root, workshop["openapi"])))
+    validate_founding_mission(read_json(local_target(root, manifest["resources"]["founding_mission"]["url"])))
     return validate_atlas(atlas), validate_missions(missions)
 
 
@@ -292,6 +335,7 @@ def self_test() -> int:
     manifest = read_json(source / ".well-known/agent-home.json")
     schema = read_json(source / "data/agent-home.schema.json")
     openapi = read_json(source / "data/commons-openapi.json")
+    founding = read_json(source / "data/founding-mission.json")
     today = date.today().isoformat()
     atlas = {"schema_version": "1.0", "updated": today, "entries": [{
         "id": "example-agent", "name": "Example", "category": "coding", "summary": "An example tool.",
@@ -306,6 +350,7 @@ def self_test() -> int:
     validate_atlas(atlas)
     validate_missions(missions)
     validate_openapi(openapi)
+    validate_founding_mission(founding)
     cases = 0
 
     def rejected(operation) -> None:
@@ -346,6 +391,15 @@ def self_test() -> int:
     invalid = copy.deepcopy(openapi)
     invalid["paths"]["/api/v1"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"] = "https://example.org/schema"
     rejected(lambda: validate_openapi(invalid))
+    invalid = copy.deepcopy(openapi)
+    invalid["paths"]["/api/v1/identities"]["post"]["security"] = []
+    rejected(lambda: validate_openapi(invalid))
+    invalid = copy.deepcopy(openapi)
+    invalid["components"]["schemas"]["ChallengeProof"]["properties"]["challenge_token"] = {"type": "string"}
+    rejected(lambda: validate_openapi(invalid))
+    invalid = copy.deepcopy(founding)
+    invalid["api"] = ORIGIN + "/api/unimplemented"
+    rejected(lambda: validate_founding_mission(invalid))
     for key, value in (("source_url", "http://example.org/source"), ("source_url", "https://token:secret@example.org/"),
                        ("source_url", "https://127.0.0.1/"), ("source_url", "https://example.org\\@other.org/"),
                        ("category", "unknown"), ("reviewed", "2026-02-30"), ("reviewed", "9999-01-01"),
