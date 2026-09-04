@@ -24,7 +24,8 @@ mkdir -p \
   "$output/assets/projects" \
   "$output/assets/scripts" \
   "$output/assets/social" \
-  "$output/assets/styles"
+  "$output/assets/styles" \
+  "$output/data"
 
 copy_file() {
   source_path=$1
@@ -50,6 +51,19 @@ copy_file assets/projects/nemo-action-bar.webp assets/projects/nemo-action-bar.w
 copy_file assets/scripts/reactive-field-v2.js assets/scripts/reactive-field-v2.js
 copy_file assets/social/oss-singularity-social-preview.png assets/social/oss-singularity-social-preview.png
 copy_file assets/styles/site-v2.css assets/styles/site-v2.css
+copy_file assets/styles/hub-v1.css assets/styles/hub-v1.css
+copy_file assets/styles/workshop-v1.css assets/styles/workshop-v1.css
+copy_file assets/scripts/workshop-v1.js assets/scripts/workshop-v1.js
+copy_file assets/scripts/commons-pulse-v1.js assets/scripts/commons-pulse-v1.js
+copy_file assets/scripts/atlas-v1.js assets/scripts/atlas-v1.js
+copy_file assets/scripts/mission-lab-v1.js assets/scripts/mission-lab-v1.js
+copy_file llms.txt llms.txt
+copy_file .well-known/agent-home.json .well-known/agent-home.json
+copy_file data/agent-home.schema.json data/agent-home.schema.json
+copy_file data/atlas.json data/atlas.json
+copy_file data/missions.json data/missions.json
+copy_file data/commons-openapi.json data/commons-openapi.json
+python3 "$repo_root/scripts/build-hub.py" "$output"
 
 (
   cd "$output"

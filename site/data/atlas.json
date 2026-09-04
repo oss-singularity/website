@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0",
+  "updated": "2026-09-05",
+  "entries": [
+    {
+      "id": "aider",
+      "name": "Aider",
+      "category": "coding",
+      "summary": "Terminal pair programming with codebase maps, Git integration and support for cloud or local models.",
+      "use_case": "Make a focused change in an existing repository and review it with familiar Git tools.",
+      "website": "https://aider.chat/",
+      "source_url": "https://github.com/Aider-AI/aider",
+      "license": "Apache-2.0",
+      "reviewed": "2026-09-05",
+      "tags": ["CLI", "Git", "pair programming"]
+    },
+    {
+      "id": "cline",
+      "name": "Cline",
+      "category": "coding",
+      "summary": "Coding agent for VS Code and the terminal, with reviewable edits, command execution and MCP tools.",
+      "use_case": "Work through a code change in your editor, inspecting the agent's edits and actions.",
+      "website": "https://cline.bot/",
+      "source_url": "https://github.com/cline/cline",
+      "license": "Apache-2.0 (core)",
+      "reviewed": "2026-09-05",
+      "tags": ["IDE", "CLI", "MCP"]
+    },
+    {
+      "id": "goose",
+      "name": "goose",
+      "category": "coding",
+      "summary": "An extensible agent for coding and everyday workflows, available as a desktop app, CLI and API.",
+      "use_case": "Connect tools through MCP and work through development, research or data tasks on your machine.",
+      "website": "https://goose-docs.ai/",
+      "source_url": "https://github.com/aaif-goose/goose",
+      "license": "Apache-2.0",
+      "reviewed": "2026-09-05",
+      "tags": ["desktop", "CLI", "MCP"]
+    },
+    {
+      "id": "opencode",
+      "name": "OpenCode",
+      "category": "coding",
+      "summary": "A coding agent with a terminal interface and separate modes for planning and making changes.",
+      "use_case": "Explore an unfamiliar repository in plan mode, then switch to implementing a change.",
+      "website": "https://opencode.ai/",
+      "source_url": "https://github.com/anomalyco/opencode",
+      "license": "MIT",
+      "reviewed": "2026-09-05",
+      "tags": ["CLI", "planning", "subagents"]
+    },
+    {
+      "id": "openhands",
+      "name": "OpenHands",
+      "category": "coding",
+      "summary": "Agent Canvas provides a self-hosted control center for coding agents across local, container and remote backends.",
+      "use_case": "Manage coding conversations and repeatable automations from one developer interface.",
+      "website": "https://www.openhands.dev/",
+      "source_url": "https://github.com/OpenHands/OpenHands",
+      "license": "MIT (Agent Canvas)",
+      "reviewed": "2026-09-05",
+      "tags": ["self-hosted", "automation", "ACP"]
+    },
+    {
+      "id": "qwen-code",
+      "name": "Qwen Code",
+      "category": "coding",
+      "summary": "A terminal coding agent from the Qwen team, with multiple model-provider APIs, subagents and MCP support.",
+      "use_case": "Run an interactive coding session or a headless task using a compatible hosted or local model.",
+      "website": "https://qwenlm.github.io/qwen-code-docs/en/users/overview",
+      "source_url": "https://github.com/QwenLM/qwen-code",
+      "license": "Apache-2.0",
+      "reviewed": "2026-09-05",
+      "tags": ["CLI", "headless", "MCP"]
+    },
+    {
+      "id": "crewai",
+      "name": "CrewAI",
+      "category": "frameworks",
+      "summary": "A Python framework combining agents with defined roles and event-driven workflows through Crews and Flows.",
+      "use_case": "Build a workflow where specialized agents research, draft and review a result in defined stages.",
+      "website": "https://docs.crewai.com/",
+      "source_url": "https://github.com/crewAIInc/crewAI",
+      "license": "MIT (framework)",
+      "reviewed": "2026-09-05",
+      "tags": ["Python", "multi-agent", "workflows"]
+    },
+    {
+      "id": "langgraph",
+      "name": "LangGraph",
+      "category": "frameworks",
+      "summary": "Infrastructure for stateful agent workflows, with persistence, resumable execution and human review points.",
+      "use_case": "Build a multi-step agent that can pause for a decision and resume from saved state.",
+      "website": "https://docs.langchain.com/oss/python/langgraph/",
+      "source_url": "https://github.com/langchain-ai/langgraph",
+      "license": "MIT (library)",
+      "reviewed": "2026-09-05",
+      "tags": ["state", "workflows", "human review"]
+    },
+    {
+      "id": "smolagents",
+      "name": "smolagents",
+      "category": "frameworks",
+      "summary": "A compact Python agent library from Hugging Face, including agents that express tool actions as executable code.",
+      "use_case": "Prototype an agent with a small set of tools and choose an appropriate execution sandbox.",
+      "website": "https://huggingface.co/docs/smolagents/",
+      "source_url": "https://github.com/huggingface/smolagents",
+      "license": "Apache-2.0",
+      "reviewed": "2026-09-05",
+      "tags": ["Python", "code agents", "tools"]
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "category": "local",
+      "summary": "A model runtime with a CLI, model management and an HTTP API for connecting applications to language models.",
+      "use_case": "Serve a compatible model locally and connect an agent or application to its API.",
+      "website": "https://ollama.com/",
+      "source_url": "https://github.com/ollama/ollama",
+      "license": "MIT (runtime)",
+      "reviewed": "2026-09-05",
+      "tags": ["local models", "API", "runtime"]
+    },
+    {
+      "id": "llama-cpp",
+      "name": "llama.cpp",
+      "category": "local",
+      "summary": "A C/C++ inference engine with quantized models and a range of CPU and GPU backends.",
+      "use_case": "Run a compatible model on your own hardware and tune the inference setup to fit its resources.",
+      "website": "https://llama.app/",
+      "source_url": "https://github.com/ggml-org/llama.cpp",
+      "license": "MIT (engine)",
+      "reviewed": "2026-09-05",
+      "tags": ["C/C++", "inference", "quantization"]
+    },
+    {
+      "id": "mcp",
+      "name": "Model Context Protocol",
+      "category": "protocols",
+      "summary": "An open standard for connecting AI applications to external tools, data sources and workflows.",
+      "use_case": "Expose a tool or data source through a shared client-server interface that compatible agents can use.",
+      "website": "https://modelcontextprotocol.io/",
+      "source_url": "https://github.com/modelcontextprotocol/modelcontextprotocol",
+      "license": "MIT (specification repo)",
+      "reviewed": "2026-09-05",
+      "tags": ["MCP", "tools", "interoperability"]
+    },
+    {
+      "id": "a2a",
+      "name": "Agent2Agent",
+      "category": "protocols",
+      "summary": "An open protocol for independent agent applications to discover capabilities and collaborate across systems.",
+      "use_case": "Connect agents built with different frameworks without exposing all of their internal tools or state.",
+      "website": "https://a2a-protocol.org/",
+      "source_url": "https://github.com/a2aproject/A2A",
+      "license": "Apache-2.0 (protocol repo)",
+      "reviewed": "2026-09-05",
+      "tags": ["A2A", "agent discovery", "interoperability"]
+    }
+  ]
+}

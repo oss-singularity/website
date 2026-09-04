@@ -1,6 +1,7 @@
 Options -Indexes
 DirectoryIndex index.html
 ErrorDocument 404 /404.html
+AddType application/json .json
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -10,7 +11,7 @@ ErrorDocument 404 /404.html
 </IfModule>
 
 <IfModule mod_headers.c>
-  Header always set Content-Security-Policy "default-src 'self'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self'; upgrade-insecure-requests"
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'none'; connect-src 'self'; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self'; upgrade-insecure-requests"
   Header always set Cross-Origin-Opener-Policy "same-origin"
   Header always set Cross-Origin-Resource-Policy "same-origin"
   Header always set Permissions-Policy "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
@@ -25,7 +26,7 @@ ErrorDocument 404 /404.html
   <FilesMatch "\.(?:css|js|svg|webp)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
-  <FilesMatch "^(?:robots\.txt|sitemap\.xml|site\.webmanifest)$">
+  <FilesMatch "^(?:robots\.txt|sitemap\.xml|site\.webmanifest|llms\.txt|.*\.json)$">
     Header set Cache-Control "public, max-age=3600"
   </FilesMatch>
 </IfModule>

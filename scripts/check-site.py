@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sys
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
@@ -55,7 +56,9 @@ def local_target(root: Path, document: Path, value: str) -> Path | None:
     if parsed.scheme or parsed.netloc or value.startswith(("mailto:", "tel:")):
         return None
     path = parsed.path
-    if not path or path == "/":
+    if not path:
+        return document
+    if path == "/":
         return root / "index.html"
     if path.startswith("/"):
         target = root / path.removeprefix("/")
@@ -82,31 +85,58 @@ def main() -> int:
         "assets/scripts/reactive-field-v2.js",
         "assets/social/oss-singularity-social-preview.png",
         "assets/styles/site-v2.css",
+        "assets/styles/hub-v1.css", "assets/scripts/atlas-v1.js",
+        "assets/scripts/mission-lab-v1.js", "llms.txt",
+        ".well-known/agent-home.json", "data/agent-home.schema.json",
+        "data/atlas.json", "data/missions.json",
+        "data/commons-openapi.json",
+        "observatory/index.html", "atlas/index.html", "lab/index.html",
+        "guide/index.html", "connect/index.html",
+        "workshop/index.html", "assets/styles/workshop-v1.css",
+        "assets/scripts/workshop-v1.js", "assets/scripts/commons-pulse-v1.js",
     }
     actual = {str(path.relative_to(root)) for path in root.rglob("*") if path.is_file()}
     if actual != required:
         fail(f"build allowlist mismatch: missing={sorted(required - actual)} extra={sorted(actual - required)}")
 
     html_bytes = 0
-    for document in (root / "index.html", root / "404.html"):
+    script_allowlist = {
+        "index.html": ["/assets/scripts/reactive-field-v2.js"],
+        "atlas/index.html": ["/assets/scripts/atlas-v1.js"],
+        "lab/index.html": ["/assets/scripts/mission-lab-v1.js"],
+        "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js"],
+        "workshop/index.html": ["/assets/scripts/workshop-v1.js"],
+    }
+    documents = sorted(root.rglob("*.html"))
+    for document in documents:
+        relative = str(document.relative_to(root))
         parser = Document()
         text = document.read_text(encoding="utf-8")
         parser.feed(text)
         html_bytes += len(text.encode("utf-8"))
+        if len(text.encode("utf-8")) > 35_000:
+            fail(f"per-page HTML budget exceeded: {relative}")
         if parser.html_lang != "en":
             fail(f"{document.name} must declare lang=en")
         if not parser.title.strip():
             fail(f"{document.name} has no title")
         if parser.h1_count != 1:
             fail(f"{document.name} must contain exactly one h1")
-        expected_scripts = 1 if document.name == "index.html" else 0
-        if parser.scripts != expected_scripts:
-            fail(f"{document.name} must contain {expected_scripts} script elements")
+        scripts = [attrs.get("src") for tag, attrs in parser.attrs if tag == "script"]
+        if scripts != script_allowlist.get(relative, []):
+            fail(f"unexpected scripts in {relative}: {scripts}")
+        if relative != "404.html":
+            suffix = "/" if relative == "index.html" else "/" + relative.removesuffix("index.html")
+            canonical = "https://oss-singularity.io" + suffix
+            if not any(tag == "link" and attrs.get("rel") == "canonical" and attrs.get("href") == canonical for tag, attrs in parser.attrs):
+                fail(f"incorrect canonical in {relative}")
         if len(parser.ids) != len(set(parser.ids)):
             fail(f"{document.name} contains duplicate ids")
 
         ids = set(parser.ids)
         for tag, attrs in parser.attrs:
+            if any(key.startswith("on") for key in attrs) or "style" in attrs:
+                fail(f"inline executable/style content in {relative}")
             if tag == "img":
                 if "alt" not in attrs:
                     fail(f"image without alt in {document.name}")
@@ -117,11 +147,17 @@ def main() -> int:
                 if not value:
                     continue
                 target = local_target(root, document, value)
-                if target is not None and not target.exists():
+                live_api_routes = {"/api/v1", "/api/v1/missions", "/api/v1/contributions"}
+                if target is not None and not target.exists() and urlsplit(value).path not in live_api_routes:
                     fail(f"broken local reference {value!r} in {document.name}")
                 fragment = urlsplit(value).fragment
                 if attribute == "href" and value.startswith("#") and fragment not in ids:
                     fail(f"broken fragment {value!r} in {document.name}")
+                if fragment and target is not None and target.suffix == ".html" and not value.startswith("#"):
+                    linked = Document()
+                    linked.feed(target.read_text(encoding="utf-8"))
+                    if fragment not in linked.ids:
+                        fail(f"broken cross-page fragment {value!r} in {relative}")
             if tag in {"img", "script"}:
                 source = attrs.get("src", "")
                 if source.startswith(("http://", "https://", "//")):
@@ -178,28 +214,53 @@ def main() -> int:
     if expires - now > timedelta(days=366):
         fail("security.txt Expires must be less than one year ahead")
 
-    if html_bytes > 35_000:
-        fail(f"HTML budget exceeded: {html_bytes} bytes")
-    css_bytes = (root / "assets/styles/site-v2.css").stat().st_size
-    if css_bytes > 40_000:
+    css_bytes = sum(path.stat().st_size for path in (root / "assets/styles").glob("*.css"))
+    if css_bytes > 65_000:
         fail(f"CSS budget exceeded: {css_bytes} bytes")
-    script_bytes = (root / "assets/scripts/reactive-field-v2.js").stat().st_size
-    if script_bytes > 8_000:
-        fail(f"JavaScript budget exceeded: {script_bytes} bytes")
+    script_bytes = sum(path.stat().st_size for path in (root / "assets/scripts").glob("*.js"))
+    for script in (root / "assets/scripts").glob("*.js"):
+        if script.stat().st_size > 25_000:
+            fail(f"per-page JavaScript budget exceeded: {script.name}")
     for image in (root / "assets/projects").iterdir():
         if image.stat().st_size > 180_000:
             fail(f"project image budget exceeded: {image.name} is {image.stat().st_size} bytes")
-    transfer = sum(
-        path.stat().st_size for path in root.rglob("*")
-        if path.is_file() and "assets/social" not in str(path.relative_to(root))
-    )
-    if transfer > 350_000:
-        fail(f"initial transfer budget exceeded: {transfer} bytes")
+    transfer = 0
+    for document in documents:
+        parser = Document()
+        parser.feed(document.read_text(encoding="utf-8"))
+        assets = {document}
+        for tag, attrs in parser.attrs:
+            key = "src" if tag in {"img", "script"} else "href"
+            if tag not in {"img", "script", "link"} or (tag == "link" and attrs.get("rel") not in {"stylesheet", "icon", "manifest"}):
+                continue
+            asset = local_target(root, document, attrs.get(key, ""))
+            if asset is not None:
+                assets.add(asset)
+        size = sum(asset.stat().st_size for asset in assets)
+        transfer = max(transfer, size)
+        if size > 350_000:
+            fail(f"initial transfer budget exceeded: {document.relative_to(root)} {size}")
+
+    manifest_files = set()
+    for line in (root / "dist-manifest.sha256").read_text().splitlines():
+        digest, name = line.split("  ", 1)
+        name = name.removeprefix("./")
+        if name not in actual or name in manifest_files:
+            fail(f"invalid manifest path {name}")
+        if hashlib.sha256((root / name).read_bytes()).hexdigest() != digest:
+            fail(f"manifest digest mismatch {name}")
+        manifest_files.add(name)
+    if manifest_files != actual - {"dist-manifest.sha256"}:
+        fail("manifest does not cover exact production tree")
 
     manifest = json.loads((root / "site.webmanifest").read_text(encoding="utf-8"))
     if manifest.get("start_url") != "/":
         fail("web manifest start_url must be canonical root")
-    ElementTree.parse(root / "sitemap.xml")
+    sitemap = ElementTree.parse(root / "sitemap.xml")
+    locations = {node.text for node in sitemap.iter("{http://www.sitemaps.org/schemas/sitemap/0.9}loc")}
+    expected_locations = {"https://oss-singularity.io/" + str(document.relative_to(root)).removesuffix("index.html") for document in documents if document.name != "404.html"}
+    if locations != expected_locations:
+        fail("sitemap must contain every canonical page exactly")
     ElementTree.parse(root / "assets/brand/oss-singularity-mark.svg")
 
     print(

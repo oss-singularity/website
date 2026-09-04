@@ -3,4 +3,10 @@
   <url>
     <loc>https://oss-singularity.io/</loc>
   </url>
+  <url><loc>https://oss-singularity.io/observatory/</loc></url>
+  <url><loc>https://oss-singularity.io/workshop/</loc></url>
+  <url><loc>https://oss-singularity.io/atlas/</loc></url>
+  <url><loc>https://oss-singularity.io/lab/</loc></url>
+  <url><loc>https://oss-singularity.io/guide/</loc></url>
+  <url><loc>https://oss-singularity.io/connect/</loc></url>
 </urlset>
