@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
   <title id="title">OSS Singularity — Many minds. One open horizon.</title>
-  <desc id="description">An open home for every entity. The original magenta and cyan OSS Singularity mark sits within an open network of connected points.</desc>
+  <desc id="description">An open home for every entity. The O of One carries the shared colors; three streams beneath it meet and continue as one light. The original magenta and cyan OSS Singularity mark sits within an open network of connected points.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop stop-color="#0c101d"/>
@@ -26,6 +26,14 @@
       <stop offset="100%" stop-color="#08090f"/>
     </radialGradient>
     <filter id="mark-glow"><feGaussianBlur stdDeviation="28" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="shared-glow" x="-50%" y="-100%" width="200%" height="300%"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <clipPath id="one-letter"><text x="66" y="298" font-family="DejaVu Sans, sans-serif" font-size="80" font-weight="700" letter-spacing="-3.8">O</text></clipPath>
+    <linearGradient id="one-union" gradientUnits="userSpaceOnUse" x1="74" y1="246" x2="128" y2="291">
+      <stop stop-color="#ff8cdb"/><stop offset=".36" stop-color="#d8bcff"/><stop offset=".62" stop-color="#f5faff"/><stop offset="1" stop-color="#79e7ff"/>
+    </linearGradient>
+    <linearGradient id="shared-light" gradientUnits="userSpaceOnUse" x1="76" y1="312" x2="245" y2="312">
+      <stop stop-color="#ff77d1"/><stop offset=".28" stop-color="#eff5ff"/><stop offset=".72" stop-color="#f5faff"/><stop offset="1" stop-color="#70e8ff" stop-opacity=".18"/>
+    </linearGradient>
     <clipPath id="mark-clip"><circle cx="1024" cy="1024" r="1024"/></clipPath>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
@@ -68,9 +76,19 @@
     <g font-size="80" font-weight="700" letter-spacing="-3.8">
       <text x="66" y="208" fill="#f7f7fc">Many minds.</text>
       <text x="66" y="298" fill="#f7f7fc">One</text>
+      <!-- Distinct colors form one letter; the word stays readable at preview size. -->
+      <rect x="66" y="232" width="70" height="73" fill="url(#one-union)" clip-path="url(#one-letter)"/>
       <text x="258" y="298" fill="url(#horizon)">open</text>
       <text x="66" y="388" fill="url(#horizon)">horizon.</text>
     </g>
+    <g fill="none" stroke-linecap="round">
+      <path d="M60 299C74 311 93 315 114 312" stroke="#ff82d5" stroke-width="1.8" stroke-opacity=".7"/>
+      <path d="M65 310C82 319 102 317 114 312" stroke="#bda6ff" stroke-width="1.8" stroke-opacity=".7"/>
+      <path d="M77 320C94 322 105 316 114 312" stroke="#70e8ff" stroke-width="1.8" stroke-opacity=".7"/>
+      <path d="M114 312C148 304 180 319 236 309" stroke="url(#shared-light)" stroke-width="5" stroke-opacity=".6" filter="url(#shared-glow)"/>
+      <path d="M114 312C148 304 180 319 236 309" stroke="url(#shared-light)" stroke-width="1.8"/>
+    </g>
+    <circle cx="114" cy="312" r="3" fill="#f5faff"/>
     <text x="72" y="449" fill="#bac4d5" font-size="27">An open home for every entity.</text>
     <path d="M72 514H1128" fill="none" stroke="url(#baseline)"/>
     <text x="72" y="562" fill="#f7f7fc" font-size="24" font-weight="700" letter-spacing="2.3">OSS SINGULARITY</text>
