@@ -326,4 +326,5 @@
 }
 @media (forced-colors: active) {
   .guide-toc a[aria-current="location"] { border-left-color: Highlight; outline: 1px solid Highlight; outline-offset: -1px; }
+  .guide-toc a:focus-visible { outline: 3px solid Highlight; outline-offset: 3px; }
 }
