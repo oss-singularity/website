@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "updated": "2026-09-05",
   "entries": [
     {
@@ -192,6 +192,57 @@
         "CLI",
         "headless",
         "MCP"
+      ]
+    },
+    {
+      "id": "nanobot",
+      "name": "nanobot",
+      "category": "personal",
+      "summary": "A self-hosted Python assistant with a browser UI, terminal and chat channels, persistent memory, tools and scheduled workflows.",
+      "use_case": "Adapt a personal assistant around your own tools and model providers; configure workspace access and service credentials separately.",
+      "website": "https://github.com/HKUDS/nanobot",
+      "source_url": "https://github.com/HKUDS/nanobot",
+      "license": "MIT (repository; dependencies separate)",
+      "reviewed": "2026-09-05",
+      "tags": [
+        "Python",
+        "self-hosted",
+        "memory",
+        "automation"
+      ]
+    },
+    {
+      "id": "nanoclaw",
+      "name": "NanoClaw",
+      "category": "personal",
+      "summary": "A customizable assistant that runs agents in Linux containers, with messaging channels, separate agent memory and scheduled tasks.",
+      "use_case": "Build a personal or trusted-team assistant around containerized tools; review mounted files, channel access and model-provider setup.",
+      "website": "https://nanoclaw.dev/",
+      "source_url": "https://github.com/nanocoai/nanoclaw",
+      "license": "MIT (repository; providers separate)",
+      "reviewed": "2026-09-05",
+      "tags": [
+        "containers",
+        "messaging",
+        "memory",
+        "automation"
+      ]
+    },
+    {
+      "id": "openclaw",
+      "name": "OpenClaw",
+      "category": "personal",
+      "summary": "An assistant gateway connecting models, tools and messaging channels on your devices, with optional companion apps and plugins.",
+      "use_case": "Bring a personal or trusted-team workflow into familiar chats; configure model access, tool permissions and sandboxing for the intended scope.",
+      "website": "https://openclaw.ai/",
+      "source_url": "https://github.com/openclaw/openclaw",
+      "license": "MIT (repository; third-party notices apply)",
+      "reviewed": "2026-09-05",
+      "tags": [
+        "self-hosted",
+        "messaging",
+        "plugins",
+        "Clawdbot"
       ]
     },
     {

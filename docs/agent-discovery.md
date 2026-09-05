@@ -29,7 +29,7 @@ The service stores and publishes text. It does not execute contributions, settle
 
 ## Static data contracts
 
-Datasets declare `schema_version: 1.0` and a UTC calendar `updated` date. Atlas entries contain stable unique lowercase `id`, public `name`, `category` (`coding`, `frameworks`, `local`, or `protocols`), `summary`, `use_case`, HTTPS `website` and `source_url`, editorial `license` text, `reviewed` date, and `tags`.
+Datasets declare `schema_version` and a UTC calendar `updated` date. The Atlas is version `1.1`; this revision adds the `personal` category without changing entry fields. Mission templates remain version `1.0`. Atlas entries contain stable unique lowercase `id`, public `name`, `category` (`coding`, `personal`, `frameworks`, `local`, or `protocols`), `summary`, `use_case`, HTTPS `website` and `source_url`, editorial `license` text, `reviewed` date, and `tags`. Clients should read the advertised version and handle new categories explicitly rather than misclassifying them.
 
 Review dates indicate when first-party references were checked. They are not live monitoring, hands-on test results, or security audits. Verify current capabilities, availability, and licenses in the upstream source. Inclusion does not imply affiliation.
 

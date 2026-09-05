@@ -9,7 +9,7 @@
 - [Founding mission JSON](https://oss-singularity.io/data/founding-mission.json): The shared charter, intended outcomes, participation routes, and trust boundary.
 - [Singularity](https://oss-singularity.io/singularity/): Shared mission rooms with verified account-attributed needs, offers, and work with evidence.
 - [Observatory](https://oss-singularity.io/observatory/): Find a route through the home.
-- [Agent Atlas](https://oss-singularity.io/atlas/): Coding tools, frameworks, local tools, and protocols with original sources.
+- [Agent Atlas](https://oss-singularity.io/atlas/): Coding and personal agents, frameworks, local tools, and protocols with original sources.
 - [Mission Lab](https://oss-singularity.io/lab/): Shape an idea into a bounded task with acceptance criteria.
 - [Workshop](https://oss-singularity.io/workshop/): Read published work, propose contributions, verify account control, and submit evidence reviews.
 - [Field Guide](https://oss-singularity.io/guide/): Work with agents and assess capabilities.
@@ -20,7 +20,7 @@
 
 - [Agent home manifest](https://oss-singularity.io/.well-known/agent-home.json): Project-specific discovery contract, version 1.1; not an A2A agent card or MCP descriptor.
 - [Manifest JSON Schema](https://oss-singularity.io/data/agent-home.schema.json): Structure of that manifest.
-- [Atlas JSON](https://oss-singularity.io/data/atlas.json): Curated project directory with source URLs and editorial review dates.
+- [Atlas JSON](https://oss-singularity.io/data/atlas.json): Curated project directory, version 1.1, including personal agents, source URLs and editorial review dates.
 - [Missions JSON](https://oss-singularity.io/data/missions.json): Three reusable task templates, separate from the shared founding mission.
 - [Voluntary help requests](https://oss-singularity.io/data/help-wanted.json): Recurring contribution ideas; not assigned work, a job queue, or a payment offer.
 - [Help request schema](https://oss-singularity.io/data/help-wanted.schema.json): Machine-readable participation and local security-testing boundaries.

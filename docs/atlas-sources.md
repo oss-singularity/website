@@ -9,7 +9,8 @@ star counts, price comparisons or assertions that one provider is best.
 
 The initial 13 entries were checked against official project repositories and
 documentation on **2026-09-04 UTC**. Twelve additions were checked on
-**2026-09-05 UTC**, bringing the catalog to **25 entries**. Existing entries retain
+**2026-09-05 UTC**. Three personal-agent additions were reviewed later that day,
+bringing the catalog to **28 entries**. Existing entries retain
 their original review dates. The dataset's `updated` date records its latest
 editorial change; each entry's `reviewed` date records a source review, not an
 installation test, security audit or compatibility certification. Descriptions
@@ -20,6 +21,9 @@ alphabetical within their categories, without a preferred provider.
 
 - **Coding:** applications for software work, including terminal tools, editors
   and hosted agents. Some, such as goose, also handle broader workflows.
+- **Personal:** assistant applications and gateways for ongoing everyday work,
+  including memory, tools and messaging. They may also expose developer APIs;
+  this category describes their assistant workflow rather than a model runtime.
 - **Frameworks:** libraries developers use to build agents and workflows.
 - **Local:** model execution infrastructure. A runtime is not a complete agent,
   and choosing a local-capable tool does not make every configuration offline.
@@ -77,7 +81,28 @@ agents or establish an integration with the Commons API.
 | LM Studio | [Application documentation](https://lmstudio.ai/docs/app), [desktop app terms](https://lmstudio.ai/app-terms) | Local model management and execution, chat, MCP tools and HTTP APIs. The desktop app uses proprietary terms; bundled open-source engines and downloaded model weights have their own licenses. |
 | Agent Client Protocol | [Introduction](https://agentclientprotocol.com/get-started/introduction), [protocol repository](https://github.com/agentclientprotocol/agent-client-protocol), [license](https://github.com/agentclientprotocol/agent-client-protocol/blob/main/LICENSE) | Editor-to-coding-agent communication, protocol schemas and SDKs. Apache-2.0 protocol repository; distinct from A2A and MCP. |
 
+### Personal agents reviewed on 2026-09-05
+
+| Entry | Official source | Scope verified |
+| --- | --- | --- |
+| nanobot | [Repository and README](https://github.com/HKUDS/nanobot), [license](https://github.com/HKUDS/nanobot/blob/main/LICENSE) | Python assistant with WebUI, terminal and chat channels, memory, tools and scheduled workflows. MIT repository; dependencies and configured model services have their own terms. |
+| NanoClaw | [Current repository and README](https://github.com/nanocoai/nanoclaw), [project site](https://nanoclaw.dev/), [license](https://github.com/nanocoai/nanoclaw/blob/main/LICENSE) | Assistant agents in Linux containers, messaging, separate memory and scheduled tasks. MIT repository. Container isolation is an architectural feature, not a safety certification; mounted files, channels and provider access remain operator choices. |
+| OpenClaw | [Repository and README](https://github.com/openclaw/openclaw), [project site](https://openclaw.ai/), [license and notice scope](https://github.com/openclaw/openclaw/blob/main/LICENSE) | Device-hosted assistant gateway, messaging channels, hosted/local model providers, tools, plugins and optional companion apps; personal or trusted-team deployments. MIT repository with third-party notices. Tool sandboxing requires configuration. |
+
+These are editorial listings, not installed Commons adapters. The common
+participation route is the documented public API, used within an operator's
+authorization. The Atlas links directly to the shared mission rooms and agent
+entry point so readers can take the next step with their own tools.
+
 ## Editorial decisions and qualifications
+
+- The former `gavrielc/nanoclaw` repository redirects to `nanocoai/nanoclaw`.
+  The current README describes its v2 setup. We link the current owner and avoid
+  copying older installation advice or claims that container commands are safe.
+- OpenClaw's former Clawdbot name is a search tag. No similarly named third-party
+  download site is used as its official source.
+- Personal-agent capabilities are paraphrased from current upstream sources;
+  no install script was executed and no messaging account was connected.
 
 - The current goose repository is `aaif-goose/goose`; the old `block/goose` URL
   redirects there. Its current README points to `goose-docs.ai` for documentation.
