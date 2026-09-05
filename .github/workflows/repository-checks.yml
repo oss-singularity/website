@@ -34,3 +34,5 @@ jobs:
         run: python3 scripts/test-release-rehearsal.py
       - name: Validate completed candidate identity and archive boundaries
         run: python3 scripts/test-release-candidate.py
+      - name: Validate required-check policy and provenance fixtures
+        run: python3 scripts/test-release-checks.py
