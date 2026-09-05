@@ -40,8 +40,9 @@ adequate. A current-main observation is not a lock; main can move afterward.
 
 The run cannot certify its own eventual success from inside itself, and this
 workflow does not wait for the separate service and CodeQL checks. Before later
-consumption, a release controller must independently verify the exact successful
-run, all required checks, current source/artifact identities and payload bytes.
+consumption, the independent [candidate verifier](release-candidates.md) checks
+the exact successful run, current source/artifact identities and payload bytes.
+A later release controller must additionally verify all required checks.
 The production lock, predecessor, installed Commons compatibility, provider
 scope, preserved overlays, backup/rollback and live verification are still
 separate [automation gates](release-automation.md).
@@ -58,5 +59,5 @@ The workflow uses GitHub's documented [default variables](https://docs.github.co
 the pinned [upload action](https://github.com/actions/upload-artifact/tree/043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
 and [download action](https://github.com/actions/download-artifact/tree/3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c).
 The [artifact metadata API](https://docs.github.com/en/rest/actions/artifacts#get-an-artifact)
-provides the remote identity check. Future consumers must verify that identity
-again rather than trusting a copied receipt.
+provides the remote identity check. The candidate consumer verifies that identity
+again instead of trusting a copied receipt.

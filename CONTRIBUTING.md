@@ -24,6 +24,7 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Observatory motion experiments | [Motion Lab](design/motion-lab/README.md), `python3 scripts/serve-motion-lab.py` |
 | Static release artifact contract | [Artifact guide](docs/release-artifacts.md), [`scripts/release-artifact.py`](scripts/release-artifact.py), [`scripts/test-release-artifact.py`](scripts/test-release-artifact.py) |
 | Release rehearsal on canonical main | [Rehearsal guide](docs/release-rehearsal.md), [`scripts/release-rehearsal.py`](scripts/release-rehearsal.py), [rehearsal workflow](.github/workflows/static-release-rehearsal.yml) |
+| Completed release candidate consumption | [Candidate guide](docs/release-candidates.md), [`scripts/release-candidate.py`](scripts/release-candidate.py), [`scripts/test-release-candidate.py`](scripts/test-release-candidate.py) |
 
 Generated `dist/` is intentionally ignored. Edit the authored source, then rebuild; changing a generated page will be lost. Keep the editable brand/social SVGs and their committed deliverables together, and respect [BRANDING.md](BRANDING.md).
 
@@ -64,9 +65,10 @@ node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs scripts/test
 python3 scripts/check-agent-data.py --self-test
 python3 scripts/test-release-artifact.py
 python3 scripts/test-release-rehearsal.py
+python3 scripts/test-release-candidate.py
 ```
 
-The first command rebuilds and validates the static site, references, metadata, budgets and public data contracts. The service suite uses real SQLite transactions; the browser-controller tests cover mission handoff, theme behavior and private-state boundaries. The Python suites check machine contracts, static artifacts and release-rehearsal identity/transport fixtures. CI runs all six without production access. Report the checks you actually ran and any that remain for review; automated checks do not replace visual or accessibility review.
+The first command rebuilds and validates the static site, references, metadata, budgets and public data contracts. The service suite uses real SQLite transactions; the browser-controller tests cover mission handoff, theme behavior and private-state boundaries. The Python suites check machine contracts, static artifacts, rehearsal and candidate-consumption fixtures. CI runs these without production access. Report the checks you actually ran and any that remain for review; automated checks do not replace visual or accessibility review.
 
 ## Security
 
