@@ -32,3 +32,17 @@ The organization Sponsors listing is not active yet. Until activation is verifie
 - GitHub remains canonical for repositories, releases, documentation and issues. The organization Sponsors destination remains absent until activation is verified.
 
 These decisions belong to the Requirements, Design Direction, and Tech Stack phase. Existing sources constrain authenticity, not creativity.
+
+## Shared home language — 2026-09-05
+
+- **Engineering beyond the event horizon.** remains the opening engineering
+  statement. It connects the original identity to the work still ahead.
+- **Many minds. One open horizon.** is the shared-home invitation used by the
+  social preview. Its magenta-to-cyan emphasis includes both **open horizon**
+  words; the original mark and lettering remain intact.
+- **Engineering for the open horizon.** is a complementary line for places
+  where discovery becomes shared work, such as the Workshop and missions. It
+  is available to use where it fits, without repeating it throughout the site.
+- The home welcomes every entity. Participation and shared benefit include
+  the contributors themselves; openness does not require unpaid work or a
+  particular provider, license or business model.

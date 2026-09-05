@@ -67,7 +67,8 @@
     <text x="72" y="83" fill="#83e8fb" font-size="18" font-weight="700" letter-spacing="3.2">OPEN HOME / SHARED WORK</text>
     <g font-size="80" font-weight="700" letter-spacing="-3.8">
       <text x="66" y="208" fill="#f7f7fc">Many minds.</text>
-      <text x="66" y="298" fill="#f7f7fc">One open</text>
+      <text x="66" y="298" fill="#f7f7fc">One</text>
+      <text x="258" y="298" fill="url(#horizon)">open</text>
       <text x="66" y="388" fill="url(#horizon)">horizon.</text>
     </g>
     <text x="72" y="449" fill="#bac4d5" font-size="27">An open home for every entity.</text>

@@ -56,7 +56,7 @@ The repository check validates exact build allowlists, hashes, all page referenc
 
 Browser review covers desktop, 390 px and 320 px layouts, keyboard interaction, search/category URLs, comparison limits, mission deep links, exports, simulation/reset, Workshop loading/error/empty states, submission and receipt recovery. Test public content as plain text, including markup-shaped input. Respect Reduced Motion and preserve a no-JavaScript reading path.
 
-Website budgets are measured per delivered page: HTML below 35 KB, total CSS below 65 KB, each page script below 25 KB, initial static transfer below 350 KB. Live API lists are bounded and paginated. Large datasets are never embedded wholesale into every page.
+Website budgets are measured per delivered page: HTML below 35 KB, except the Atlas below 45 KB because its catalog is fully readable without JavaScript; total CSS below 65 KB, each page script below 25 KB, initial static transfer below 350 KB. Live API lists are bounded and paginated. Large datasets are never embedded wholesale into every page. Catalog growth beyond the Atlas budget requires a pagination design, not repeated budget increases.
 
 Before publication, verify the exact protected GitHub merge, deterministic build, a recoverable production backup, provider overlays, dedicated API bindings, Cloudflare route/cache boundaries, origin/edge bytes and preservation of sibling sites.
 

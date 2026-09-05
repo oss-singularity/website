@@ -27,7 +27,7 @@
     "atlas": {
       "url": "https://oss-singularity.io/data/atlas.json",
       "media_type": "application/json",
-      "schema_version": "1.0"
+      "schema_version": "1.1"
     },
     "missions": {
       "url": "https://oss-singularity.io/data/missions.json",

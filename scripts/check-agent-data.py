@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 ORIGIN = "https://oss-singularity.io"
 RUNTIME_DISCOVERY_URLS = {ORIGIN + "/api/v1"}
-CATEGORIES = {"coding", "frameworks", "local", "protocols"}
+CATEGORIES = {"coding", "personal", "frameworks", "local", "protocols"}
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SCHEMA_KEYS = {
     "$schema", "$id", "title", "description", "type", "const", "required",
@@ -139,9 +139,9 @@ def validate_manifest(value: object, schema: dict, label: str = "manifest") -> N
         require("type" not in schema, f"{label}: unsupported schema type")
 
 
-def dataset(value: dict, collection: str) -> tuple[list, date]:
+def dataset(value: dict, collection: str, version: str = "1.0") -> tuple[list, date]:
     fields(value, {"schema_version", "updated", collection}, collection)
-    require(value["schema_version"] == "1.0", f"{collection}: unsupported schema version")
+    require(value["schema_version"] == version, f"{collection}: unsupported schema version")
     updated = calendar_date(value["updated"], f"{collection}.updated")
     records = value[collection]
     require(isinstance(records, list) and 0 < len(records) <= 5000,
@@ -165,7 +165,7 @@ def string_array(value: object, label: str, maximum: int = 20) -> None:
 
 
 def validate_atlas(value: dict) -> int:
-    entries, updated = dataset(value, "entries")
+    entries, updated = dataset(value, "entries", "1.1")
     seen: set[str] = set()
     for index, entry in enumerate(entries):
         label = f"atlas.entries[{index}]"
@@ -393,7 +393,7 @@ def self_test() -> int:
     help_data = read_json(source / "data/help-wanted.json")
     help_schema = read_json(source / "data/help-wanted.schema.json")
     today = datetime.now(timezone.utc).date().isoformat()
-    atlas = {"schema_version": "1.0", "updated": today, "entries": [{
+    atlas = {"schema_version": "1.1", "updated": today, "entries": [{
         "id": "example-agent", "name": "Example", "category": "coding", "summary": "An example tool.",
         "use_case": "Inspect a sample.", "website": "https://example.org/", "source_url": "https://example.org/source",
         "license": "MIT", "reviewed": today, "tags": ["example"],
@@ -404,6 +404,9 @@ def self_test() -> int:
     }]}
     validate_manifest(manifest, schema)
     validate_atlas(atlas)
+    personal = copy.deepcopy(atlas)
+    personal["entries"][0]["category"] = "personal"
+    validate_atlas(personal)
     validate_missions(missions)
     validate_openapi(openapi)
     validate_founding_mission(founding)
@@ -484,6 +487,10 @@ def self_test() -> int:
     invalid = copy.deepcopy(help_data)
     invalid["requests"][0]["submit_via"] = ["workshop"]
     rejected(lambda: validate_help_wanted(invalid, help_schema))
+    for version in ("1.0", "2.0"):
+        invalid = copy.deepcopy(personal)
+        invalid["schema_version"] = version
+        rejected(lambda: validate_atlas(invalid))
     for key, value in (("source_url", "http://example.org/source"), ("source_url", "https://token:secret@example.org/"),
                        ("source_url", "https://127.0.0.1/"), ("source_url", "https://example.org\\@other.org/"),
                        ("category", "unknown"), ("reviewed", "2026-02-30"), ("reviewed", "9999-01-01"),

@@ -1,5 +1,5 @@
 name: Propose an Atlas entry
-description: Suggest an open-source AI project, agent tool, framework, or protocol for human review.
+description: Suggest an open-source or commercial agent tool, framework, runtime, or protocol for review.
 title: "[Atlas] "
 body:
   - type: markdown
@@ -21,6 +21,7 @@ body:
       label: Category
       options:
         - Coding tools
+        - Personal agents
         - Frameworks
         - Local tools
         - Protocols
@@ -36,8 +37,8 @@ body:
   - type: input
     id: source
     attributes:
-      label: Canonical source repository or specification
-      description: Link to the project's own source. Avoid referral links, downloads, and shortened URLs.
+      label: Official reference, repository or specification
+      description: Link to the project's own reference, including official product terms for proprietary tools. Avoid referrals, downloads, and short URLs.
       placeholder: https://github.com/owner/project
     validations:
       required: true

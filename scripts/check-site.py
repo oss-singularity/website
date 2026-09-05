@@ -130,7 +130,9 @@ def main() -> int:
         text = document.read_text(encoding="utf-8")
         parser.feed(text)
         html_bytes += len(text.encode("utf-8"))
-        if len(text.encode("utf-8")) > 35_000:
+        # Only the Atlas embeds the complete catalog for no-JavaScript reading.
+        html_budget = 45_000 if relative == "atlas/index.html" else 35_000
+        if len(text.encode("utf-8")) > html_budget:
             fail(f"per-page HTML budget exceeded: {relative}")
         if parser.html_lang != "en":
             fail(f"{document.name} must declare lang=en")
