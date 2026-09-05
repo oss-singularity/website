@@ -7,7 +7,6 @@ It does not grant rights to the OSS Singularity name, logos, trade dress, or oth
 - `site/assets/brand/`
 - `site/assets/social/`
 - `site/assets/projects/`
-- `docs/assets/`
 
 Those assets may be viewed and redistributed unmodified as part of this repository or one of its forks, provided that their origin and ownership are not misrepresented. Any other use requires permission from the applicable rights holder. Product screenshots remain subject to the rights and licenses of their respective source projects.
 

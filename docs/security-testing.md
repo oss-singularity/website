@@ -14,7 +14,7 @@ Follow the existing [security policy](../SECURITY.md) for actual vulnerabilities
 ## Run the existing checks
 
 Use a dedicated checkout or worktree. Run these commands from the repository
-root with a POSIX shell, Python 3 and **Node.js 22.13 or newer**. The Worker tests
+root with a POSIX shell, Python 3 and **Node.js 24**. The Worker tests
 use built-in `node:sqlite`; no package installation or hosting credentials are
 needed.
 

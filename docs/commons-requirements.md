@@ -16,6 +16,12 @@ Participation is open to every entity. Human, agent, team and other/unspecified 
 
 Open participation does not mean free-of-charge or open-source-only. The Atlas can include commercial, proprietary and community-built tools under the same editorial rules. Explain source availability, access requirements and capabilities accurately; do not imply affiliation, integration, endorsement or a quality ranking. Shared missions should create useful paths across different tools, interests and perspectives.
 
+## Enduring product and presentation requirements
+
+The homepage should make the mission, real work and next useful action understandable quickly. Preserve recognizable navigation and stable public URLs as the shared home grows. Use authentic interfaces and specific outcomes to explain the featured PDrive Control Center, ChatGPT Usage for Cinnamon and Nemo Action Bar projects; link to their maintained repositories for installation, documentation, releases and issues. GitHub remains canonical for source and project history.
+
+User control, privacy, dependable maintenance and openness remain product principles. Visitors can inspect the work, find a useful tool, contribute or use the public organization/private contact routes without a forced account journey. Account requirements apply to the documented contribution operations. Sponsorship wording must stay accurate: the organization Sponsors destination is not presented as active until activation is verified. See [Brand inputs](brand-inputs.md) for provenance and current visual rules.
+
 ## Theme direction
 
 Dark is the default on first visit, regardless of the operating-system preference. Bright mode is an explicit additional switch. Both use semantic color roles shared by the homepage, navigation, forms, contribution states and charts, with one layout and one copy of the content. Decorative brand colors remain separate from contrast-bearing text and control colors. The Canvas supports both palettes while remaining exclusive to the homepage.
@@ -50,15 +56,36 @@ The homepage and Observatory form a coherent entry into the same shared home. Pr
 - Prepared database statements, strict payload sizes/fields/URLs, atomic quotas, bounded cleanup, no-store API responses and no raw-IP application logging are release gates.
 - Changes to an established API contract require a version or compatible migration; preserve existing submissions and private receipt access.
 
+## Accessibility targets
+
+WCAG 2.2 AA is the target for all shipped pages, including the branded 404 page, in both themes. These requirements describe the quality bar; they do not assert independently verified conformance.
+
+- Use logical landmarks, heading order, descriptive link/control names, associated labels, keyboard access, a bypass link and visible `:focus-visible` treatment.
+- Aim for primary interactive targets of at least 44 by 44 CSS pixels. Target text contrast of at least 4.5:1 and meaningful non-text/control contrast of at least 3:1; do not convey information through color alone.
+- Keep layouts usable at 320 CSS pixels, 200% zoom and with longer translated text. English is the current content language; robust wrapping must not depend on exact wording.
+- Keep decorative motion modest and remove it for `prefers-reduced-motion: reduce`. The optional pointer-reactive Canvas is restricted to the homepage, makes no network requests, stores no state, stops in background tabs and caps rendering density.
+- Check the relevant keyboard, screen-size, contrast and assistive-reading behavior directly. Automated structure checks and Lighthouse scores alone cannot establish accessibility conformance.
+
+## Metadata, assets and browser security
+
+- Keep `https://oss-singularity.io/` as the canonical origin. HTTPS-capable aliases redirect permanently to the equivalent apex path and query; they are never alternate canonical content URLs.
+- Provide mission-led titles/descriptions, canonical links, Open Graph and X/Twitter metadata, local favicon/brand assets and a local 1200 by 630 PNG social preview derived from the canonical vector. Keep its editable SVG and reproducible raster workflow.
+- Maintain `robots.txt` and a sitemap containing only real canonical pages. Public site pages may be indexed; the 404 page and private/API responses follow their explicit noindex policies. Preserve the decisions in [robots-policy.md](robots-policy.md).
+- Use system fonts and local responsive images with explicit dimensions. Do not add analytics, tracking pixels, cookies, fingerprinting, third-party fonts, embeds or CDN runtime dependencies. External links and email actions remain deliberate visitor actions. The documented server-side GitHub identity verification is separate from browser runtime requests.
+- Preserve the deployable `.htaccess` policies for custom errors, restrictive Content Security Policy, Referrer Policy, Permissions Policy, anti-framing, MIME-sniffing protection, caching, compression and intentional HSTS with valid TLS coverage. Website build output never replaces unrelated provider-managed files or DNS/mail configuration.
+- Keep the authored HTML/CSS, small shared renderer and dependency-free progressive enhancements. Additional frameworks, generators or origin runtimes need a concrete maintenance or product requirement; the separate Commons service does not require a website runtime on shared hosting.
+
 ## Verification
 
-The repository check validates exact build allowlists, hashes, all page references, canonicals, sitemap coverage, metadata and source-data contracts. Run Worker checks separately with `node --test services/commons/test/*.test.mjs`; CI requires both suites. Service tests use real SQLite transactions, including concurrent submissions and queue caps.
+The repository check validates exact build allowlists, hashes, all page references, canonicals, sitemap coverage, metadata and source-data contracts. CI also runs the Worker suite, mission-handoff/theme controller tests and machine-contract rejection cases; [CONTRIBUTING.md](../CONTRIBUTING.md#before-opening-a-pull-request) lists the complete commands. Service tests use real SQLite transactions, including concurrent submissions and queue caps.
 
 Browser review covers desktop, 390 px and 320 px layouts, keyboard interaction, search/category URLs, comparison limits, mission deep links, exports, simulation/reset, Workshop loading/error/empty states, submission and receipt recovery. Test public content as plain text, including markup-shaped input. Respect Reduced Motion and preserve a no-JavaScript reading path.
 
 Website budgets are measured per delivered page: HTML below 35 KB, except the Atlas below 45 KB because its catalog is fully readable without JavaScript; total CSS below 65 KB, each page script below 25 KB, initial static transfer below 350 KB. Live API lists are bounded and paginated. Large datasets are never embedded wholesale into every page. Catalog growth beyond the Atlas budget requires a pagination design, not repeated budget increases.
 
-Before publication, verify the exact protected GitHub merge, deterministic build, a recoverable production backup, provider overlays, dedicated API bindings, Cloudflare route/cache boundaries, origin/edge bytes and preservation of sibling sites.
+Keep each delivered content image below 180 KB. Additional performance goals remain Lighthouse mobile scores of at least 95 in each category, LCP below 2.0 seconds on a declared fast-4G profile, and CLS below 0.05. Record the actual device/network setup and results when measuring; these goals are not claims about a current measurement. System fonts, explicit image dimensions, immutable asset caching and bounded enhancements support them.
+
+Before an authorized publication, present changed visuals for owner review, verify the exact protected GitHub merge, a deterministic clean build, required local/CI checks and a fresh production inventory against a recoverable backup. Stage only declared output; preserve provider overlays, non-allowlisted `.well-known` entries, mail/DNS, dedicated API bindings, Cloudflare route/cache boundaries, sibling sites and unrelated hosting data. Verify origin/edge bytes, TLS, redirects, assets, security/cache/compression headers and the 404 response; inspect server errors privately where relevant. Keep deployment evidence and the rollback target outside the public repository. Follow [hosting.md](hosting.md) and the separate API release contract; a merge alone is not deployment authorization.
 
 ## Mission participation and a readable overview
 
