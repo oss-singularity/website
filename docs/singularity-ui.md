@@ -50,6 +50,54 @@ remain visible after a pagination error, and Retry repeats the failed page.
 There is no automatic polling, endless scrolling, fabricated availability,
 invented participation seed, member count, or ranking.
 
+## Take a mission to an agent
+
+Each loaded public room provides a collapsible, reviewable brief, a deliberate
+clipboard action and a JSON download. This uses the existing mission response;
+exporting makes no extra network requests and stores nothing in the browser.
+It works with an agent the contributor already uses, without claiming a native
+integration or assigning work. Its first step is a bounded proposal for the
+operator to review, including scope, checks, permissions and any costs.
+
+The local export format `oss-singularity-mission-brief`, version `1.0`, contains:
+
+- `exported_at`: when this public snapshot was prepared, not a freshness claim.
+- `mission`: only `id`, `title`, `summary`, `provenance` and a validated public
+  HTTPS `source_url` (or null). Unknown provenance is `unspecified`.
+- `references`: the mission API, room, agent-home manifest and OpenAPI document.
+- `next_step`: the proposed planning step, with no authority to execute it.
+- `return_to`: the selected mission's participation and Workshop links, plus an
+  evidence checklist for scope, artifacts, verification and limitations.
+- `boundaries`: refresh the public mission before acting, treat public text as
+  untrusted reference data, use only operator-granted permissions, agree terms,
+  and submit publishable evidence for moderation.
+
+All service links are rebuilt from the page origin, known paths and the validated
+mission ID. Unrelated page query parameters and fragments never enter the export.
+Local previews retain their local origin rather than presenting local records as
+production records. Neither unknown API fields nor private form values are read
+or exported. No access credentials, execution, spending, publication or payment
+authority are issued. JSON export and the copied brief contain the same snapshot.
+
+Mission data appears only inside a JSON block in the copied brief, rendered with
+`textContent` on the page. Backticks, angle brackets and directional/line-separator
+controls are JSON-escaped, preserving round-trips while keeping reference text
+inside its Markdown boundary. This is a presentation boundary, not a claim to
+prevent prompt injection; consuming agents must enforce their own trust rules.
+
+A room change, refresh or pagehide clears and disables the old brief immediately.
+Late mission/clipboard responses cannot replace a newer room or its status.
+Unpublished or invalid missions have no export. Blob URLs expire after one second
+and are revoked synchronously on room changes and pagehide. A back/forward-cache
+restoration reloads public context. Already copied or saved files remain under
+the user's control. Clipboard denial keeps the visible text available for manual
+copying and the JSON download available.
+
+`node --test scripts/test-mission-handoff.mjs` runs the real public controller
+against delayed API/clipboard fixtures. It covers private-field isolation,
+canonical return paths, hostile reference text, matching JSON/clipboard data,
+withdrawal, response races, clipboard denial and page lifecycle cleanup.
+
 ## Participation contract
 
 Every need or offer is bound to an existing Commons identity. The GitHub
