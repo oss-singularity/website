@@ -11,9 +11,11 @@ bytes and a constrained descriptor, including an independent rebuild comparison.
 The [static release rehearsal](release-rehearsal.md) exercises canonical-main
 builds and GitHub artifact upload/download, with a separate observed-identity
 receipt. The independent [candidate consumer](release-candidates.md) checks a
-completed canonical run, both artifact identities and the captured bytes.
-Required-check policy, provider adapters and production promotion remain separate
-work.
+completed canonical run, both artifact identities and the captured bytes. The
+[required-check verifier](release-checks.md) separately checks the current branch
+policy and exact workflow, run, job and check provenance. It uses caller-managed
+read access; the rehearsal workflow does not receive additional permissions.
+Provider adapters and production promotion remain separate work.
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing
@@ -50,6 +52,10 @@ artifacts or logs. See
 [GitHub's secret scopes](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
 
 ## Implementation stages and acceptance criteria
+
+The planned [static transition rehearsal](release-static-transition.md) records
+the offline adapter's preservation, historical-baseline and recovery invariants.
+It is a design contract, not an implemented publication command.
 
 1. **Portable, constrained adapter.** Extract a release interface without
    workstation paths or private historical state. Fix the permitted destinations
