@@ -29,7 +29,9 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
         enhancement += '\n  <script src="/assets/scripts/workshop-identity-v1.js" defer></script>'
     if slug == "singularity":
         enhancement += '\n  <script src="/assets/scripts/singularity-participation-v1.js" defer></script>'
-    extra_style = f'<link rel="stylesheet" href="/assets/styles/{slug}-v1.css">' if slug in {"workshop", "singularity"} else ""
+        enhancement += '\n  <script src="/assets/scripts/work-items-model-v1.js" defer></script>'
+        enhancement += '\n  <script src="/assets/scripts/work-items-v1.js" defer></script>'
+    extra_style = f'<link rel="stylesheet" href="/assets/styles/{slug}-v1.css">' if slug in {"workshop", "singularity", "roadmap"} else ""
     if slug == "observatory":
         enhancement += '\n  <script src="/assets/scripts/commons-activity-v1.js" defer></script>'
         extra_style += '<link rel="stylesheet" href="/assets/styles/activity-v1.css">'

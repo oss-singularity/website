@@ -2,6 +2,7 @@ import { ApiError, response, invalid, readJson, textField, identifier, digest, b
 import { createChallenge, verifyIdentity, getIdentity, authenticateIdentity, cleanupChallenges } from './identity.mjs';
 import { activity } from './activity.mjs';
 import { submitParticipation, listParticipations, participationReceipt, updateParticipation, moderateParticipation, cleanupParticipations } from './participations.mjs';
+import { createWorkItem, listWorkItems, readWorkItem, actOnWorkItem, submitWorkResult, moderateWorkItem, cleanupWorkItems, workItemDiscovery } from './work-items.mjs';
 
 const PREFIX = '/api/v1';
 const DAY = 86_400_000;
@@ -223,6 +224,9 @@ function discovery(env) {
       identity_challenges: `${PREFIX}/identity-challenges`, identities: `${PREFIX}/identities`, identity: `${PREFIX}/identities/{id}`,
       activity: `${PREFIX}/activity`, mission: `${PREFIX}/missions/{id}`, participations: `${PREFIX}/participations`,
       own_participations: `${PREFIX}/participations/mine`, participation_status: `${PREFIX}/participations/{id}`,
+      work_items: `${PREFIX}/work-items`, work_item: `${PREFIX}/work-items/{id}`,
+      own_work_items: `${PREFIX}/work-items/mine`, own_work_item: `${PREFIX}/work-items/mine/{id}`,
+      work_item_actions: `${PREFIX}/work-items/{id}/actions`, work_item_results: `${PREFIX}/work-items/{id}/results`,
     },
     limits: { body_bytes: MAX_BODY, title: { min: 3, max: 120 }, summary: { min: 20, max: 2000 }, url_max: 2048, review_score: { min: 1, max: 5 }, submissions_per_hour: 5, submissions_per_day: 50, pending_capacity: 200 },
     privacy: {
@@ -245,6 +249,7 @@ function discovery(env) {
       policy: 'Verified GitHub account control required; participant type is self-declared. Scope and expected result belong in summary. Moderation is required. Pending expires after 30 days; first publication starts a final 30-day lifetime. Close keeps a published card visible as closed; withdraw removes it from public views. No assignment, automatic execution, payment or verified availability is implied.',
       recovery: 'Use identity Bearer with the private own-participations list to recover after a lost response. Receipt Bearer reads one private card; identity Bearer can only close or withdraw its own card. Tokens never grant moderation.',
     },
+    work_items: workItemDiscovery,
     ...(typeof env.RELEASE_SHA === 'string' && /^[a-f0-9]{40}$/.test(env.RELEASE_SHA) ? { release_sha: env.RELEASE_SHA } : {}),
   });
 }
@@ -268,8 +273,17 @@ export default {
       const participationMatch = participationMine ? null : path.match(/^\/api\/v1\/participations\/([a-z0-9][a-z0-9-]{0,79})$/);
       const participationAdminMatch = path.match(/^\/api\/v1\/admin\/participations\/([a-z0-9][a-z0-9-]{0,79})$/);
       const participationAdminList = path === `${PREFIX}/admin/participations`;
-      const isAdmin = path === `${PREFIX}/admin/proposals` || Boolean(adminMatch) || participationAdminList || Boolean(participationAdminMatch);
-      const methods = path === `${PREFIX}/participations` ? ['GET', 'POST'] : participationMatch ? ['GET', 'PATCH']
+      const workList = path === `${PREFIX}/work-items`;
+      const workMine = path === `${PREFIX}/work-items/mine`;
+      const workAdminList = path === `${PREFIX}/admin/work-items`;
+      const workPrivate = path.match(/^\/api\/v1\/work-items\/mine\/([a-z0-9][a-z0-9-]{0,79})$/);
+      const workAction = path.match(/^\/api\/v1\/work-items\/([a-z0-9][a-z0-9-]{0,79})\/actions$/);
+      const workResult = path.match(/^\/api\/v1\/work-items\/([a-z0-9][a-z0-9-]{0,79})\/results$/);
+      const workPublic = workMine ? null : path.match(/^\/api\/v1\/work-items\/([a-z0-9][a-z0-9-]{0,79})$/);
+      const workAdmin = path.match(/^\/api\/v1\/admin\/work-items\/([a-z0-9][a-z0-9-]{0,79})$/);
+      const isAdmin = path === `${PREFIX}/admin/proposals` || Boolean(adminMatch) || participationAdminList || Boolean(participationAdminMatch) || workAdminList || Boolean(workAdmin);
+      const methods = workList ? ['GET', 'POST'] : workMine || workAdminList || workPrivate || workPublic ? ['GET'] : workAction || workResult ? ['POST'] : workAdmin ? ['PATCH']
+        : path === `${PREFIX}/participations` ? ['GET', 'POST'] : participationMatch ? ['GET', 'PATCH']
         : participationMine || participationAdminList || missionMatch || path === `${PREFIX}/activity` ? ['GET'] : participationAdminMatch ? ['PATCH']
           : path === PREFIX || path === `${PREFIX}/missions` || path === `${PREFIX}/contributions` || path === `${PREFIX}/reviews` || ownMatch || identityMatch || path === `${PREFIX}/admin/proposals` ? ['GET'] : [`${PREFIX}/proposals`, `${PREFIX}/identity-challenges`, `${PREFIX}/identities`].includes(path) ? ['POST'] : adminMatch ? ['PATCH'] : null;
       if (!methods) throw new ApiError(404, 'not_found', 'API endpoint not found.');
@@ -292,7 +306,16 @@ export default {
       if (path === `${PREFIX}/participations` && request.method === 'GET') return await listParticipations(request, env, now);
       if (participationMine) return await listParticipations(request, env, now, 'mine');
       if (participationAdminList) return await listParticipations(request, env, now, 'admin');
+      if (workList && request.method === 'GET') return await listWorkItems(request, env, now);
+      if (workMine) return await listWorkItems(request, env, now, 'mine');
+      if (workAdminList) return await listWorkItems(request, env, now, 'admin');
       if (url.search) invalid('This endpoint does not accept query parameters.');
+      if (workList) return await createWorkItem(request, env, now);
+      if (workPrivate) return await readWorkItem(request, env, workPrivate[1], now, true);
+      if (workPublic) return await readWorkItem(request, env, workPublic[1], now);
+      if (workAction) return await actOnWorkItem(request, env, workAction[1], now);
+      if (workResult) return await submitWorkResult(request, env, workResult[1], now);
+      if (workAdmin) return await moderateWorkItem(request, env, workAdmin[1], now);
       if (path === `${PREFIX}/activity`) return await activity(env, now);
       if (missionMatch) return await missionDetail(env, missionMatch[1]);
       if (path === `${PREFIX}/participations`) return await submitParticipation(request, env, now);
@@ -321,5 +344,6 @@ export default {
     await cleanup(env.DB);
     await cleanupParticipations(env.DB);
     await cleanupChallenges(env.DB, Date.now());
+    await cleanupWorkItems(env.DB);
   },
 };

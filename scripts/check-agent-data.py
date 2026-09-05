@@ -227,6 +227,9 @@ def validate_openapi(spec: dict) -> None:
         "/api/v1/identity-challenges": ("post",), "/api/v1/identities": ("post",),
         "/api/v1/identities/{id}": ("get",), "/api/v1/participations": ("get", "post"),
         "/api/v1/participations/mine": ("get",), "/api/v1/participations/{id}": ("get", "patch"),
+        "/api/v1/work-items": ("get", "post"), "/api/v1/work-items/{id}": ("get",),
+        "/api/v1/work-items/mine": ("get",), "/api/v1/work-items/mine/{id}": ("get",),
+        "/api/v1/work-items/{id}/actions": ("post",), "/api/v1/work-items/{id}/results": ("post",),
     }
     require(set(spec.get("paths", {})) == set(operations), "Commons OpenAPI public route set differs")
     require(spec.get("security") == [], "Commons public reads must not claim account authentication")
@@ -238,6 +241,11 @@ def validate_openapi(spec: dict) -> None:
         ("/api/v1/participations/mine", "get"): [{"IdentityBearer": []}],
         ("/api/v1/participations/{id}", "get"): [{"ReceiptBearer": []}],
         ("/api/v1/participations/{id}", "patch"): [{"IdentityBearer": []}],
+        ("/api/v1/work-items", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/work-items/mine", "get"): [{"IdentityBearer": []}],
+        ("/api/v1/work-items/mine/{id}", "get"): [{"IdentityBearer": []}],
+        ("/api/v1/work-items/{id}/actions", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/work-items/{id}/results", "post"): [{"IdentityBearer": []}],
     }
     names = set()
     for path, methods in operations.items():
@@ -292,6 +300,46 @@ def validate_openapi(spec: dict) -> None:
             "Participation owner changes must not edit content or moderation")
     require(set(state_request.get("properties", {}).get("state", {}).get("enum", [])) == {"closed", "withdrawn"},
             "Participation owner changes must not reopen or publish cards")
+
+    work_request = schemas.get("WorkItemRequest", {})
+    work_fields = {"client_request_id", "mission_id", "title", "scope", "deliverable", "acceptance", "terms", "public_consent"}
+    require(work_request.get("additionalProperties") is False and
+            set(work_request.get("properties", {})) == work_fields and set(work_request.get("required", [])) == work_fields,
+            "Work items require explicit immutable scope and consent, without client-supplied roles")
+    require(work_request["properties"]["terms"] == {"const": "volunteer"} and
+            work_request["properties"]["public_consent"] == {"const": True},
+            "The work-item pilot requires explicit voluntary terms and publication consent")
+    result_request = schemas.get("WorkItemResultRequest", {})
+    result_fields = {"client_request_id", "expected_version", "kind", "title", "summary", "url", "public_consent"}
+    require(result_request.get("additionalProperties") is False and
+            set(result_request.get("properties", {})) == result_fields and set(result_request.get("required", [])) == result_fields,
+            "Work results must bind scope/author/mission on the server, not adopt arbitrary existing proposals")
+    variants = schemas.get("WorkItemActionRequest", {}).get("oneOf", [])
+    require(len(variants) == 3, "Work actions need distinct consent, ordinary and result-bound variants")
+    expected_variants = [
+        ({"client_request_id", "expected_version", "action", "public_consent"}, {"offer"}),
+        ({"client_request_id", "expected_version", "action"}, {"confirm", "decline", "withdraw_offer", "request_revision", "cancel"}),
+        ({"client_request_id", "expected_version", "action", "result_id"}, {"deliver", "acknowledge"}),
+    ]
+    for variant, (keys, actions) in zip(variants, expected_variants):
+        props = variant.get("properties", {})
+        action = props.get("action", {})
+        names = set(action.get("enum", [])) if "enum" in action else {action.get("const")}
+        require(variant.get("additionalProperties") is False and set(props) == keys and
+                set(variant.get("required", [])) == keys and names == actions,
+                "Work actions must not grant arbitrary role, scope, state or result mutation")
+    private_fields = {"own_results", "viewer", "offer", "allowed_actions", "receipt", "receipt_token", "receipt_hash", "token_hash", "api_token", "client_request_id", "payload_hash"}
+    for name in ("WorkItemSummary", "WorkItem", "WorkResult", "WorkEvent"):
+        public_schema = schemas.get(name, {})
+        require(public_schema.get("additionalProperties") is False and
+                set(public_schema.get("properties", {})).isdisjoint(private_fields),
+                f"Public {name} must exclude private workflow data and credentials")
+    detail = schemas["WorkItem"]["properties"]
+    require(detail.get("results", {}).get("items") == {"$ref": "#/components/schemas/WorkResult"} and
+            schemas["WorkResult"]["properties"].get("status") == {"const": "published"},
+            "Public work detail must contain only published result content")
+    require(spec["paths"]["/api/v1/work-items/{id}"]["get"]["responses"]["200"]["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/WorkItem"},
+            "Public work detail must not return the private actor projection")
 
     def references(value: object) -> None:
         if isinstance(value, dict):
@@ -467,6 +515,27 @@ def self_test() -> int:
     rejected(lambda: validate_openapi(invalid))
     invalid = copy.deepcopy(openapi)
     invalid["components"]["schemas"]["ParticipationStateRequest"]["properties"]["state"]["enum"].append("active")
+    rejected(lambda: validate_openapi(invalid))
+    for path, method in (("/api/v1/work-items", "post"), ("/api/v1/work-items/mine", "get"),
+                         ("/api/v1/work-items/mine/{id}", "get"), ("/api/v1/work-items/{id}/actions", "post"),
+                         ("/api/v1/work-items/{id}/results", "post")):
+        invalid = copy.deepcopy(openapi)
+        invalid["paths"][path][method]["security"] = []
+        rejected(lambda: validate_openapi(invalid))
+    for schema, field in (("WorkItemRequest", "requester_identity_id"), ("WorkItemResultRequest", "proposal_id"),
+                          ("WorkItemSummary", "offer"), ("WorkItem", "own_results"), ("WorkResult", "receipt_token"),
+                          ("WorkEvent", "client_request_id")):
+        invalid = copy.deepcopy(openapi)
+        invalid["components"]["schemas"][schema]["properties"][field] = {"type": "string"}
+        rejected(lambda: validate_openapi(invalid))
+    invalid = copy.deepcopy(openapi)
+    invalid["components"]["schemas"]["WorkItemActionRequest"]["oneOf"][2]["required"].remove("result_id")
+    rejected(lambda: validate_openapi(invalid))
+    invalid = copy.deepcopy(openapi)
+    invalid["components"]["schemas"]["WorkResult"]["properties"]["status"] = {"type": "string"}
+    rejected(lambda: validate_openapi(invalid))
+    invalid = copy.deepcopy(openapi)
+    invalid["paths"]["/api/v1/work-items/{id}"]["get"]["responses"]["200"]["content"]["application/json"]["schema"] = {"$ref": "#/components/schemas/OwnWorkItem"}
     rejected(lambda: validate_openapi(invalid))
     invalid = copy.deepcopy(founding)
     invalid["api"] = ORIGIN + "/api/unimplemented"

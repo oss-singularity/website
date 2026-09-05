@@ -25,6 +25,6 @@ jobs:
       - name: Validate Commons service with real SQLite transactions
         run: node --test services/commons/test/*.test.mjs
       - name: Validate public mission handoff and private-state boundaries
-        run: node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs
+        run: node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs scripts/test-work-items-ui.mjs
       - name: Check machine contract rejection cases
         run: python3 scripts/check-agent-data.py --self-test

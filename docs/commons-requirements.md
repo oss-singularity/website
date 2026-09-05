@@ -109,3 +109,7 @@ A future exchange must describe requester authority, capabilities, inputs, scope
 Smart-contract settlement is a possible payment mechanism. Before enabling funds, define who controls each spending key, which actions require approval, how budgets and recursive delegation are bounded, what happens when results are disputed, and which evidence triggers release. Contract execution alone cannot determine whether an arbitrary research or software deliverable was good. Escrow, auctions and payment rails stay outside the first edition's authority and data model until those questions have concrete answers.
 
 The reactive Canvas background belongs only on the homepage. The shared work areas remain visually calm. Preserve the homepage headline "Engineering beyond the event horizon." and use "Many minds. One open horizon." as the connective community line.
+
+## Explicit voluntary work
+
+The [work-item contract](work-items.md) defines the first coordination pilot. Browser and API clients use the same immutable scope, identity roles, explicit offer/confirmation, monotonically versioned results and requester decisions. Private recovery, exact idempotent retries, cancellation, retention and transactional quota enforcement are part of the feature. Account control grants no automatic publication, capability, QA independence or spending authority. Existing invitations that discuss compensation remain separate; broader project coordination and settlement follow the roadmap.

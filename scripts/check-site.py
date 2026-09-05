@@ -94,7 +94,7 @@ def main() -> int:
         "data/atlas.json", "data/missions.json",
         "data/commons-openapi.json",
         "data/founding-mission.json", "mission/index.html",
-        "data/help-wanted.json", "help/index.html", "roadmap/index.html",
+        "data/help-wanted.json", "help/index.html", "roadmap/index.html", "assets/styles/roadmap-v1.css",
         "data/help-wanted.schema.json",
         "observatory/index.html", "atlas/index.html", "lab/index.html",
         "guide/index.html", "connect/index.html",
@@ -103,6 +103,7 @@ def main() -> int:
         "assets/scripts/workshop-identity-v1.js",
         "singularity/index.html", "assets/styles/singularity-v1.css",
         "assets/scripts/singularity-v1.js", "assets/scripts/singularity-participation-v1.js",
+        "assets/scripts/work-items-model-v1.js", "assets/scripts/work-items-v1.js",
     }
     social_path = "assets/social/oss-singularity-social-preview.png"
     social_bytes = (root / social_path).read_bytes()
@@ -123,7 +124,7 @@ def main() -> int:
         "lab/index.html": ["/assets/scripts/mission-lab-v1.js"],
         "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js", "/assets/scripts/commons-activity-v1.js"],
         "workshop/index.html": ["/assets/scripts/workshop-v1.js", "/assets/scripts/workshop-identity-v1.js"],
-        "singularity/index.html": ["/assets/scripts/singularity-v1.js", "/assets/scripts/singularity-participation-v1.js"],
+        "singularity/index.html": ["/assets/scripts/singularity-v1.js", "/assets/scripts/singularity-participation-v1.js", "/assets/scripts/work-items-model-v1.js", "/assets/scripts/work-items-v1.js"],
         "guide/index.html": ["/assets/scripts/section-navigation-v1.js"],
         "help/index.html": ["/assets/scripts/section-navigation-v1.js"],
         "roadmap/index.html": ["/assets/scripts/section-navigation-v1.js"],

@@ -41,6 +41,8 @@ The live-service development instructions are in [services/commons/README.md](se
 
 The current product contract is in [Commons requirements](docs/commons-requirements.md), with the visual identity and source provenance in [Brand inputs](docs/brand-inputs.md). The [coordination roadmap](docs/coordination-roadmap.md) describes planned project hierarchies, artifact receipts and a Solidity contract lab with separate release criteria. Historical prototypes and the original single-page brief remain available in Git history.
 
+The [ideas register](docs/ideas.md) keeps emerging directions, their purpose and the next useful experiment in one place. The [voluntary work-item contract](docs/work-items.md) specifies the first bounded coordination pilot.
+
 The social preview is authored as SVG. When updating it, run `python3 scripts/render-social-preview.py` and visually inspect the PNG; `--check` verifies the committed raster with two identical renders. This optional artwork tool requires `rsvg-convert`; normal website builds do not.
 
 ## Find your starting point

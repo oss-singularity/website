@@ -21,6 +21,11 @@ publishing a card does not assign a task. Field notes and projects are work and
 evidence, not automatically completed milestones. GitHub control does not prove
 skill, unique personhood, wallet control, or authority over someone else's funds.
 
+The [voluntary work-item pilot](work-items.md) adds fixed scope, a contributor offer,
+requester confirmation, attributed result revisions and an explicit acknowledgement
+of the exact published result. Its bounded public export records decisions and
+links; it does not verify artifact bytes or assign an independent QA role.
+
 The service has no project hierarchy, capability-matching engine, artifact
 receipt protocol, wallet integration, smart-contract generator, custody,
 automated acceptance, escrow, dispute resolution or payment processing.

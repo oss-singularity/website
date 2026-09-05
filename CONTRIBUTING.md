@@ -57,7 +57,7 @@ The complete existing CI sequence is below. Node.js 24 is required for the servi
 ```sh
 ./scripts/check-repository.sh
 node --test services/commons/test/*.test.mjs
-node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs
+node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs scripts/test-work-items-ui.mjs
 python3 scripts/check-agent-data.py --self-test
 ```
 
