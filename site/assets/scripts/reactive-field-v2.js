@@ -19,6 +19,14 @@
   let pixelRatio = 1;
   let frame = 0;
   let visible = true;
+  let palette;
+  const updatePalette = () => {
+    palette = document.documentElement.dataset.theme === "bright"
+      ? { cyan: "0, 104, 128", pink: "165, 27, 117", point: "28, 100, 130", composite: "source-over" }
+      : { cyan: "101, 229, 255", pink: "255, 99, 200", point: "185, 243, 255", composite: "lighter" };
+  };
+  updatePalette();
+  document.addEventListener("oss-theme-change", updatePalette);
 
   const random = (() => {
     let seed = 0x51a1f13d;
@@ -82,8 +90,8 @@
     }
 
     const glow = context.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, 300);
-    glow.addColorStop(0, "rgba(101, 229, 255, .16)");
-    glow.addColorStop(.48, "rgba(255, 99, 200, .08)");
+    glow.addColorStop(0, `rgba(${palette.cyan}, .16)`);
+    glow.addColorStop(.48, `rgba(${palette.pink}, .08)`);
     glow.addColorStop(1, "rgba(3, 8, 17, 0)");
     context.fillStyle = glow;
     context.fillRect(pointer.x - 300, pointer.y - 300, 600, 600);
@@ -102,21 +110,21 @@
 
     context.beginPath();
     context.arc(0, 0, 58, -.2, Math.PI * 1.18);
-    context.strokeStyle = "rgba(101, 229, 255, .48)";
+    context.strokeStyle = `rgba(${palette.cyan}, .48)`;
     context.lineWidth = 1.1;
     context.stroke();
 
     context.rotate(-time * .00046);
     context.beginPath();
     context.arc(0, 0, 86, .35, Math.PI * 1.45);
-    context.strokeStyle = "rgba(255, 99, 200, .38)";
+    context.strokeStyle = `rgba(${palette.pink}, .38)`;
     context.lineWidth = .9;
     context.stroke();
 
     context.setLineDash([]);
     context.beginPath();
     context.arc(0, 0, 4, 0, Math.PI * 2);
-    context.strokeStyle = "rgba(185, 243, 255, .72)";
+    context.strokeStyle = `rgba(${palette.point}, .72)`;
     context.lineWidth = 1;
     context.stroke();
     context.restore();
@@ -132,7 +140,7 @@
 
     context.clearRect(0, 0, width, height);
     context.save();
-    context.globalCompositeOperation = "lighter";
+    context.globalCompositeOperation = palette.composite;
     drawGlow();
 
     const positions = particles.map((particle) => positionParticle(particle, time));
@@ -147,8 +155,8 @@
           context.lineTo(point.x, point.y);
           const opacity = (1 - distance / 260) * .44;
           context.strokeStyle = particles[index].accent
-            ? `rgba(255, 99, 200, ${opacity})`
-            : `rgba(101, 229, 255, ${opacity})`;
+            ? `rgba(${palette.pink}, ${opacity})`
+            : `rgba(${palette.cyan}, ${opacity})`;
           context.lineWidth = 1;
           context.stroke();
         }
@@ -168,7 +176,7 @@
           context.beginPath();
           context.moveTo(positions[first].x, positions[first].y);
           context.lineTo(positions[second].x, positions[second].y);
-          context.strokeStyle = `rgba(101, 229, 255, ${(1 - distance / 145) * .19})`;
+          context.strokeStyle = `rgba(${palette.cyan}, ${(1 - distance / 145) * .19})`;
           context.lineWidth = .75;
           context.stroke();
         }
@@ -181,8 +189,8 @@
       context.beginPath();
       context.arc(point.x, point.y, particle.size, 0, Math.PI * 2);
       context.fillStyle = particle.accent
-        ? `rgba(255, 99, 200, ${pulse})`
-        : `rgba(185, 243, 255, ${pulse * .88})`;
+        ? `rgba(${palette.pink}, ${pulse})`
+        : `rgba(${palette.point}, ${pulse * .88})`;
       context.fill();
     });
 

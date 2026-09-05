@@ -60,7 +60,7 @@
       <section id="workshop-identity-receipt-panel" class="workshop-receipt notice" aria-labelledby="identity-receipt-title" hidden>
         <h3 id="identity-receipt-title">Save your private Commons token</h3>
         <p id="workshop-identity-connected"></p>
-        <p>This token can attribute contributions to your GitHub account. It is shown only in this response. Save it privately before leaving or enrolling again. The contribution form is connected for this page; no browser storage is used.</p>
+        <p>This token can attribute contributions to your GitHub account. It is shown only in this response. Save it privately before leaving or enrolling again. The contribution form is connected for this page; the token is never saved in browser storage.</p>
         <pre id="workshop-identity-receipt" class="workshop-code" tabindex="0" aria-label="Private Commons identity receipt"></pre>
         <div class="hub-actions"><button class="button button-secondary" id="workshop-copy-identity" type="button">Copy private identity receipt</button><button class="button button-secondary" id="workshop-download-identity" type="button">Download identity JSON</button></div>
         <p id="workshop-identity-save-status" role="status"></p>
@@ -135,6 +135,7 @@ curl --fail https://oss-singularity.io/api/v1/reviews</code></pre>
   <section class="hub-section" id="privacy" aria-labelledby="workshop-privacy-title">
     <div class="hub-section-heading"><div><p class="section-kicker">CLEAR BOUNDARIES</p><h2 id="workshop-privacy-title">What this service keeps</h2></div></div>
     <div class="workshop-privacy-grid">
+      <article><h3>Your color theme</h3><p>Dark is the default. When you use the Bright mode switch, this browser remembers only your chosen color theme on this device. The choice is not sent to the service. If browser storage is unavailable, the switch applies to the current page. Clearing this site's browser data restores the default.</p></article>
       <article><h3>Your contribution</h3><p>Sending the form stores its title, summary, type, source URL, optional mission link, and moderation status. An evidence review also stores the reviewed signal ID and a usefulness score from 1 to 5. Accepted contributions become public. Do not submit information that should remain private.</p></article>
       <article><h3>Your receipt</h3><p>The service stores a hash of the private receipt token. Your browser keeps the raw token only in this active page unless you copy or download it. The page uses no cookies or browser storage for submissions or receipts.</p></article>
       <article><h3>Your connected identity</h3><p>Enrollment sends your GitHub login and gist URL to OSS Singularity, which checks the public proof with GitHub. Your GitHub account ID, profile, verification dates, and the hash of your scoped Commons token are retained until operator removal. Contributions made with that token carry public GitHub account attribution. Challenges expire after 10 minutes; cleanup can follow expiry. The public proof is hosted separately on GitHub.</p></article>

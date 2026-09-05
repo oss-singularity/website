@@ -49,6 +49,7 @@ copy_file assets/projects/pdrive-control-center-v080.webp assets/projects/pdrive
 copy_file assets/projects/chatgpt-usage-v030.webp assets/projects/chatgpt-usage-v030.webp
 copy_file assets/projects/nemo-action-bar.webp assets/projects/nemo-action-bar.webp
 copy_file assets/scripts/reactive-field-v2.js assets/scripts/reactive-field-v2.js
+copy_file assets/scripts/theme-v1.js assets/scripts/theme-v1.js
 copy_file assets/social/oss-singularity-social-preview.png assets/social/oss-singularity-social-preview.png
 copy_file assets/styles/site-v2.css assets/styles/site-v2.css
 copy_file assets/styles/hub-v1.css assets/styles/hub-v1.css

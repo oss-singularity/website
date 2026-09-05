@@ -18,9 +18,9 @@ Open participation does not mean free-of-charge or open-source-only. The Atlas c
 
 ## Theme direction
 
-Dark is the default on first visit, regardless of the operating-system preference. A future Bright mode is an explicit additional switch. Implement both through semantic color roles shared by the homepage, navigation, forms, contribution states and charts, rather than a separate page layout or duplicated content. Keep decorative brand colors separate from contrast-bearing text and control colors. The homepage Canvas must eventually support both palettes while remaining exclusive to the homepage.
+Dark is the default on first visit, regardless of the operating-system preference. Bright mode is an explicit additional switch. Both use semantic color roles shared by the homepage, navigation, forms, contribution states and charts, with one layout and one copy of the content. Decorative brand colors remain separate from contrast-bearing text and control colors. The Canvas supports both palettes while remaining exclusive to the homepage.
 
-Before exposing the switch, review every page, focus/hover/disabled/error state, chart and form in both themes, including narrow screens and Reduced Motion. Do not offer a partially themed switch. A remembered preference, if introduced, must be voluntary and documented in the site's storage/privacy description; existing contribution and token storage restrictions remain unchanged.
+Before releasing theme changes, review every page, focus/hover/disabled/error state, chart and form in both themes, including narrow screens and Reduced Motion. The switch stores only the chosen `dark` or `bright` value under `oss-singularity-theme` in localStorage after an explicit click. Initial visits do not write a preference. Storage failure leaves a working page-local switch. This preference is documented in the Workshop privacy description; contributions, credentials, receipts and identity tokens must never enter browser storage. See [theme-behavior.md](theme-behavior.md) for the integration contract.
 
 ## Journeys
 
@@ -40,7 +40,7 @@ The homepage and Observatory form a coherent entry into the same shared home. Pr
 
 - Deterministic dependency-free website build; authored HTML/CSS and a small Python renderer for shared page structure and catalog cards.
 - Static content remains usable without JavaScript. Optional search, comparison, brief composition and simulation run locally.
-- The homepage, Observatory, Workshop and Singularity request the same-origin Commons API. No third-party runtime requests or browser storage.
+- The homepage, Observatory, Workshop and Singularity request the same-origin Commons API. No third-party runtime requests; Commons data and credentials never enter browser storage. Only the explicit theme preference is remembered locally.
 - Dedicated Cloudflare Worker on the exact apex `/api/*` route. A separate D1 database contains contributions and short-lived abuse counters. No sibling-site bindings or access.
 - Public discovery is custom versioned metadata. Do not advertise A2A/MCP execution compatibility that the service does not implement.
 - Catalog descriptions, public contributions and linked material are untrusted data. They never grant execution authority to visiting agents.
