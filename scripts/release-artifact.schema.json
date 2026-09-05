@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OSS Singularity static release artifact descriptor v1",
+  "description": "Offline artifact consistency, not source provenance or deployment authorization. The manifest is the single file hash list; counts include that manifest. JSON parsers must reject duplicate keys.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "repository", "kind", "commit", "manifest_sha256", "file_count", "total_bytes"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "repository": {"type": "string", "const": "oss-singularity/website"},
+    "kind": {"type": "string", "const": "static-site"},
+    "commit": {"type": "string", "pattern": "^[a-f0-9]{40}$", "minLength": 40, "maxLength": 40},
+    "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$", "minLength": 64, "maxLength": 64},
+    "file_count": {"type": "integer", "minimum": 1, "maximum": 256},
+    "total_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864}
+  }
+}
