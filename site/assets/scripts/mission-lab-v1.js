@@ -337,5 +337,5 @@
       button.disabled = false;
     }
   });
-  status.textContent = "Your brief stays in this page until you copy or download it. Nothing is sent or saved by the site.";
+  status.textContent = "Your brief stays in this page until you copy or download it. The brief is not sent or saved by the site.";
 })();

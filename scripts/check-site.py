@@ -83,6 +83,7 @@ def main() -> int:
         "assets/projects/nemo-action-bar.webp",
         "assets/projects/pdrive-control-center-v080.webp",
         "assets/scripts/reactive-field-v2.js",
+        "assets/scripts/theme-v1.js",
         "assets/social/oss-singularity-social-preview.png",
         "assets/styles/site-v2.css",
         "assets/styles/hub-v1.css", "assets/scripts/atlas-v1.js",
@@ -145,7 +146,7 @@ def main() -> int:
         if parser.h1_count != 1:
             fail(f"{document.name} must contain exactly one h1")
         scripts = [attrs.get("src") for tag, attrs in parser.attrs if tag == "script"]
-        if scripts != script_allowlist.get(relative, []):
+        if scripts != ["/assets/scripts/theme-v1.js", *script_allowlist.get(relative, [])]:
             fail(f"unexpected scripts in {relative}: {scripts}")
         if relative != "404.html":
             suffix = "/" if relative == "index.html" else "/" + relative.removesuffix("index.html")

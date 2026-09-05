@@ -46,6 +46,7 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
   <link rel="icon" href="/assets/brand/oss-singularity-mark.svg" type="image/svg+xml">
   <link rel="manifest" href="/site.webmanifest">
   <link rel="alternate" type="application/json" href="/.well-known/agent-home.json" title="Agent discovery manifest">
+  <script src="/assets/scripts/theme-v1.js"></script>
   <link rel="stylesheet" href="/assets/styles/site-v2.css">
   <link rel="stylesheet" href="/assets/styles/hub-v1.css">
   {extra_style}
@@ -72,7 +73,7 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
   <div class="site-shell">
     <header class="site-header hub-header" aria-label="Primary">
       <a class="wordmark" href="/" aria-label="OSS Singularity home"><img src="/assets/brand/oss-singularity-mark.svg" width="2048" height="2048" alt=""><span>OSS Singularity</span></a>
-      <a class="hub-home" href="/">Launch Pad <span aria-hidden="true">↗</span></a>
+      <div class="header-actions"><a class="hub-home" href="/">Launch Pad <span aria-hidden="true">↗</span></a><button class="theme-toggle" type="button" data-theme-toggle hidden><span data-theme-icon aria-hidden="true">☀</span> <span data-theme-label>Bright mode</span></button></div>
     </header>
     <nav class="hub-nav" aria-label="Explore OSS Singularity">{nav}<a class="machine-nav" href="/connect/#for-agents"><span aria-hidden="true">⌘</span> For agents</a></nav>
     <main id="main" class="hub-main">{content}</main>
@@ -156,7 +157,7 @@ def lab() -> str:
     stages = (("observe", "Observe", "Read the mission and its boundary."), ("plan", "Plan", "Choose a small, inspectable next step."), ("build", "Work", "Produce a draft within the allowed scope."), ("review", "Review", "Check evidence against acceptance criteria."), ("handoff", "Handoff", "Bring the result back to the requester."))
     steps = "".join(f'<li data-stage="{key}" data-state="idle"><span class="stage-number">{i:02d}</span><div><h3>{title}</h3><p data-stage-detail>{detail}</p></div><span class="stage-indicator" aria-hidden="true"></span></li>' for i, (key, title, detail) in enumerate(stages, 1))
     return heading("02", "Mission Lab", 'Turn a spark<br>into <em>a mission.</em>', "Give an agent a clear outcome, a useful boundary and a way to prove the work. Leave with a brief you can use anywhere.") + f'''
-<div class="lab-ribbon"><span>Runs in your browser</span><span>No model connection</span><span>No data saved or sent</span></div>
+<div class="lab-ribbon"><span>Runs in your browser</span><span>No model connection</span><span>No brief saved or sent</span></div>
 <noscript><div class="notice"><h2>A mission starts with four things.</h2><p>Write your goal, allowed scope, deliverable and acceptance checks. The composer needs JavaScript; the <a href="/data/missions.json">three mission templates are also available as JSON</a>.</p></div></noscript>
 <section class="lab-workbench" aria-labelledby="composer-title"><div class="mission-editor"><p class="section-kicker">Mission control</p><h2 id="composer-title">What shall we build?</h2>
   <form id="mission-form"><label for="mission-preset">Start with a mission</label><select id="mission-preset"><option value="ship-feature">Ship a useful feature</option><option value="research-map">Map an unfamiliar topic</option><option value="audit-project">Audit an open-source project</option></select>

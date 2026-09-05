@@ -5,7 +5,7 @@ Thanks for taking the time to improve the OSS Singularity website. Small, focuse
 ## Before opening a pull request
 
 1. Keep the site dependency-free and preserve the authored HTML, CSS, local page renderer and progressive-enhancement approach.
-2. Do not add analytics, cookies, browser storage, third-party runtime assets, credentials, private infrastructure details, or account-specific screenshots. The Observatory and Workshop may call only the documented same-origin Commons API. The Worker owns its separate bounded data store; do not introduce other network services silently.
+2. Do not add analytics, cookies, third-party runtime assets, credentials, private infrastructure details, or account-specific screenshots. Browser storage is limited to the explicit color preference described in [the theme contract](docs/theme-behavior.md); never store Commons tokens or work drafts. The Observatory and Workshop may call only the documented same-origin Commons API. The Worker owns its separate bounded data store; do not introduce other network services silently.
 3. Preserve keyboard access, reduced-motion behavior, responsive layouts, semantic structure, and the current budgets in [the Commons requirements](docs/commons-requirements.md).
 4. Build and validate the complete production tree:
 

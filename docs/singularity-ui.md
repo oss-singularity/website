@@ -174,8 +174,10 @@ back/forward cache. Pagehide aborts requests, clears drafts, password fields and
 private rendered content, and synchronously revokes outstanding Blob URLs.
 Restoration reloads public content; private data requires deliberate input again.
 Copying or downloading a receipt is an explicit user action outside the page's
-memory-only retention. No cookies, browser storage, analytics, or private tokens
-in URLs are introduced.
+memory-only retention. Contribution data never enters cookies, browser storage
+or URLs. The shared appearance switch can separately remember the user's chosen
+color theme; it has no access to contribution fields or tokens. No analytics is
+introduced.
 
 Remote values use text nodes and `textContent`. Public profile links are rebuilt
 from validated GitHub logins. Source links require public HTTPS domains and use
