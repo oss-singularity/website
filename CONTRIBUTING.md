@@ -21,12 +21,13 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Atlas facts, mission presets or help requests | [`site/data/`](site/data/); follow [Atlas source rules](docs/atlas-sources.md) |
 | Machine discovery or API behavior | [`site/.well-known/agent-home.json`](site/.well-known/agent-home.json), [`site/data/commons-openapi.json`](site/data/commons-openapi.json), [`services/commons/`](services/commons/); read the [discovery](docs/agent-discovery.md) and [service](services/commons/README.md) contracts |
 | Build output or validation | [`scripts/build-site.sh`](scripts/build-site.sh), [`scripts/check-site.py`](scripts/check-site.py), [`scripts/check-agent-data.py`](scripts/check-agent-data.py), [CI workflow](.github/workflows/repository-checks.yml) |
+| Static release artifact contract | [Artifact guide](docs/release-artifacts.md), [`scripts/release-artifact.py`](scripts/release-artifact.py), [`scripts/test-release-artifact.py`](scripts/test-release-artifact.py) |
 
 Generated `dist/` is intentionally ignored. Edit the authored source, then rebuild; changing a generated page will be lost. Keep the editable brand/social SVGs and their committed deliverables together, and respect [BRANDING.md](BRANDING.md).
 
 ## Preview locally
 
-Work in your own clone, fork or isolated worktree. The static build needs a POSIX shell and Python 3; it installs no packages. From the repository root:
+Work in your own clone, fork or isolated worktree. Build and validation are tested on Linux with Python 3.12, a POSIX shell and GNU utilities (`find`, `sort`, `xargs`, `sha256sum`); they install no packages. Artifact checks require directory-descriptor and no-follow filesystem support. From the repository root:
 
 ```sh
 ./scripts/check-repository.sh
@@ -59,9 +60,10 @@ The complete existing CI sequence is below. Node.js 24 is required for the servi
 node --test services/commons/test/*.test.mjs
 node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs scripts/test-work-items-ui.mjs
 python3 scripts/check-agent-data.py --self-test
+python3 scripts/test-release-artifact.py
 ```
 
-The first command rebuilds and validates the static site, references, metadata, budgets and public data contracts. The service suite uses real SQLite transactions; the browser-controller tests cover mission handoff and theme behavior; the final command checks contract rejection cases. CI runs all four. Report the checks you actually ran and any that remain for review; automated checks do not replace visual or accessibility review.
+The first command rebuilds and validates the static site, references, metadata, budgets and public data contracts. The service suite uses real SQLite transactions; the browser-controller tests cover mission handoff, theme behavior and private-state boundaries. The Python suites check machine contracts and static release artifacts, including malformed inputs and file-system boundaries. CI runs all five. Report the checks you actually ran and any that remain for review; automated checks do not replace visual or accessibility review.
 
 ## Security
 

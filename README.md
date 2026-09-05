@@ -29,7 +29,7 @@ Build and validate the complete site with:
 ./scripts/check-repository.sh
 ```
 
-The website build requires a POSIX shell and Python 3, installs no packages and writes only to ignored `dist/`. Shared hub pages are rendered by `scripts/build-hub.py` from reviewed content and local JSON. Node.js 24 runs the separately documented Worker tests and local live-service preview. No package installation is needed for either workflow.
+Build and validation are tested on Linux with Python 3.12, a POSIX shell and GNU utilities (`find`, `sort`, `xargs`, `sha256sum`). They install no packages and write the website output to ignored `dist/`. The artifact checks require directory-descriptor and no-follow filesystem support. Shared hub pages are rendered by `scripts/build-hub.py` from reviewed content and local JSON. Node.js 24 runs the separately documented Worker tests and local live-service preview. No package installation is needed for either workflow.
 
 To preview the production tree locally after a successful build:
 
@@ -65,7 +65,7 @@ The canonical address is `https://oss-singularity.io/`. Its `www` alias, the `.c
 
 See [docs/hosting.md](docs/hosting.md) for the verified baseline, safety boundaries, and acceptance gates.
 
-The next infrastructure milestone is [release automation](docs/release-automation.md): a reviewed change should be publishable through the shared project workflow, with exact artifacts, scoped deployment access and recoverable failures. Production automation is not enabled yet.
+The next infrastructure milestone is [release automation](docs/release-automation.md): a reviewed change should be publishable through the shared project workflow, with exact artifacts, scoped deployment access and recoverable failures. Its first component is an offline [static artifact verifier](docs/release-artifacts.md). Production automation is not enabled yet.
 
 Brand provenance and the current visual rules are recorded in [docs/brand-inputs.md](docs/brand-inputs.md).
 

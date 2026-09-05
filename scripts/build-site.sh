@@ -83,7 +83,7 @@ python3 "$repo_root/scripts/build-hub.py" "$output"
 (
   cd "$output"
   find . -type f ! -name dist-manifest.sha256 -print0 \
-    | sort -z \
+    | LC_ALL=C sort -z \
     | xargs -0 sha256sum > "$manifest_tmp"
 )
 mv -- "$manifest_tmp" "$output/dist-manifest.sha256"

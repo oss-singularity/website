@@ -6,6 +6,11 @@ successful checks and a reproducible release, without requiring Codex or one
 maintainer's workstation. Routine promotion should become automatic once the
 gates below have demonstrated reliable behavior.
 
+The first implemented component is the offline [static artifact contract](release-artifacts.md).
+It validates payload bytes and a constrained descriptor, including an optional
+independent rebuild comparison. Trusted-run provenance, provider adapters and
+production promotion remain separate work.
+
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing
 [hosting contract](hosting.md) and

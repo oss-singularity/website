@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
+
+from site_artifact import ArtifactError, capture, private_copy, require
 import sys
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
@@ -64,16 +67,15 @@ def local_target(root: Path, document: Path, value: str) -> Path | None:
         target = root / path.removeprefix("/")
     else:
         target = document.parent / path
+    target = Path(os.path.abspath(target))
+    if not target.is_relative_to(root):
+        fail("local reference escapes publication tree")
     if target.is_dir():
         target /= "index.html"
     return target
 
 
-def main() -> int:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else "dist").resolve()
-    if not root.is_dir():
-        fail(f"missing build directory {root}")
-
+def required_files(actual: set[str], read) -> set[str]:
     required = {
         ".htaccess", ".well-known/security.txt", "404.html",
         "dist-manifest.sha256", "index.html",
@@ -106,14 +108,18 @@ def main() -> int:
         "assets/scripts/work-items-model-v1.js", "assets/scripts/work-items-v1.js",
     }
     social_path = "assets/social/oss-singularity-social-preview.png"
+    require(required <= actual, "allowlist_mismatch")
+    require(len(actual - required) == 1, "allowlist_mismatch")
+    social_version = hashlib.sha256(read(social_path)).hexdigest()[:12]
+    required.add(f"assets/social/oss-singularity-social-preview.{social_version}.png")
+    return required
+
+
+def check_product(root: Path) -> int:
+    social_path = "assets/social/oss-singularity-social-preview.png"
     social_bytes = (root / social_path).read_bytes()
     social_version = hashlib.sha256(social_bytes).hexdigest()[:12]
     social_versioned_path = f"assets/social/oss-singularity-social-preview.{social_version}.png"
-    required.add(social_versioned_path)
-    actual = {str(path.relative_to(root)) for path in root.rglob("*") if path.is_file()}
-    if actual != required:
-        fail(f"build allowlist mismatch: missing={sorted(required - actual)} extra={sorted(actual - required)}")
-
     if (root / social_versioned_path).read_bytes() != social_bytes:
         fail("fingerprinted social preview differs from the stable image alias")
     social_image = f"https://oss-singularity.io/{social_versioned_path}"
@@ -281,18 +287,6 @@ def main() -> int:
         if size > 350_000:
             fail(f"initial transfer budget exceeded: {document.relative_to(root)} {size}")
 
-    manifest_files = set()
-    for line in (root / "dist-manifest.sha256").read_text().splitlines():
-        digest, name = line.split("  ", 1)
-        name = name.removeprefix("./")
-        if name not in actual or name in manifest_files:
-            fail(f"invalid manifest path {name}")
-        if hashlib.sha256((root / name).read_bytes()).hexdigest() != digest:
-            fail(f"manifest digest mismatch {name}")
-        manifest_files.add(name)
-    if manifest_files != actual - {"dist-manifest.sha256"}:
-        fail("manifest does not cover exact production tree")
-
     manifest = json.loads((root / "site.webmanifest").read_text(encoding="utf-8"))
     if manifest.get("start_url") != "/":
         fail("web manifest start_url must be canonical root")
@@ -307,6 +301,24 @@ def main() -> int:
         f"site checks passed: html={html_bytes} css={css_bytes} "
         f"js={script_bytes} transfer={transfer}"
     )
+    return 0
+
+
+def inspect_artifact(root: Path) -> dict[str, bytes]:
+    files = capture(root, required_files)
+    with private_copy(files) as snapshot:
+        check_product(snapshot)
+    return files
+
+
+def main() -> int:
+    root = Path(sys.argv[1] if len(sys.argv) > 1 else "dist")
+    try:
+        inspect_artifact(root)
+    except ArtifactError as error:
+        fail(error.code)
+    except OSError:
+        fail("unsafe_or_unavailable_tree")
     return 0
 
 
