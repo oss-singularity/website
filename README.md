@@ -45,7 +45,9 @@ The social preview is authored as SVG. When updating it, run `python3 scripts/re
 
 ## Infrastructure
 
-The website uses Namecheap Stellar shared hosting behind Cloudflare. The Workshop service is isolated to `oss-singularity.io/api/*` with its own Worker and D1 database. Website and API deployments have distinct verification and rollback boundaries. Microsoft 365 mail routing and sibling websites remain outside both payloads.
+The website uses an isolated addon-domain document root on Namecheap Stellar shared hosting behind Cloudflare Free with Full (strict) TLS. The Workshop service is isolated to `oss-singularity.io/api/*` with its own Worker and D1 database. Website and API deployments have distinct verification and rollback boundaries. Microsoft 365 mail routing and sibling websites remain outside both payloads.
+
+The canonical address is `https://oss-singularity.io/`. Its `www` alias, the `.com` apex, and the `.de` apex plus `www` redirect over HTTP and HTTPS to the equivalent canonical path and query. The `.com` and `.de` redirect hosts run separately on Netcup.
 
 See [docs/hosting.md](docs/hosting.md) for the verified baseline, safety boundaries, and acceptance gates.
 
@@ -65,6 +67,6 @@ Source code and technical documentation are available under the [MIT License](LI
 - Repository security baseline: verified; public-repository protections tracked separately from source checks
 - Existing brand inputs: inventoried; canonical vector avatar source located and preserved
 - Requirements, architecture, visual direction, and static technology stack: selected and documented
-- Launch Pad v0: live and production-verified at [oss-singularity.io](https://oss-singularity.io/)
-- Canonical host: apex only; no published URL uses `www`
+- Shared home: live and production-verified at [oss-singularity.io](https://oss-singularity.io/)
+- Canonical content: the `.io` apex; verified aliases support HTTPS and redirect to it
 - Workshop contract: bounded public proposals, reviewed publication, private receipts and explicit operational data retention
