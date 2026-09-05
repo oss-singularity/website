@@ -241,13 +241,10 @@ html[data-theme="bright"] {
 .pulse-card:hover { border-color: var(--cyan); }
 .pulse-card h3 { font-size: 1.25rem; }
 .pulse-card p { color: var(--muted); display: -webkit-box; font-size: .8rem; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
-/* Move only the artwork; navigation targets and captions keep their geometry. */
-.hub-observatory .constellation-core img { animation: constellation-float 16s ease-in-out infinite; animation-play-state: paused; }
-.hub-observatory .constellation[data-core-motion="running"] .constellation-core img { animation-play-state: running; }
-@keyframes constellation-float {
-  0%, 100% { transform: translateY(0) rotate(0); }
-  50% { transform: translateY(-4px) rotate(.4deg); }
-}
+/* The controller moves only the square image; reserve its travel above the fixed caption. */
+.hub-observatory .constellation { --core-roam: 14%; }
+.hub-observatory .constellation-core img { flex: none; }
+.hub-observatory .constellation-core span { left: 50%; position: absolute; top: calc(100% + var(--core-roam) + 8px); transform: translateX(-50%); }
 .home-hub-link { background: var(--hub-tint, #0e2637); border-block: 1px solid var(--hub-edge, #2b5167); color: var(--hub-body, #c4dfec); display: flex; flex-wrap: wrap; gap: 12px 26px; justify-content: space-between; margin: 0 auto; max-width: 1180px; padding: 17px 24px; text-decoration: none; width: calc(100% - 48px); }
 .home-hub-link span { color: var(--cyan); font-size: .78rem; }
 .home-hub-link strong { font-size: .85rem; }
@@ -271,6 +268,10 @@ html[data-theme="bright"] {
   .guide-layout { gap: 38px; grid-template-columns: 200px minmax(0, 1fr); }
   .connect-intro { gap: 35px; padding: 40px; }
 }
+@media (min-width: 761px) and (max-width: 960px) {
+  .observatory-hero { grid-template-columns: 1fr; }
+  .constellation { margin: 20px auto 0; max-width: 520px; }
+}
 @media (max-width: 760px) {
   .hub-main, .hub-nav, .home-hub-link { width: calc(100% - 32px); }
   .hub-nav { gap: 2px; }
@@ -285,6 +286,7 @@ html[data-theme="bright"] {
   .observatory-copy h1 { font-size: clamp(3.9rem, 11.4vw, 5.7rem); }
   .observatory-copy .page-lead { font-size: 1rem; }
   .constellation { margin: 20px auto 0; max-width: 520px; }
+  .hub-observatory .constellation { --core-roam: 6%; }
   .map-node { min-width: 137px; padding: 15px; }
   .node-code { left: 5%; }
   .node-framework { right: 1%; }
@@ -343,6 +345,12 @@ html[data-theme="bright"] {
   .endpoint-list a { gap: 7px; grid-template-columns: 50px minmax(0, 1fr) 8px; padding-inline: 12px; }
   .endpoint-list code { font-size: .61rem; }
   .feature-mission, .agent-gateway { padding: 23px; }
+}
+@media (max-width: 419px) {
+  .hub-observatory .node-code { left: 0; top: 10%; }
+  .hub-observatory .node-framework { right: 0; top: 10%; }
+  .hub-observatory .node-local { bottom: 10%; left: 0; }
+  .hub-observatory .node-protocol { bottom: 10%; right: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hub-page *, .hub-page *::before, .hub-page *::after { animation: none !important; scroll-behavior: auto !important; transition: none !important; }

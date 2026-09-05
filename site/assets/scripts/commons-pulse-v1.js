@@ -1,13 +1,45 @@
 (() => {
   "use strict";
   const artwork = document.querySelector(".hub-observatory .constellation");
-  if (!artwork || typeof IntersectionObserver !== "function" || typeof matchMedia !== "function") return;
+  const core = artwork?.querySelector(".constellation-core img");
+  if (!core || typeof core.animate !== "function" || typeof IntersectionObserver !== "function" || typeof matchMedia !== "function") return;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   if (typeof reducedMotion.addEventListener !== "function") return;
   let inView = false;
   let pageActive = true;
+  let animation = null;
+  let position = "translate(0, 0) rotate(0deg)";
+  let direction = Math.random() * Math.PI * 2;
+  const shouldMove = () => inView && pageActive && !document.hidden && !reducedMotion.matches;
+  const wander = () => {
+    const previous = animation;
+    direction += Math.PI * (.5 + Math.random());
+    const radius = .7 + Math.random() * .3;
+    const x = (Math.cos(direction) * radius).toFixed(4);
+    const y = (Math.sin(direction) * radius).toFixed(4);
+    const next = `translate(calc(var(--core-roam) * ${x}), calc(var(--core-roam) * ${y})) rotate(${(Number(x) * 1.2).toFixed(3)}deg)`;
+    animation = core.animate([{transform: position}, {transform: next}], {
+      duration: 10000 + Math.random() * 4000, easing: "ease-in-out", fill: "forwards"
+    });
+    animation.id = "constellation-wander";
+    position = next;
+    const segment = animation;
+    segment.onfinish = () => { if (animation === segment && !reducedMotion.matches) wander(); };
+    if (!shouldMove()) animation.pause();
+    // The new segment starts at the old endpoint before the old fill is removed.
+    previous?.cancel();
+  };
   const updateMotion = () => {
-    artwork.dataset.coreMotion = inView && pageActive && !document.hidden && !reducedMotion.matches ? "running" : "paused";
+    const running = shouldMove();
+    artwork.dataset.coreMotion = running ? "running" : "paused";
+    if (reducedMotion.matches) {
+      animation?.cancel();
+      animation = null;
+      position = "translate(0, 0) rotate(0deg)";
+    } else if (running) {
+      if (animation) animation.play();
+      else wander();
+    } else animation?.pause();
   };
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) {
