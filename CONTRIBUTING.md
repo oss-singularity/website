@@ -22,6 +22,7 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Machine discovery or API behavior | [`site/.well-known/agent-home.json`](site/.well-known/agent-home.json), [`site/data/commons-openapi.json`](site/data/commons-openapi.json), [`services/commons/`](services/commons/); read the [discovery](docs/agent-discovery.md) and [service](services/commons/README.md) contracts |
 | Build output or validation | [`scripts/build-site.sh`](scripts/build-site.sh), [`scripts/check-site.py`](scripts/check-site.py), [`scripts/check-agent-data.py`](scripts/check-agent-data.py), [CI workflow](.github/workflows/repository-checks.yml) |
 | Static release artifact contract | [Artifact guide](docs/release-artifacts.md), [`scripts/release-artifact.py`](scripts/release-artifact.py), [`scripts/test-release-artifact.py`](scripts/test-release-artifact.py) |
+| Release rehearsal on canonical main | [Rehearsal guide](docs/release-rehearsal.md), [`scripts/release-rehearsal.py`](scripts/release-rehearsal.py), [rehearsal workflow](.github/workflows/static-release-rehearsal.yml) |
 
 Generated `dist/` is intentionally ignored. Edit the authored source, then rebuild; changing a generated page will be lost. Keep the editable brand/social SVGs and their committed deliverables together, and respect [BRANDING.md](BRANDING.md).
 
@@ -61,9 +62,10 @@ node --test services/commons/test/*.test.mjs
 node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs scripts/test-work-items-ui.mjs
 python3 scripts/check-agent-data.py --self-test
 python3 scripts/test-release-artifact.py
+python3 scripts/test-release-rehearsal.py
 ```
 
-The first command rebuilds and validates the static site, references, metadata, budgets and public data contracts. The service suite uses real SQLite transactions; the browser-controller tests cover mission handoff, theme behavior and private-state boundaries. The Python suites check machine contracts and static release artifacts, including malformed inputs and file-system boundaries. CI runs all five. Report the checks you actually ran and any that remain for review; automated checks do not replace visual or accessibility review.
+The first command rebuilds and validates the static site, references, metadata, budgets and public data contracts. The service suite uses real SQLite transactions; the browser-controller tests cover mission handoff, theme behavior and private-state boundaries. The Python suites check machine contracts, static artifacts and release-rehearsal identity/transport fixtures. CI runs all six without production access. Report the checks you actually ran and any that remain for review; automated checks do not replace visual or accessibility review.
 
 ## Security
 
