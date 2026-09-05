@@ -65,6 +65,8 @@ The canonical address is `https://oss-singularity.io/`. Its `www` alias, the `.c
 
 See [docs/hosting.md](docs/hosting.md) for the verified baseline, safety boundaries, and acceptance gates.
 
+The next infrastructure milestone is [release automation](docs/release-automation.md): a reviewed change should be publishable through the shared project workflow, with exact artifacts, scoped deployment access and recoverable failures. Production automation is not enabled yet.
+
 Brand provenance and the current visual rules are recorded in [docs/brand-inputs.md](docs/brand-inputs.md).
 
 ## Contributing

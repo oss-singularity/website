@@ -55,6 +55,8 @@ The source repository is published for transparent inspection and contribution. 
 
 The OSS Singularity organization disables deploy keys across its repositories. A repo-specific cPanel deploy key was therefore not retained, no broader personal access token or account key was installed on the shared host, and no cPanel mirror was created. Authorized static releases use the verified operator SSH path after the protected merge and required checks. GitHub Actions validates source changes; automatic production deployment is not currently configured. Any future automation must transfer only the declared build output, serialize production deployments, verify the live result, and retain a rollback target. A repository-scoped GitHub App is reserved for a future requirement that genuinely needs server-initiated pulls; do not add its token-rotation and private-key machinery without that need.
 
+The next infrastructure milestone is specified in [release automation](release-automation.md). It starts with portable, target-constrained release interfaces and a trusted post-merge dry run before enabling production workflows. Repository, environment and organization secrets require an explicit access design; the current operator credentials are not a CI deployment identity.
+
 ## Available platform capabilities
 
 The exported cPanel tools confirm SSH/SFTP, API tokens, Git Version Control, Zone Editor, cron, backups, TLS management, ModSecurity, Imunify360, MariaDB, PHP, and managed Node.js/Python/Ruby application runtimes.
