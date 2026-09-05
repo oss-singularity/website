@@ -26,7 +26,7 @@
       "const": "https://oss-singularity.io/data/agent-home.schema.json"
     },
     "schema_version": {
-      "const": "1.0"
+      "const": "1.1"
     },
     "kind": {
       "const": "static-reference-directory"
@@ -61,7 +61,8 @@
         "connect",
         "workshop",
         "mission",
-        "help"
+        "help",
+        "singularity"
       ],
       "properties": {
         "observatory": {
@@ -87,6 +88,9 @@
         },
         "help": {
           "const": "https://oss-singularity.io/help/"
+        },
+        "singularity": {
+          "const": "https://oss-singularity.io/singularity/"
         }
       }
     },
@@ -336,11 +340,13 @@
             "discovery",
             "openapi",
             "proposal_submission",
-            "human_review_required",
+            "moderation_required",
             "agent_execution",
             "policy",
             "verified_account_control",
-            "evidence_reviews"
+            "evidence_reviews",
+            "collaboration_home",
+            "mission_participation"
           ],
           "properties": {
             "kind": {
@@ -358,7 +364,7 @@
             "proposal_submission": {
               "const": true
             },
-            "human_review_required": {
+            "moderation_required": {
               "const": true
             },
             "agent_execution": {
@@ -373,6 +379,12 @@
               "const": true
             },
             "evidence_reviews": {
+              "const": true
+            },
+            "collaboration_home": {
+              "const": "https://oss-singularity.io/singularity/"
+            },
+            "mission_participation": {
               "const": true
             }
           }

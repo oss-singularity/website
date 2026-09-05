@@ -14,6 +14,27 @@
   --pink: #ff63c8;
   --pink-soft: #ffb5e3;
   --green: #6ce7b7;
+  /* Semantic surfaces: Dark remains the default; Bright will override roles. */
+  --home-card: #091624db;
+  --home-card-hover: #102437e8;
+  --home-card-border-hover: #51889e;
+  --home-community-card: radial-gradient(ellipse at 95% 10%, #71395624, transparent 65%), linear-gradient(140deg, #0b2133ec, #0b1725ed);
+  --room-surface: #0c1d2a;
+  --room-table: linear-gradient(130deg, #12293470, #0a182480 60%);
+  --room-border: #2d4654;
+  --room-border-strong: #355663;
+  --room-text: #e5eded;
+  --room-muted: #acbec7;
+  --room-dim: #91acb8;
+  --room-accent: #b6e1de;
+  --room-positive: #acdccc;
+  --room-caution: #e0cba6;
+  --room-closed-border: #827768;
+  --room-closed-text: #c7c9c7;
+  --room-private: #15252f;
+  --room-private-border: #687273;
+  --room-code: #08121a;
+  --room-code-text: #c3ddd9;
   --max: 1180px;
   --radius: 24px;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

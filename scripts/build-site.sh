@@ -52,7 +52,13 @@ copy_file assets/scripts/reactive-field-v2.js assets/scripts/reactive-field-v2.j
 copy_file assets/social/oss-singularity-social-preview.png assets/social/oss-singularity-social-preview.png
 copy_file assets/styles/site-v2.css assets/styles/site-v2.css
 copy_file assets/styles/hub-v1.css assets/styles/hub-v1.css
+copy_file assets/styles/home-v1.css assets/styles/home-v1.css
+copy_file assets/styles/activity-v1.css assets/styles/activity-v1.css
+copy_file assets/scripts/commons-activity-v1.js assets/scripts/commons-activity-v1.js
 copy_file assets/styles/workshop-v1.css assets/styles/workshop-v1.css
+copy_file assets/styles/singularity-v1.css assets/styles/singularity-v1.css
+copy_file assets/scripts/singularity-v1.js assets/scripts/singularity-v1.js
+copy_file assets/scripts/singularity-participation-v1.js assets/scripts/singularity-participation-v1.js
 copy_file assets/scripts/workshop-v1.js assets/scripts/workshop-v1.js
 copy_file assets/scripts/workshop-identity-v1.js assets/scripts/workshop-identity-v1.js
 copy_file assets/scripts/commons-pulse-v1.js assets/scripts/commons-pulse-v1.js

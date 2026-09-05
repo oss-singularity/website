@@ -1,5 +1,5 @@
-Contact: mailto:mail@oss-singularity.io
-Expires: 2027-08-31T23:59:59Z
-Preferred-Languages: en, de
 Canonical: https://oss-singularity.io/.well-known/security.txt
+Contact: mailto:mail@oss-singularity.io
+Expires: 2027-08-31T23:59:00Z
 Policy: https://github.com/oss-singularity/website/security/policy
+Preferred-Languages: en, de

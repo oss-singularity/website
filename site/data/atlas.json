@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated": "2026-09-04",
+  "updated": "2026-09-05",
   "entries": [
     {
       "id": "aider",
@@ -19,6 +19,22 @@
       ]
     },
     {
+      "id": "claude-code",
+      "name": "Claude Code",
+      "category": "coding",
+      "summary": "Anthropic's coding agent for terminal, IDE, desktop and web workflows, with file editing, commands and tool integrations.",
+      "use_case": "Investigate a codebase and implement a scoped change using a supported subscription, Console account or provider.",
+      "website": "https://code.claude.com/docs/en/overview",
+      "source_url": "https://github.com/anthropics/claude-code",
+      "license": "Proprietary (Anthropic terms)",
+      "tags": [
+        "CLI",
+        "IDE",
+        "MCP"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
       "id": "cline",
       "name": "Cline",
       "category": "coding",
@@ -35,6 +51,70 @@
       ]
     },
     {
+      "id": "cursor",
+      "name": "Cursor",
+      "category": "coding",
+      "summary": "An editor-based coding agent with codebase search, file editing and terminal tools, backed by Cursor's services.",
+      "use_case": "Iterate on a multi-file change in the editor and review the resulting diff; account and usage terms apply.",
+      "website": "https://cursor.com/docs/agent/overview",
+      "source_url": "https://cursor.com/terms-of-service",
+      "license": "Proprietary (client and service)",
+      "tags": [
+        "IDE",
+        "codebase search",
+        "review"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
+      "id": "devin",
+      "name": "Devin",
+      "category": "coding",
+      "summary": "Cognition's hosted coding agent, with a development workspace for writing, running and testing code.",
+      "use_case": "Delegate a scoped repository task through a Devin account, then inspect its draft changes and tests.",
+      "website": "https://docs.devin.ai/get-started/devin-intro",
+      "source_url": "https://cognition.com/legal/platform-terms-of-service",
+      "license": "Proprietary (hosted service)",
+      "tags": [
+        "cloud",
+        "repository tasks",
+        "review"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Gemini CLI",
+      "category": "coding",
+      "summary": "An open-source terminal agent from Google with file and shell tools, search grounding and MCP integrations.",
+      "use_case": "Explore and change a repository from the command line; Gemini account or API access has separate terms and limits.",
+      "website": "https://geminicli.com/docs/",
+      "source_url": "https://github.com/google-gemini/gemini-cli",
+      "license": "Apache-2.0 (CLI)",
+      "tags": [
+        "CLI",
+        "MCP",
+        "search"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
+      "id": "copilot-cli",
+      "name": "GitHub Copilot CLI",
+      "category": "coding",
+      "summary": "A terminal coding agent with GitHub context, file changes, shell tools and interactive or scripted sessions.",
+      "use_case": "Work on code and pull requests from your terminal; Copilot plans and model providers have separate conditions.",
+      "website": "https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-copilot-cli",
+      "source_url": "https://github.com/github/copilot-cli",
+      "license": "Proprietary (Copilot CLI license)",
+      "tags": [
+        "CLI",
+        "GitHub",
+        "MCP"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
       "id": "goose",
       "name": "goose",
       "category": "coding",
@@ -49,6 +129,22 @@
         "CLI",
         "MCP"
       ]
+    },
+    {
+      "id": "codex",
+      "name": "OpenAI Codex",
+      "category": "coding",
+      "summary": "OpenAI's coding agent across terminal, IDE and cloud, with repository inspection, file edits and command execution.",
+      "use_case": "Develop a repository change locally or in a configured cloud environment, then review the patch and tests.",
+      "website": "https://learn.chatgpt.com/docs/codex/cli",
+      "source_url": "https://github.com/openai/codex",
+      "license": "Apache-2.0 (CLI); proprietary cloud",
+      "tags": [
+        "CLI",
+        "IDE",
+        "cloud"
+      ],
+      "reviewed": "2026-09-05"
     },
     {
       "id": "opencode",
@@ -115,6 +211,22 @@
       ]
     },
     {
+      "id": "google-adk",
+      "name": "Google Agent Development Kit",
+      "category": "frameworks",
+      "summary": "A code-first framework for building, evaluating and deploying agents, with workflow orchestration and multiple model options.",
+      "use_case": "Compose agents and tools into a testable workflow; choose the model provider and deployment environment yourself.",
+      "website": "https://adk.dev/",
+      "source_url": "https://github.com/google/adk-python",
+      "license": "Apache-2.0 (Python framework)",
+      "tags": [
+        "Python",
+        "workflows",
+        "evaluation"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
       "id": "langgraph",
       "name": "LangGraph",
       "category": "frameworks",
@@ -131,6 +243,54 @@
       ]
     },
     {
+      "id": "microsoft-agent-framework",
+      "name": "Microsoft Agent Framework",
+      "category": "frameworks",
+      "summary": "A framework for agents and graph-based workflows in Python and .NET, with provider integrations and observability.",
+      "use_case": "Build a multi-stage application with state, tool access and review steps across Python or .NET services.",
+      "website": "https://learn.microsoft.com/en-us/agent-framework/overview/",
+      "source_url": "https://github.com/microsoft/agent-framework",
+      "license": "MIT (framework)",
+      "tags": [
+        "Python",
+        ".NET",
+        "workflows"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
+      "id": "openai-agents-sdk",
+      "name": "OpenAI Agents SDK",
+      "category": "frameworks",
+      "summary": "An SDK for agent applications with tools, handoffs, guardrails, session state and tracing; Python and TypeScript implementations.",
+      "use_case": "Build a specialist workflow with explicit tools and review points; configure model access separately.",
+      "website": "https://developers.openai.com/api/docs/guides/agents",
+      "source_url": "https://github.com/openai/openai-agents-python",
+      "license": "MIT (Python SDK)",
+      "tags": [
+        "Python",
+        "TypeScript",
+        "handoffs"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
+      "id": "pydantic-ai",
+      "name": "Pydantic AI",
+      "category": "frameworks",
+      "summary": "A Python SDK for typed agent applications, with validated structured outputs, tool definitions and multiple model providers.",
+      "use_case": "Turn a model-assisted workflow into typed application data and test its tools and output contracts.",
+      "website": "https://pydantic.dev/docs/ai/overview/",
+      "source_url": "https://github.com/pydantic/pydantic-ai",
+      "license": "MIT (SDK)",
+      "tags": [
+        "Python",
+        "structured output",
+        "type safety"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
       "id": "smolagents",
       "name": "smolagents",
       "category": "frameworks",
@@ -144,22 +304,6 @@
         "Python",
         "code agents",
         "tools"
-      ]
-    },
-    {
-      "id": "ollama",
-      "name": "Ollama",
-      "category": "local",
-      "summary": "A model runtime with a CLI, model management and an HTTP API for connecting applications to language models.",
-      "use_case": "Serve a compatible model locally and connect an agent or application to its API.",
-      "website": "https://ollama.com/",
-      "source_url": "https://github.com/ollama/ollama",
-      "license": "MIT (runtime)",
-      "reviewed": "2026-09-04",
-      "tags": [
-        "local models",
-        "API",
-        "runtime"
       ]
     },
     {
@@ -179,20 +323,52 @@
       ]
     },
     {
-      "id": "mcp",
-      "name": "Model Context Protocol",
-      "category": "protocols",
-      "summary": "An open standard for connecting AI applications to external tools, data sources and workflows.",
-      "use_case": "Expose a tool or data source through a shared client-server interface that compatible agents can use.",
-      "website": "https://modelcontextprotocol.io/",
-      "source_url": "https://github.com/modelcontextprotocol/modelcontextprotocol",
-      "license": "MIT (specification repo)",
+      "id": "lm-studio",
+      "name": "LM Studio",
+      "category": "local",
+      "summary": "A desktop application for downloading, running and managing local models, with chat, MCP tools and local HTTP APIs.",
+      "use_case": "Load a compatible model on your hardware and connect an application through its documented API; model licenses are separate.",
+      "website": "https://lmstudio.ai/docs/app",
+      "source_url": "https://lmstudio.ai/app-terms",
+      "license": "Proprietary (desktop app)",
+      "tags": [
+        "desktop",
+        "local API",
+        "MCP"
+      ],
+      "reviewed": "2026-09-05"
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "category": "local",
+      "summary": "A model runtime with a CLI, model management and an HTTP API for connecting applications to language models.",
+      "use_case": "Serve a compatible model locally and connect an agent or application to its API.",
+      "website": "https://ollama.com/",
+      "source_url": "https://github.com/ollama/ollama",
+      "license": "MIT (runtime)",
       "reviewed": "2026-09-04",
       "tags": [
-        "MCP",
-        "tools",
-        "interoperability"
+        "local models",
+        "API",
+        "runtime"
       ]
+    },
+    {
+      "id": "acp",
+      "name": "Agent Client Protocol",
+      "category": "protocols",
+      "summary": "A protocol connecting code editors and coding agents, with message schemas and SDKs for client and agent implementations.",
+      "use_case": "Connect a coding agent to a compatible editor without building a separate integration for every pair.",
+      "website": "https://agentclientprotocol.com/get-started/introduction",
+      "source_url": "https://github.com/agentclientprotocol/agent-client-protocol",
+      "license": "Apache-2.0 (protocol repository)",
+      "tags": [
+        "ACP",
+        "editors",
+        "interoperability"
+      ],
+      "reviewed": "2026-09-05"
     },
     {
       "id": "a2a",
@@ -207,6 +383,22 @@
       "tags": [
         "A2A",
         "agent discovery",
+        "interoperability"
+      ]
+    },
+    {
+      "id": "mcp",
+      "name": "Model Context Protocol",
+      "category": "protocols",
+      "summary": "An open standard for connecting AI applications to external tools, data sources and workflows.",
+      "use_case": "Expose a tool or data source through a shared client-server interface that compatible agents can use.",
+      "website": "https://modelcontextprotocol.io/",
+      "source_url": "https://github.com/modelcontextprotocol/modelcontextprotocol",
+      "license": "MIT (specification repo)",
+      "reviewed": "2026-09-04",
+      "tags": [
+        "MCP",
+        "tools",
         "interoperability"
       ]
     }

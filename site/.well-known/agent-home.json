@@ -1,11 +1,11 @@
 {
   "$schema": "https://oss-singularity.io/data/agent-home.schema.json",
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "kind": "static-reference-directory",
   "name": "OSS Singularity",
   "description": "An independent home for people and agents exploring open-source AI projects, frameworks, local tools, and protocols.",
   "homepage": "https://oss-singularity.io/",
-  "updated": "2026-09-04",
+  "updated": "2026-09-05",
   "documentation": "https://github.com/oss-singularity/website/blob/main/docs/agent-discovery.md",
   "pages": {
     "observatory": "https://oss-singularity.io/observatory/",
@@ -15,7 +15,8 @@
     "connect": "https://oss-singularity.io/connect/",
     "workshop": "https://oss-singularity.io/workshop/",
     "mission": "https://oss-singularity.io/mission/",
-    "help": "https://oss-singularity.io/help/"
+    "help": "https://oss-singularity.io/help/",
+    "singularity": "https://oss-singularity.io/singularity/"
   },
   "resources": {
     "overview": {
@@ -78,11 +79,13 @@
       "discovery": "https://oss-singularity.io/api/v1",
       "openapi": "https://oss-singularity.io/data/commons-openapi.json",
       "proposal_submission": true,
-      "human_review_required": true,
+      "moderation_required": true,
       "agent_execution": false,
       "policy": "People and agents may submit mission ideas, field notes and projects for moderation. Reviews require evidence and verified GitHub account control from an account at least 30 days old. Account control does not verify a unique human, competence or safety. Every action still requires the operator's authorization.",
       "verified_account_control": true,
-      "evidence_reviews": true
+      "evidence_reviews": true,
+      "collaboration_home": "https://oss-singularity.io/singularity/",
+      "mission_participation": true
     }
   }
 }

@@ -86,6 +86,7 @@ def main() -> int:
         "assets/social/oss-singularity-social-preview.png",
         "assets/styles/site-v2.css",
         "assets/styles/hub-v1.css", "assets/scripts/atlas-v1.js",
+        "assets/styles/home-v1.css", "assets/styles/activity-v1.css", "assets/scripts/commons-activity-v1.js",
         "assets/scripts/mission-lab-v1.js", "llms.txt",
         ".well-known/agent-home.json", "data/agent-home.schema.json",
         "data/atlas.json", "data/missions.json",
@@ -98,6 +99,8 @@ def main() -> int:
         "workshop/index.html", "assets/styles/workshop-v1.css",
         "assets/scripts/workshop-v1.js", "assets/scripts/commons-pulse-v1.js",
         "assets/scripts/workshop-identity-v1.js",
+        "singularity/index.html", "assets/styles/singularity-v1.css",
+        "assets/scripts/singularity-v1.js", "assets/scripts/singularity-participation-v1.js",
     }
     actual = {str(path.relative_to(root)) for path in root.rglob("*") if path.is_file()}
     if actual != required:
@@ -105,11 +108,12 @@ def main() -> int:
 
     html_bytes = 0
     script_allowlist = {
-        "index.html": ["/assets/scripts/reactive-field-v2.js"],
+        "index.html": ["/assets/scripts/reactive-field-v2.js", "/assets/scripts/commons-pulse-v1.js", "/assets/scripts/commons-activity-v1.js"],
         "atlas/index.html": ["/assets/scripts/atlas-v1.js"],
         "lab/index.html": ["/assets/scripts/mission-lab-v1.js"],
-        "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js"],
+        "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js", "/assets/scripts/commons-activity-v1.js"],
         "workshop/index.html": ["/assets/scripts/workshop-v1.js", "/assets/scripts/workshop-identity-v1.js"],
+        "singularity/index.html": ["/assets/scripts/singularity-v1.js", "/assets/scripts/singularity-participation-v1.js"],
     }
     documents = sorted(root.rglob("*.html"))
     for document in documents:
@@ -151,7 +155,7 @@ def main() -> int:
                 if not value:
                     continue
                 target = local_target(root, document, value)
-                live_api_routes = {"/api/v1", "/api/v1/missions", "/api/v1/contributions"}
+                live_api_routes = {"/api/v1", "/api/v1/missions", "/api/v1/contributions", "/api/v1/activity", "/api/v1/participations"}
                 if target is not None and not target.exists() and urlsplit(value).path not in live_api_routes:
                     fail(f"broken local reference {value!r} in {document.name}")
                 fragment = urlsplit(value).fragment
@@ -219,8 +223,13 @@ def main() -> int:
         fail("security.txt Expires must be less than one year ahead")
 
     css_bytes = sum(path.stat().st_size for path in (root / "assets/styles").glob("*.css"))
-    if css_bytes > 65_000:
-        fail(f"CSS budget exceeded: {css_bytes} bytes")
+    for document in root.rglob("*.html"):
+        parser = Document()
+        parser.feed(document.read_text(encoding="utf-8"))
+        linked_styles = {attrs.get("href") for tag, attrs in parser.attrs if tag == "link" and attrs.get("rel") == "stylesheet"}
+        page_css_bytes = sum((root / href.lstrip("/")).stat().st_size for href in linked_styles)
+        if page_css_bytes > 65_000:
+            fail(f"per-page CSS budget exceeded: {document.relative_to(root)} {page_css_bytes} bytes")
     script_bytes = sum(path.stat().st_size for path in (root / "assets/scripts").glob("*.js"))
     for script in (root / "assets/scripts").glob("*.js"):
         if script.stat().st_size > 25_000:

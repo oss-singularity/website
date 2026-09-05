@@ -75,7 +75,7 @@
       try {
         payload = await response.json();
       } catch {
-        throw new Error("The shared service returned an unreadable response. Try again later.");
+        throw new Error("Unreadable service response. Try again later.");
       }
       if (!response.ok) {
         const error = new Error(payload?.error?.message || `The shared service returned HTTP ${response.status}.`);
@@ -90,7 +90,7 @@
       return payload;
     } catch (error) {
       if (error.name === "AbortError") {
-        throw new Error("The shared service did not respond in time.");
+        throw new Error("The service did not respond in time.");
       }
       throw error;
     } finally {
@@ -121,7 +121,7 @@
     byId("mission-id").setCustomValidity("");
     byId("kind").value = "field-note";
     updateReviewFields();
-    submitStatus.textContent = "This contribution will link to the selected mission. Describe a useful finding, proposal, or next step.";
+    submitStatus.textContent = "Linked to this mission. Share a useful finding, proposal or next step.";
     document.getElementById("contribute").scrollIntoView({ block: "start" });
     byId("title-input").focus({ preventScroll: true });
   };
@@ -131,7 +131,7 @@
     byId("target-id").value = item.id;
     byId("target-id").setCustomValidity("");
     updateReviewFields();
-    submitStatus.textContent = "Review the selected signal's usefulness and include a public evidence URL. Your review will enter the moderation queue.";
+    submitStatus.textContent = "Explain this signal's usefulness with public evidence. Your review needs moderation.";
     document.getElementById("contribute").scrollIntoView({ block: "start" });
     byId("title-input").focus({ preventScroll: true });
   };
@@ -479,7 +479,7 @@
       result.hidden = false;
       status.textContent = `Submission status: ${proposal.status}.`;
     } catch (error) {
-      status.textContent = error.message || "The status could not be loaded. Check your receipt and try again.";
+      status.textContent = error.message || "Status unavailable. Check your receipt and retry.";
     } finally {
       statusButton.disabled = false;
     }
@@ -522,4 +522,18 @@
   submitStatus.textContent = "Your signal is sent only when you choose Send for review.";
   updateReviewFields();
   loadBoard();
+  const missionLink = new URLSearchParams(location.search).get("mission");
+  if (validId(missionLink)) {
+    let edited = false;
+    form.addEventListener("input", () => { edited = true; }, { once: true });
+    request(`/api/v1/missions/${encodeURIComponent(missionLink)}`).then((mission) => {
+      if (!validItem(mission) || mission.kind !== "mission" || mission.id !== missionLink) throw new Error("Invalid mission");
+      if (!edited && ["title-input", "summary", "mission-id"].every((id) => !byId(id).value)) {
+        respondToMission(mission.id);
+        submitStatus.textContent = `Work and evidence for: ${mission.title}. Describe what others can inspect.`;
+      }
+    }).catch(() => {
+      if (!edited) submitStatus.textContent = "Mission link unavailable. Choose a published mission on the board.";
+    });
+  }
 })();
