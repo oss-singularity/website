@@ -56,6 +56,8 @@ artifacts or logs. See
 The planned [static transition rehearsal](release-static-transition.md) records
 the offline adapter's preservation, historical-baseline and recovery invariants.
 It is a design contract, not an implemented publication command.
+Its first internal [operation planner](release-static-plan.md) is implemented and
+tested offline; it performs no installation reads, writes or recovery.
 
 1. **Portable, constrained adapter.** Extract a release interface without
    workstation paths or private historical state. Fix the permitted destinations
