@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import sys
@@ -17,7 +18,7 @@ def esc(value: str) -> str:
     return html.escape(value, quote=True)
 
 
-def page(slug: str, title: str, description: str, content: str, script: str = "") -> str:
+def page(slug: str, title: str, description: str, content: str, social_image: str, script: str = "") -> str:
     if slug == "observatory":
         content = content.replace('<section class="hub-section commons-pulse"', (SOURCE / "fragments/activity.html").read_text(encoding="utf-8") + '<section class="hub-section commons-pulse"', 1)
     nav = "".join(f'<a href="/{key}/"' + (' aria-current="page"' if key == slug else '') + f'>{label}</a>' for key, label in NAV)
@@ -52,11 +53,17 @@ def page(slug: str, title: str, description: str, content: str, script: str = ""
   <meta property="og:title" content="{esc(title)} — OSS Singularity">
   <meta property="og:description" content="{esc(description)}">
   <meta property="og:url" content="{ORIGIN}/{slug}/">
-  <meta property="og:image" content="{ORIGIN}/assets/social/oss-singularity-social-preview.png">
+  <meta property="og:image" content="{social_image}">
+  <meta property="og:image:secure_url" content="{social_image}">
+  <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="OSS Singularity event-horizon mark. Many minds. One open horizon. An open home for every entity.">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{esc(title)} — OSS Singularity">
+  <meta name="twitter:description" content="{esc(description)}">
+  <meta name="twitter:image" content="{social_image}">
+  <meta name="twitter:image:alt" content="OSS Singularity event-horizon mark. Many minds. One open horizon. An open home for every entity.">
 </head>
 <body class="hub-page hub-{slug}">
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -121,11 +128,11 @@ def atlas(data: dict) -> str:
     for i, entry in enumerate(data["entries"], 1):
         tags = "".join(f'<span>{esc(tag)}</span>' for tag in entry["tags"][:3])
         cards.append(f'''<article class="atlas-entry" id="{esc(entry['id'])}" data-category="{esc(entry['category'])}" data-name="{esc(entry['name'])}">
-          <div class="entry-coordinate"><span>{i:02d}</span><span>{esc(labels[entry['category']])}</span></div>
-          <div class="entry-body"><h2>{esc(entry['name'])}</h2><p>{esc(entry['summary'])}</p><div class="entry-tags">{tags}</div></div>
-          <div class="entry-fit"><span class="micro-label">A starting point for</span><p>{esc(entry['use_case'])}</p><span class="entry-license">{esc(entry['license'])}</span></div>
-          <div class="entry-actions"><a class="button button-secondary" href="{esc(entry['website'])}">Explore <span class="sr-only">{esc(entry['name'])}</span> ↗</a><a class="source-link" href="{esc(entry['source_url'])}">Official reference ↗</a><label class="compare-label" hidden><input type="checkbox" value="{esc(entry['id'])}"> Compare <span class="sr-only">{esc(entry['name'])}</span></label></div>
-        </article>''')
+<div class="entry-coordinate"><span>{i:02d}</span><span>{esc(labels[entry['category']])}</span></div>
+<div class="entry-body"><h2>{esc(entry['name'])}</h2><p>{esc(entry['summary'])}</p><div class="entry-tags">{tags}</div></div>
+<div class="entry-fit"><span class="micro-label">A starting point for</span><p>{esc(entry['use_case'])}</p><span class="entry-license">{esc(entry['license'])}</span></div>
+<div class="entry-actions"><a class="button button-secondary" href="{esc(entry['website'])}">Explore <span class="sr-only">{esc(entry['name'])}</span> ↗</a><a class="source-link" href="{esc(entry['source_url'])}">Official reference ↗</a><label class="compare-label" hidden><input type="checkbox" value="{esc(entry['id'])}"> Compare <span class="sr-only">{esc(entry['name'])}</span></label></div>
+</article>''')
     return heading("01", "Agent Atlas", 'Many paths.<br><em>Find yours.</em>', "An independent map of the open agent ecosystem. Pick a starting point for your next idea — whatever model, machine or background you bring.") + f'''
 <div class="atlas-meta"><span><span class="status-dot" aria-hidden="true"></span> {len(data['entries'])} curated entries</span><span>Sources checked <time datetime="{esc(data['updated'])}">{esc(data['updated'])}</time></span><a href="/data/atlas.json">Read as JSON ↗</a></div>
 <section class="atlas-controls" aria-label="Find an ecosystem project" hidden>
@@ -207,7 +214,16 @@ def mission() -> str:
 
 def main() -> None:
     output = Path(sys.argv[1]).resolve()
+    social_path = "assets/social/oss-singularity-social-preview.png"
+    social_bytes = (output / social_path).read_bytes()
+    social_version = hashlib.sha256(social_bytes).hexdigest()[:12]
+    social_versioned_path = f"assets/social/oss-singularity-social-preview.{social_version}.png"
+    (output / social_versioned_path).write_bytes(social_bytes)
+    social_image = f"{ORIGIN}/{social_versioned_path}"
     home = (SOURCE / "index.html").read_text(encoding="utf-8")
+    if home.count("{{SOCIAL_IMAGE_URL}}") != 3:
+        raise ValueError("Homepage must declare all three social preview image URLs")
+    home = home.replace("{{SOCIAL_IMAGE_URL}}", social_image)
     if home.count("<!-- COMMONS_ACTIVITY -->") != 1:
         raise ValueError("Homepage activity insertion point must occur exactly once")
     (output / "index.html").write_text(home.replace("<!-- COMMONS_ACTIVITY -->", (SOURCE / "fragments/activity.html").read_text(encoding="utf-8")), encoding="utf-8")
@@ -227,7 +243,7 @@ def main() -> None:
     for slug, title, description, content, script in pages:
         target = output / slug / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(page(slug, title, description, content, script), encoding="utf-8")
+        target.write_text(page(slug, title, description, content, social_image, script), encoding="utf-8")
 
 
 if __name__ == "__main__":
