@@ -20,7 +20,8 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parent.parent
 CLI = ROOT / 'scripts/release-artifact.py'
 SHA = 'a' * 40
-SECRET = 'PRIVATE_MARKER_MUST_NOT_APPEAR_7392'
+# Public synthetic fixture used to detect leaked rejected input, never a credential.
+REJECTED_MARKER = 'REJECTED_TEST_CONTENT_7392'
 spec = importlib.util.spec_from_file_location('release_contract_tests', CLI)
 api = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(api)
@@ -72,7 +73,7 @@ class ReleaseArtifactTests(unittest.TestCase):
 
     def cli(self, *args, success=True):
         result = subprocess.run([sys.executable, str(CLI), *map(str, args)], capture_output=True, text=True, timeout=20)
-        self.assertNotIn(SECRET, result.stdout + result.stderr)
+        self.assertNotIn(REJECTED_MARKER, result.stdout + result.stderr)
         if success:
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stderr, '')
@@ -129,17 +130,17 @@ class ReleaseArtifactTests(unittest.TestCase):
             with self.subTest(name=name):
                 payload = self.fresh(name)
                 if name == 'missing': (payload / 'index.html').unlink()
-                if name == 'extra': (payload / (SECRET + '.txt')).write_text(SECRET)
+                if name == 'extra': (payload / (REJECTED_MARKER + '.txt')).write_text(REJECTED_MARKER)
                 if name == 'changed': (payload / 'index.html').write_bytes((payload / 'index.html').read_bytes() + b'\n')
-                if name == 'extra-directory': (payload / SECRET).mkdir()
+                if name == 'extra-directory': (payload / REJECTED_MARKER).mkdir()
                 self.verify(payload, success=False)
 
     def test_manifest_malformed_paths_duplicates_and_coverage_fail(self):
         original = (self.payload / tree.MANIFEST).read_text()
         first = original.splitlines()[0]
         digest = first.split('  ')[0]
-        replacements = ['../' + SECRET, '/' + SECRET, '././index.html', './/index.html', 'assets/../index.html',
-                        'assets\\index.html', 'index.html\t' + SECRET, tree.MANIFEST]
+        replacements = ['../' + REJECTED_MARKER, '/' + REJECTED_MARKER, '././index.html', './/index.html', 'assets/../index.html',
+                        'assets\\index.html', 'index.html\t' + REJECTED_MARKER, tree.MANIFEST]
         bad = [digest + '  ' + name + '\n' + original for name in replacements]
         bad += [original + first + '\n', '\n'.join(original.splitlines()[1:]) + '\n', original + '\n',
                 original.replace('  ', ' *', 1), original.replace(digest, '0' * 64, 1), original.rstrip('\n'), original.replace('\n', '\r\n')]
@@ -160,14 +161,14 @@ class ReleaseArtifactTests(unittest.TestCase):
         mutations = [('repository', 'fork/website'), ('kind', 'worker'), ('schema_version', True), ('schema_version', 1.0),
                      ('schema_version', 2), ('commit', 'main'), ('commit', 'A' * 40), ('commit', 'a' * 39),
                      ('manifest_sha256', 'g' * 64), ('file_count', True), ('file_count', 1.0), ('file_count', 0),
-                     ('total_bytes', False), ('total_bytes', 1.5), ('total_bytes', tree.MAX_TOTAL_BYTES + 1), (SECRET, SECRET)]
+                     ('total_bytes', False), ('total_bytes', 1.5), ('total_bytes', tree.MAX_TOTAL_BYTES + 1), (REJECTED_MARKER, REJECTED_MARKER)]
         values = []
         for key, value in mutations:
             candidate = {**self.baseline, key: value}
             values.append(json.dumps(candidate))
         values += ['[]', '{}', 'null', json.dumps(self.baseline)[:-1] + ',"commit":"' + SHA + '"}',
                    json.dumps({**self.baseline, 'total_bytes': float('nan')}),
-                   json.dumps({**self.baseline, 'total_bytes': float('inf')}), '{' + SECRET, '[' * 2000]
+                   json.dumps({**self.baseline, 'total_bytes': float('inf')}), '{' + REJECTED_MARKER, '[' * 2000]
         for number, value in enumerate(values):
             with self.subTest(case=number):
                 self.metadata.write_text(value)
@@ -179,12 +180,12 @@ class ReleaseArtifactTests(unittest.TestCase):
             with self.subTest(field=key):
                 self.metadata.write_text(json.dumps({**self.baseline, key: value}))
                 self.verify(success=False)
-        for sha in ['main', SECRET, 'b' * 40]:
+        for sha in ['main', REJECTED_MARKER, 'b' * 40]:
             self.cli('verify', '--artifact-dir', self.payload, '--descriptor', self.metadata, '--expected-commit', sha, success=False)
 
     def test_symlink_root_ancestor_file_directory_and_broken_link_are_rejected(self):
         outside = self.root / 'outside'
-        outside.write_text(SECRET)
+        outside.write_text(REJECTED_MARKER)
         for mode in ['external-file', 'internal-file', 'broken-file', 'directory', 'root', 'ancestor']:
             with self.subTest(mode=mode):
                 payload = self.fresh(mode)
@@ -204,7 +205,7 @@ class ReleaseArtifactTests(unittest.TestCase):
                     alias.symlink_to(self.root, target_is_directory=True)
                     payload = alias / mode
                 self.verify(payload, success=False)
-        self.assertEqual(outside.read_text(), SECRET)
+        self.assertEqual(outside.read_text(), REJECTED_MARKER)
 
     def test_hardlinks_fifo_and_bounded_reads_are_rejected(self):
         for mode in ['hardlink', 'fifo', 'oversized', 'too-many']:
@@ -218,7 +219,7 @@ class ReleaseArtifactTests(unittest.TestCase):
                 if mode == 'too-many':
                     for number in range(tree.MAX_ENTRIES + 1): (payload / f'entry-{number}').touch()
                 self.verify(payload, success=False)
-        self.metadata.write_text(SECRET * 1000)
+        self.metadata.write_text(REJECTED_MARKER * 1000)
         self.verify(success=False)
 
     def test_descriptor_destinations_refuse_payload_aliases_and_overwrite(self):
@@ -241,11 +242,11 @@ class ReleaseArtifactTests(unittest.TestCase):
                 payload = self.fresh(mode)
                 if mode == 'html':
                     target = payload / 'index.html'
-                    target.write_text(target.read_text().replace('</body>', '<a href="' + SECRET + '">Broken</a></body>'))
+                    target.write_text(target.read_text().replace('</body>', '<a href="' + REJECTED_MARKER + '">Broken</a></body>'))
                 else:
                     target = payload / 'data/atlas.json'
                     value = json.loads(target.read_text())
-                    value['entries'][0]['category'] = SECRET
+                    value['entries'][0]['category'] = REJECTED_MARKER
                     target.write_text(json.dumps(value) + '\n')
                 manifest(payload)
                 output = self.root / (mode + '.json')
@@ -255,12 +256,12 @@ class ReleaseArtifactTests(unittest.TestCase):
 
     def test_product_references_cannot_read_outside_private_copy(self):
         target = self.payload / 'index.html'
-        target.write_text(target.read_text().replace('</body>', '<a href="../../outside-secret.html#id">Outside</a></body>'))
+        target.write_text(target.read_text().replace('</body>', '<a href="../../outside-marker.html#id">Outside</a></body>'))
         manifest(self.payload)
         probes = []
         original = Path.exists
         def tracked(path):
-            if str(path).endswith('outside-secret.html'):
+            if str(path).endswith('outside-marker.html'):
                 probes.append(str(path))
             return original(path)
         with patch.object(Path, 'exists', tracked), self.assertRaises(tree.ArtifactError):
@@ -270,9 +271,9 @@ class ReleaseArtifactTests(unittest.TestCase):
     def test_checker_output_on_both_streams_is_not_forwarded(self):
         captured_out, captured_error = io.StringIO(), io.StringIO()
         def noisy_checker(_root):
-            print(SECRET)
-            print(SECRET, file=sys.stderr)
-            raise ValueError(SECRET)
+            print(REJECTED_MARKER)
+            print(REJECTED_MARKER, file=sys.stderr)
+            raise ValueError(REJECTED_MARKER)
         with patch.object(api.site, 'check_product', noisy_checker), redirect_stdout(captured_out), redirect_stderr(captured_error):
             with self.assertRaises(tree.ArtifactError) as failure:
                 api.create(self.payload, SHA, self.root / 'rejected.json')
@@ -312,8 +313,8 @@ class ReleaseArtifactTests(unittest.TestCase):
 
     def test_replace_with_symlink_before_actual_open_never_reads_target(self):
         target = self.payload / 'index.html'
-        outside = self.root / 'outside-secret'
-        outside.write_text(SECRET)
+        outside = self.root / 'outside-marker'
+        outside.write_text(REJECTED_MARKER)
         outside_inode = outside.stat().st_ino
         original_open, original_read = tree.os.open, tree.os.read
         changed, reads = [], []
@@ -332,8 +333,8 @@ class ReleaseArtifactTests(unittest.TestCase):
         self.assertEqual(reads, [])
 
     def test_cli_argument_errors_do_not_echo_rejected_values(self):
-        self.cli('verify', '--unknown-' + SECRET, success=False)
-        self.cli(SECRET, success=False)
+        self.cli('verify', '--unknown-' + REJECTED_MARKER, success=False)
+        self.cli(REJECTED_MARKER, success=False)
 
     def test_inventory_stops_reading_names_at_the_entry_budget(self):
         read = []
@@ -358,11 +359,11 @@ class ReleaseArtifactTests(unittest.TestCase):
         valid = subprocess.run(command, capture_output=True, text=True, timeout=20)
         self.assertEqual(valid.returncode, 0, valid.stderr)
         self.assertFalse(json.loads(valid.stdout)['deployment_authorized'])
-        self.metadata.write_text(json.dumps({**self.baseline, 'schema_version': True, SECRET: SECRET}))
+        self.metadata.write_text(json.dumps({**self.baseline, 'schema_version': True, REJECTED_MARKER: REJECTED_MARKER}))
         rejected = subprocess.run(command, capture_output=True, text=True, timeout=20)
         self.assertNotEqual(rejected.returncode, 0)
         self.assertEqual(rejected.stdout, '')
-        self.assertNotIn(SECRET, rejected.stderr)
+        self.assertNotIn(REJECTED_MARKER, rejected.stderr)
         self.assertEqual(json.loads(rejected.stderr), {'error': 'invalid_descriptor'})
 
 
