@@ -36,3 +36,5 @@ jobs:
         run: python3 scripts/test-release-candidate.py
       - name: Validate required-check policy and provenance fixtures
         run: python3 scripts/test-release-checks.py
+      - name: Validate static operation plans and preservation boundaries
+        run: python3 scripts/test-static-plan.py

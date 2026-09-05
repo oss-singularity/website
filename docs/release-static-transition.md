@@ -6,6 +6,10 @@ and recovery entirely offline. It would not deploy a website, grant release
 authority or enable production automation. Command names, flags and schemas
 remain implementation decisions.
 
+The first internal component is the [pure operation planner](release-static-plan.md).
+It calculates and validates a plan in memory. The filesystem rehearsal, journal,
+reconciliation and rollback described below are still planned work.
+
 ## Scope and inputs
 
 The rehearsal would accept candidate and predecessor payloads with their
