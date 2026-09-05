@@ -52,7 +52,7 @@ An unowned path collision fails. Retired assets and other non-target entries are
 preserved. The predecessor `.htaccess` block must occur exactly once in the
 installed bytes. Prefix and suffix are bound separately by length and hash and
 remain in place around the candidate block. The resulting composite hash is
-distinct from the artifact block's hash; the artifact manifest stays unchanged.
+recorded separately from the artifact block's hash; the artifact manifest stays unchanged.
 Ambiguous old or resulting block placement fails.
 
 Payloads, inventories and projected installations remain within the bounded

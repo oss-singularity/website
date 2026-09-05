@@ -83,8 +83,8 @@ For `.htaccess`, the validated predecessor block must be nonempty and occur
 exactly once in the installed file. Prefix and suffix must be bound separately
 by length and hash and preserved in position. Only the managed block changes.
 Missing, repeated or changed boundaries are conflicts. The artifact manifest
-remains unchanged; the composite installed file needs its own hash, distinct
-from the artifact block's hash.
+remains unchanged; the composite installed file needs its own hash, recorded
+separately from the artifact block's hash.
 
 Rollback would restore only verified preimages of files written by that attempt,
 conditional on the active generation and matching postimages. It could remove
