@@ -10,8 +10,10 @@ The offline [static artifact contract](release-artifacts.md) validates payload
 bytes and a constrained descriptor, including an independent rebuild comparison.
 The [static release rehearsal](release-rehearsal.md) exercises canonical-main
 builds and GitHub artifact upload/download, with a separate observed-identity
-receipt. Trusted-run consumption, provider adapters and production promotion
-remain separate work.
+receipt. The independent [candidate consumer](release-candidates.md) checks a
+completed canonical run, both artifact identities and the captured bytes.
+Required-check policy, provider adapters and production promotion remain separate
+work.
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing
