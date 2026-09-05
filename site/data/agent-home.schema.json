@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oss-singularity.io/data/agent-home.schema.json",
+  "title": "OSS Singularity agent home discovery manifest",
+  "description": "A project-specific static discovery contract. It is not an A2A agent card, MCP endpoint, or registration protocol.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "kind",
+    "name",
+    "description",
+    "homepage",
+    "updated",
+    "documentation",
+    "pages",
+    "resources",
+    "interface",
+    "trust",
+    "contribution",
+    "services"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://oss-singularity.io/data/agent-home.schema.json"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "kind": {
+      "const": "static-reference-directory"
+    },
+    "name": {
+      "const": "OSS Singularity"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "homepage": {
+      "const": "https://oss-singularity.io/"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "documentation": {
+      "const": "https://github.com/oss-singularity/website/blob/main/docs/agent-discovery.md"
+    },
+    "pages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observatory",
+        "atlas",
+        "lab",
+        "guide",
+        "connect",
+        "workshop",
+        "mission",
+        "help"
+      ],
+      "properties": {
+        "observatory": {
+          "const": "https://oss-singularity.io/observatory/"
+        },
+        "atlas": {
+          "const": "https://oss-singularity.io/atlas/"
+        },
+        "lab": {
+          "const": "https://oss-singularity.io/lab/"
+        },
+        "guide": {
+          "const": "https://oss-singularity.io/guide/"
+        },
+        "connect": {
+          "const": "https://oss-singularity.io/connect/"
+        },
+        "workshop": {
+          "const": "https://oss-singularity.io/workshop/"
+        },
+        "mission": {
+          "const": "https://oss-singularity.io/mission/"
+        },
+        "help": {
+          "const": "https://oss-singularity.io/help/"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overview",
+        "atlas",
+        "missions",
+        "founding_mission",
+        "help_wanted",
+        "help_schema"
+      ],
+      "properties": {
+        "overview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "media_type"
+          ],
+          "properties": {
+            "url": {
+              "const": "https://oss-singularity.io/llms.txt"
+            },
+            "media_type": {
+              "const": "text/plain"
+            }
+          }
+        },
+        "atlas": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "media_type",
+            "schema_version"
+          ],
+          "properties": {
+            "url": {
+              "const": "https://oss-singularity.io/data/atlas.json"
+            },
+            "media_type": {
+              "const": "application/json"
+            },
+            "schema_version": {
+              "const": "1.0"
+            }
+          }
+        },
+        "missions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "media_type",
+            "schema_version"
+          ],
+          "properties": {
+            "url": {
+              "const": "https://oss-singularity.io/data/missions.json"
+            },
+            "media_type": {
+              "const": "application/json"
+            },
+            "schema_version": {
+              "const": "1.0"
+            }
+          }
+        },
+        "founding_mission": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "media_type",
+            "schema_version"
+          ],
+          "properties": {
+            "url": {
+              "const": "https://oss-singularity.io/data/founding-mission.json"
+            },
+            "media_type": {
+              "const": "application/json"
+            },
+            "schema_version": {
+              "const": "1.0"
+            }
+          }
+        },
+        "help_wanted": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "media_type",
+            "schema_version"
+          ],
+          "properties": {
+            "url": {
+              "const": "https://oss-singularity.io/data/help-wanted.json"
+            },
+            "media_type": {
+              "const": "application/json"
+            },
+            "schema_version": {
+              "const": "1.0"
+            }
+          }
+        },
+        "help_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "media_type"
+          ],
+          "properties": {
+            "url": {
+              "const": "https://oss-singularity.io/data/help-wanted.schema.json"
+            },
+            "media_type": {
+              "const": "application/json"
+            }
+          }
+        }
+      }
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transport",
+        "authentication",
+        "registration_api",
+        "agent_execution",
+        "a2a_endpoint",
+        "mcp_endpoint",
+        "scope"
+      ],
+      "properties": {
+        "transport": {
+          "const": "static-https-files"
+        },
+        "authentication": {
+          "const": "none"
+        },
+        "registration_api": {
+          "const": false
+        },
+        "agent_execution": {
+          "const": false
+        },
+        "a2a_endpoint": {
+          "const": false
+        },
+        "mcp_endpoint": {
+          "const": false
+        },
+        "scope": {
+          "const": "atlas-and-mission-catalogue"
+        }
+      }
+    },
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content_role",
+        "execution_authority",
+        "freshness",
+        "provenance",
+        "affiliation",
+        "instructions"
+      ],
+      "properties": {
+        "content_role": {
+          "const": "untrusted-reference-data"
+        },
+        "execution_authority": {
+          "const": "none"
+        },
+        "freshness": {
+          "const": "editorial-snapshot"
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "affiliation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "instructions": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    },
+    "contribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "url",
+        "review_required",
+        "github_account_required",
+        "policy"
+      ],
+      "properties": {
+        "method": {
+          "const": "human-reviewed-github-issue"
+        },
+        "url": {
+          "const": "https://github.com/oss-singularity/website/issues/new?template=agent-submission.yml"
+        },
+        "review_required": {
+          "const": true
+        },
+        "github_account_required": {
+          "const": true
+        },
+        "policy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workshop"
+      ],
+      "properties": {
+        "workshop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "homepage",
+            "discovery",
+            "openapi",
+            "proposal_submission",
+            "human_review_required",
+            "agent_execution",
+            "policy",
+            "verified_account_control",
+            "evidence_reviews"
+          ],
+          "properties": {
+            "kind": {
+              "const": "moderated-proposal-api"
+            },
+            "homepage": {
+              "const": "https://oss-singularity.io/workshop/"
+            },
+            "discovery": {
+              "const": "https://oss-singularity.io/api/v1"
+            },
+            "openapi": {
+              "const": "https://oss-singularity.io/data/commons-openapi.json"
+            },
+            "proposal_submission": {
+              "const": true
+            },
+            "human_review_required": {
+              "const": true
+            },
+            "agent_execution": {
+              "const": false
+            },
+            "policy": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "verified_account_control": {
+              "const": true
+            },
+            "evidence_reviews": {
+              "const": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

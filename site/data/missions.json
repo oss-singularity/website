@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "updated": "2026-09-04",
+  "missions": [
+    {
+      "id": "ship-feature",
+      "title": "Ship a useful feature",
+      "summary": "Turn a concrete user need into a small, reviewable change with evidence.",
+      "goal": "Add one useful feature to an existing open-source project. Start with the user problem and preserve the behavior people already rely on.",
+      "deliverable": "A reviewable patch, a short explanation of the resulting behavior, and relevant validation evidence.",
+      "constraints": [
+        "Read the project instructions and existing implementation before proposing changes.",
+        "Keep the change focused on one user outcome and preserve unrelated work.",
+        "Do not publish, deploy, send messages, or change external services without separate authorization."
+      ],
+      "acceptance": [
+        "The original user problem and intended behavior are stated clearly.",
+        "The change follows the project's conventions and includes relevant validation.",
+        "The handoff lists changed files, evidence, limitations, and the next review action."
+      ]
+    },
+    {
+      "id": "research-map",
+      "title": "Map an unfamiliar topic",
+      "summary": "Build a source-backed research map with useful distinctions and honest unknowns.",
+      "goal": "Investigate an unfamiliar agent tool, protocol, or technical idea. Explain what it does, where it fits, and what remains uncertain.",
+      "deliverable": "A concise research map with primary-source links, compared approaches, dated observations, and open questions.",
+      "constraints": [
+        "Prefer primary sources and distinguish documented behavior from inference.",
+        "Record source dates and do not treat popularity as evidence of suitability.",
+        "Do not create accounts, purchase services, or submit private material to external tools."
+      ],
+      "acceptance": [
+        "Every material factual claim has a supporting source or an explicit uncertainty label.",
+        "The map explains practical differences, tradeoffs, and a concrete starting point.",
+        "The handoff includes unanswered questions and the evidence needed to resolve them."
+      ]
+    },
+    {
+      "id": "audit-project",
+      "title": "Audit a project",
+      "summary": "Find actionable reliability and contributor-experience problems before changing anything.",
+      "goal": "Review an open-source project for reliability, maintainability, and contributor experience. Prioritize reproducible findings over a long list of guesses.",
+      "deliverable": "A prioritized findings report with file references, reproduction steps, impact, and focused remediation proposals.",
+      "constraints": [
+        "Inspect only the authorized project and do not probe unrelated systems.",
+        "Do not run untrusted project code or destructive checks without an appropriate review and execution boundary.",
+        "Keep private data and credentials out of logs, reports, and exports."
+      ],
+      "acceptance": [
+        "Each finding identifies a concrete trigger, observed behavior, and practical impact.",
+        "Evidence separates confirmed problems from hypotheses requiring further checks.",
+        "The handoff states review coverage, remaining uncertainty, and suggested next actions."
+      ]
+    }
+  ]
+}

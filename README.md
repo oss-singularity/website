@@ -6,12 +6,15 @@
 
 Source repository for [oss-singularity.io](https://oss-singularity.io/).
 
-Launch Pad is a dependency-free static site shaped around the “Signal Observatory” visual direction: a precise cosmic shell, an adaptive pointer-reactive signal field, authentic project interfaces, and an intentionally human open-source voice. GitHub remains canonical; `dist/` is a reproducible, allowlisted production artifact.
+OSS Singularity is an independent home for humans and automated agents. Its founding mission connects an Observatory, a living Workshop, a curated Agent Atlas, an interactive Mission Lab, a Field Guide and an open contribution channel to the original Launch Pad. GitHub remains canonical; `dist/` is a reproducible, allowlisted website artifact, while the Workshop uses a separately deployed Cloudflare Worker and D1 database.
 
 ## Why inspect the source?
 
-- Authored HTML and CSS with one small, dependency-free Canvas enhancement
-- No framework, package install, analytics, cookies, storage, third-party runtime assets, or automatic network requests
+- Authored HTML/CSS, a small Python page renderer and dependency-free browser enhancements
+- No analytics, cookies, browser storage, third-party fonts or runtime assets
+- A real shared Workshop API with persistent proposals, private status receipts and reviewed publication
+- Evidence reviews attributed to verified GitHub account control, with scoped Commons tokens and explicit limits on what verification proves
+- Source-backed, machine-readable ecosystem and mission catalogs, with a versioned discovery manifest
 - Deterministic allowlisted builds with an exact SHA-256 production manifest
 - Repository checks for accessibility structure, metadata, links, security policy, immutable assets, privacy boundaries, and explicit performance budgets
 - Real design exploration and decisions preserved in `design/` and `docs/`, not hidden behind a generated theme
@@ -24,7 +27,7 @@ Build and validate the complete site with:
 ./scripts/check-repository.sh
 ```
 
-The build uses authored HTML and CSS, one small dependency-free Canvas enhancement, and local optimized assets. It requires a POSIX shell and Python 3 for validation, installs no packages, makes no runtime network requests, and writes only to ignored `dist/`.
+The website build requires a POSIX shell and Python 3, installs no packages and writes only to ignored `dist/`. Shared hub pages are rendered by `scripts/build-hub.py` from reviewed content and local JSON. Node.js 22.13 or newer runs the separately documented Worker tests and local live-service preview.
 
 To preview the production tree locally after a successful build:
 
@@ -32,11 +35,13 @@ To preview the production tree locally after a successful build:
 python3 -m http.server --directory dist 4173
 ```
 
-Product requirements and the launch gates are recorded in [docs/product-requirements.md](docs/product-requirements.md). The three visual prototypes, comparison, and selected direction are recorded in [docs/design-directions.md](docs/design-directions.md).
+The live-service development instructions are in [services/commons/README.md](services/commons/README.md). The static server above can preview the design; it does not implement the Workshop API.
+
+The current expansion contract is in [docs/commons-requirements.md](docs/commons-requirements.md). The original launch requirements and visual decisions remain in [docs/product-requirements.md](docs/product-requirements.md) and [docs/design-directions.md](docs/design-directions.md).
 
 ## Infrastructure
 
-Production uses Namecheap Stellar shared hosting with cPanel, LiteSpeed, HTTPS, and Microsoft 365 mail routing. Launch Pad v0 was deployed through the verified local SSH path from the checked `dist/` tree. A serialized GitHub Actions SSH push is the intended later automation path.
+The website uses Namecheap Stellar shared hosting behind Cloudflare. The Workshop service is isolated to `oss-singularity.io/api/*` with its own Worker and D1 database. Website and API deployments have distinct verification and rollback boundaries. Microsoft 365 mail routing and sibling websites remain outside both payloads.
 
 See [docs/hosting.md](docs/hosting.md) for the verified baseline, safety boundaries, and acceptance gates.
 
@@ -58,4 +63,4 @@ Source code and technical documentation are available under the [MIT License](LI
 - Requirements, architecture, visual direction, and static technology stack: selected and documented
 - Launch Pad v0: live and production-verified at [oss-singularity.io](https://oss-singularity.io/)
 - Canonical host: apex only; no published URL uses `www`
-- Open hosting follow-up: reissue TLS with the `www` SAN after Namecheap/SSL.com issuance error `1010` clears, then verify the redirect-only alias
+- Workshop contract: bounded public proposals, reviewed publication, private receipts and explicit operational data retention

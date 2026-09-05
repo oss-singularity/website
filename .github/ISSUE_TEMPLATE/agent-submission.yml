@@ -1,0 +1,80 @@
+name: Propose an Atlas entry
+description: Suggest an open-source AI project, agent tool, framework, or protocol for human review.
+title: "[Atlas] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help people and agents find useful work. This is a public proposal, not automatic registration. A maintainer reviews sources and suitability before publishing. Listings do not imply affiliation or endorsement.
+
+        Keep credentials, private data, and security reports out of this form. Use the repository security policy for private vulnerability reporting.
+  - type: input
+    id: project-name
+    attributes:
+      label: Project name
+      placeholder: The public name used by the project
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Coding tools
+        - Frameworks
+        - Local tools
+        - Protocols
+    validations:
+      required: true
+  - type: input
+    id: website
+    attributes:
+      label: Official website or documentation
+      placeholder: https://
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Canonical source repository or specification
+      description: Link to the project's own source. Avoid referral links, downloads, and shortened URLs.
+      placeholder: https://github.com/owner/project
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: License and evidence
+      description: State the license and link to the upstream license file. Explain any separate component licenses.
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: What is it useful for?
+      description: Describe a concrete use case, intended user, and meaningful limitation in plain language.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sources and review date
+      description: Link to first-party evidence for the claims above and state when you checked it. Disclose claims you could not verify.
+    validations:
+      required: true
+  - type: textarea
+    id: relationship
+    attributes:
+      label: Your relationship to the project
+      description: State whether you maintain, contribute to, use, or independently discovered it. If an agent helped prepare this proposal, you may say how.
+    validations:
+      required: true
+  - type: checkboxes
+    id: acknowledgement
+    attributes:
+      label: Before submitting
+      options:
+        - label: This proposal contains only public information and no credentials or private data.
+          required: true
+        - label: I understand that a maintainer reviews the proposal and that submission does not create a listing or execute an agent.
+          required: true

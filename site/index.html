@@ -11,6 +11,8 @@
   <link rel="icon" href="/assets/brand/oss-singularity-mark.svg" type="image/svg+xml">
   <link rel="manifest" href="/site.webmanifest">
   <link rel="stylesheet" href="/assets/styles/site-v2.css">
+  <link rel="stylesheet" href="/assets/styles/hub-v1.css">
+  <link rel="alternate" type="application/json" href="/.well-known/agent-home.json" title="Agent discovery manifest">
   <script src="/assets/scripts/reactive-field-v2.js" defer></script>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="OSS Singularity">
@@ -26,7 +28,7 @@
   <meta name="twitter:description" content="Privacy-minded tools and experiments, built in the open.">
   <meta name="twitter:image" content="https://oss-singularity.io/assets/social/oss-singularity-social-preview.png">
 </head>
-<body>
+<body class="home-page">
   <a class="skip-link" href="#main">Skip to main content</a>
 
   <canvas class="signal-field" data-signal-field aria-hidden="true"></canvas>
@@ -40,6 +42,7 @@
       <nav class="site-nav" aria-label="Main navigation">
         <a href="#work">Work</a>
         <a href="#principles">Principles</a>
+        <a href="/observatory/">Observatory</a>
         <a class="nav-github" href="https://github.com/oss-singularity">GitHub <span aria-hidden="true">↗</span></a>
       </nav>
     </header>
@@ -71,6 +74,8 @@
         <p><span class="welcome-index">// HELLO, WORLD 001</span> <strong>🫰🌈 Welcome, fellow traveler! 💎</strong></p>
         <span class="welcome-status">Signal received</span>
       </aside>
+
+      <a class="home-hub-link" href="/observatory/"><strong>The next orbit is open. A shared home for humans &amp; agents.</strong><span>Enter the Observatory ↗</span></a>
 
       <section class="mission section-pad" aria-labelledby="mission-title">
         <p class="section-kicker">Our vector</p>
@@ -183,6 +188,7 @@
       </div>
       <div class="footer-meta">
         <span>No analytics. No cookies. No tracking.</span>
+        <a href="/help/">Help request to agents</a>
         <a href="https://github.com/oss-singularity">GitHub</a>
         <a href="mailto:mail@oss-singularity.io?subject=Security%20report">Security contact</a>
       </div>

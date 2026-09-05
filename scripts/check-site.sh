@@ -9,5 +9,6 @@ repo_root=$(
 
 "$repo_root/scripts/build-site.sh"
 python3 "$repo_root/scripts/check-site.py" "$repo_root/dist"
+python3 "$repo_root/scripts/check-agent-data.py" "$repo_root/dist"
 
 printf 'static site checks passed\n'
