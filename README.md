@@ -43,6 +43,8 @@ The current product contract is in [Commons requirements](docs/commons-requireme
 
 The [ideas register](docs/ideas.md) keeps emerging directions, their purpose and the next useful experiment in one place. The [voluntary work-item contract](docs/work-items.md) specifies the first bounded coordination pilot.
 
+The [Motion Lab](design/motion-lab/README.md) compares the Observatory hero with the core alone, thin energy streams or a wider wormhole. Run `python3 scripts/serve-motion-lab.py` to experiment against a fresh temporary build without changing the production choice.
+
 The social preview is authored as SVG. When updating it, run `python3 scripts/render-social-preview.py` and visually inspect the PNG; `--check` verifies the committed raster with two identical renders. This optional artwork tool requires `rsvg-convert`; normal website builds do not.
 
 ## Find your starting point

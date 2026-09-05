@@ -1,0 +1,17 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #07111f; color: #ecf4fa; font-family: system-ui, sans-serif; }
+.lab-toolbar { padding: 22px 32px; border-bottom: 1px solid #284152; background: #0b1727; display: flex; gap: 18px 32px; align-items: center; flex-wrap: wrap; }
+.lab-eyebrow { font-size: 10px; letter-spacing: .18em; color: #82dcea; }
+h1 { font-size: 23px; margin: 6px 0; }
+p { color: #a9becd; margin: 0; font-size: 13px; }
+nav, .lab-options { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button, select, .lab-options a { min-height: 44px; padding: 10px 15px; border: 1px solid #35546a; border-radius: 8px; color: #dceef5; background: #0b1d2d; font: inherit; font-size: 13px; }
+button, select { cursor: pointer; }
+button[aria-pressed="true"] { background: #164858; border-color: #69dcef; color: #fff; }
+button:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid #7cf2ff; outline-offset: 4px; }
+label { font-size: 12px; color: #b0c8d8; }
+.lab-options a { display: inline-flex; align-items: center; color: #a5e7f4; }
+main { display: flex; justify-content: center; overflow: auto; padding: 12px 0; }
+iframe { display: block; width: 100%; height: 980px; border: 0; flex: none; background: #07111f; }
+.lab-notice { padding: 16px; }
+@media (max-width: 600px) { .lab-toolbar { padding: 18px; } }

@@ -64,6 +64,7 @@ WCAG 2.2 AA is the target for all shipped pages, including the branded 404 page,
 - Aim for primary interactive targets of at least 44 by 44 CSS pixels. Target text contrast of at least 4.5:1 and meaningful non-text/control contrast of at least 3:1; do not convey information through color alone.
 - Keep layouts usable at 320 CSS pixels, 200% zoom and with longer translated text. English is the current content language; robust wrapping must not depend on exact wording.
 - Keep decorative motion modest and remove it for `prefers-reduced-motion: reduce`. The optional pointer-reactive Canvas is restricted to the homepage, makes no network requests, stores no state, stops in background tabs and caps rendering density.
+- The Observatory may use thin SVG energy streams behind its wandering core. Keep navigation and labels fixed and clickable; pause when hidden or offscreen and show a stable Reduced Motion state. Its motion assets load only on that page. Preserve the local [Motion Lab](../design/motion-lab/README.md) for repeatable comparisons without publishing experimental controls.
 - Check the relevant keyboard, screen-size, contrast and assistive-reading behavior directly. Automated structure checks and Lighthouse scores alone cannot establish accessibility conformance.
 
 ## Metadata, assets and browser security

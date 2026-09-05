@@ -66,6 +66,8 @@ copy_file assets/scripts/work-items-v1.js assets/scripts/work-items-v1.js
 copy_file assets/scripts/workshop-v1.js assets/scripts/workshop-v1.js
 copy_file assets/scripts/workshop-identity-v1.js assets/scripts/workshop-identity-v1.js
 copy_file assets/scripts/commons-pulse-v1.js assets/scripts/commons-pulse-v1.js
+copy_file assets/scripts/observatory-motion-v1.js assets/scripts/observatory-motion-v1.js
+copy_file assets/styles/observatory-motion-v1.css assets/styles/observatory-motion-v1.css
 copy_file assets/scripts/atlas-v1.js assets/scripts/atlas-v1.js
 copy_file assets/scripts/mission-lab-v1.js assets/scripts/mission-lab-v1.js
 copy_file assets/scripts/section-navigation-v1.js assets/scripts/section-navigation-v1.js

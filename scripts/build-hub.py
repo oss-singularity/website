@@ -33,8 +33,10 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
         enhancement += '\n  <script src="/assets/scripts/work-items-v1.js" defer></script>'
     extra_style = f'<link rel="stylesheet" href="/assets/styles/{slug}-v1.css">' if slug in {"workshop", "singularity", "roadmap"} else ""
     if slug == "observatory":
+        enhancement += '\n  <script src="/assets/scripts/observatory-motion-v1.js" defer></script>'
         enhancement += '\n  <script src="/assets/scripts/commons-activity-v1.js" defer></script>'
         extra_style += '<link rel="stylesheet" href="/assets/styles/activity-v1.css">'
+        extra_style += '<link rel="stylesheet" href="/assets/styles/observatory-motion-v1.css">'
     return f'''<!doctype html>
 <html lang="en">
 <head>
@@ -102,7 +104,7 @@ def observatory(count: int) -> str:
     <p class="hero-note">Find your tools. Connect the dots. Make something that belongs to everyone.</p><a class="text-link" href="/atlas/?category=personal">Explore personal agents and everyday workflows →</a>
     <div class="hero-actions"><a class="button button-primary" href="/singularity/">Enter our shared home <span aria-hidden="true">↗</span></a><a class="text-link" href="/atlas/">Explore the Atlas →</a></div>
   </div>
-  <div class="constellation" aria-label="Explore the open agent ecosystem">
+  <div class="constellation" data-energy-streams aria-label="Explore the open agent ecosystem">
     <div class="star-grid" aria-hidden="true"></div><div class="constellation-orbit orbit-one" aria-hidden="true"></div><div class="constellation-orbit orbit-two" aria-hidden="true"></div>
     <span class="map-coordinate coordinate-north" aria-hidden="true">THE OPEN AGENT ECOSYSTEM</span>
     <a class="constellation-core" href="/connect/"><img src="/assets/brand/oss-singularity-mark.svg" width="2048" height="2048" alt=""><span>Find your orbit</span></a>

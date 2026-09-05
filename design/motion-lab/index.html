@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Observatory · Motion Lab</title>
+  <link rel="stylesheet" href="lab-shell.css">
+  <script src="lab-shell.js" defer></script>
+</head>
+<body>
+  <header class="lab-toolbar">
+    <div><span class="lab-eyebrow">OSS SINGULARITY · LOCAL MOTION LAB</span>
+      <h1>A window into the unknown.</h1>
+      <p>The current Observatory hero. The same seeded journey, three moods.</p>
+    </div>
+    <nav aria-label="Motion variant">
+      <button data-variant="baseline" aria-pressed="false">Core only</button>
+      <button data-variant="thin-energy" aria-pressed="true">Thin energy · production</button>
+      <button data-variant="wide-wormhole" aria-pressed="false">Wide wormhole · experiment</button>
+    </nav>
+    <div class="lab-options">
+      <button id="theme">Bright mode</button>
+      <label>Viewport <select id="width">
+        <option value="full">Full width</option><option value="320">Mobile · 320 px</option>
+        <option value="390">Mobile · 390 px</option><option value="760">Tablet · 760 px</option>
+      </select></label>
+      <button id="restart">Restart · seed 60</button>
+      <a href="https://oss-singularity.io/observatory/" target="_blank" rel="noopener noreferrer">Live Observatory ↗</a>
+    </div>
+  </header>
+  <main><iframe id="preview" title="Observatory motion comparison" src="preview.html?variant=thin-energy&amp;theme=dark"></iframe></main>
+  <noscript><p class="lab-notice">JavaScript is needed to compare motion and switch the preview controls. The hero remains readable.</p></noscript>
+</body>
+</html>
