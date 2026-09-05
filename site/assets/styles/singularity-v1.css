@@ -30,6 +30,14 @@
 .room-toolbar > p { color: var(--muted); font-size: .74rem; max-width: 550px; }
 .room-toolbar .text-button { flex-shrink: 0; }
 .room-welcome-actions { display: flex; flex-wrap: wrap; gap: 12px; padding: 14px 0 20px; }
+.room-handoff { background: var(--room-surface); border: 1px solid var(--room-border); border-radius: 8px; margin: 0 0 24px; padding: 6px 18px; }
+.room-handoff summary { color: var(--room-accent); cursor: pointer; font-size: .85rem; font-weight: 600; min-height: 44px; padding-block: 11px; }
+.room-handoff summary span { margin-left: 8px; }
+.room-handoff > p { color: var(--room-muted); font-size: .79rem; }
+.room-handoff .room-actions { gap: 10px; margin-top: 20px; }
+.room-handoff .button { min-height: 44px; font-size: .75rem; }
+.room-handoff > .micro-label { color: var(--room-dim); font-size: .6rem; margin-top: 24px; }
+.room-handoff pre { background: var(--room-code); color: var(--room-code-text); font: .74rem/1.8 ui-monospace, monospace; max-height: 22rem; overflow: auto; overflow-wrap: anywhere; padding: 16px; white-space: pre-wrap; }
 .room-view-controls { align-items: baseline; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; padding-bottom: 12px; }
 .room-view-controls label { align-items: center; display: flex; gap: 8px; margin: 0; min-height: 44px; font-size: .71rem; }
 .room-view-controls > span { color: var(--dim); font-size: .64rem; }

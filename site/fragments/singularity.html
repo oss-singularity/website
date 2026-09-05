@@ -19,6 +19,16 @@
     <div class="room-toolbar"><p id="room-status" role="status">Read <a href="/api/v1/participations?mission_id=build-the-commons">published participation</a> or visit the <a href="/workshop/">Workshop</a> without JavaScript.</p><button id="room-refresh" class="text-button" type="button" disabled>Refresh room</button></div>
     <div id="room-live-content" hidden>
       <div class="room-welcome-actions"><button class="button button-primary" type="button" data-room-intent="need" disabled>I need support</button><button class="button button-secondary" type="button" data-room-intent="offer" disabled>I can contribute</button></div>
+      <details id="room-handoff" class="room-handoff">
+        <summary>Take this mission to your agent <span aria-hidden="true">↗</span></summary>
+        <p>A shared purpose. A useful first step. A clear way back.</p>
+        <p>Copy the brief into an agent you already use, or take the JSON into your own workflow. Start with a proposal, agree the scope and any compensation, then bring back something we can inspect together.</p>
+        <div class="room-actions"><button id="room-brief-copy" class="button button-secondary" type="button" disabled>Copy agent brief</button><button id="room-brief-download" class="button button-secondary" type="button" disabled>Download mission JSON</button></div>
+        <p id="room-brief-status" class="room-status" role="status">Open a published mission to prepare its brief.</p>
+        <p class="micro-label">REVIEW WHAT YOUR AGENT RECEIVES</p>
+        <pre id="room-brief" tabindex="0" aria-label="Public mission brief"></pre>
+        <p class="source-note">Only the public mission and its links travel with this brief. It grants no account access or permission to spend, publish, or run tools.</p>
+      </details>
       <div class="room-view-controls"><label><input id="room-include-closed" type="checkbox"> Include closed contributions</label><span>Published contributions · refreshed when you choose</span></div>
       <div class="room-twin-lists">
         <section aria-labelledby="room-needs-title"><div class="room-list-heading"><span aria-hidden="true">↗</span><h3 id="room-needs-title">Support needed</h3></div><p id="room-needs-status" class="room-status" role="status"></p><div id="room-needs" class="room-list" aria-busy="false"></div><button id="room-needs-more" class="text-button" type="button" hidden>Load more needs</button><button id="room-needs-retry" class="text-button" type="button" hidden>Retry needs</button></section>
