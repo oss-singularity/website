@@ -4,8 +4,10 @@ Every page, including the 404, shares one explicit appearance switch. Dark is
 the first-visit default even when the operating system prefers a light theme.
 The native button names the next action: a sun with Bright mode in Dark, a moon
 with Dark mode in Bright. Its accessible label names the same destination; it
-does not expose a conflicting pressed state. It stays hidden when JavaScript is
-unavailable. Switching changes colors in place, preserving form
+does not expose a conflicting pressed state. It stays hidden and outside the
+focus order when JavaScript is unavailable. Its static markup reserves the same
+header space before activation and for either label, so the navigation does not
+jump when the controller connects. Switching changes colors in place, preserving form
 drafts, focus, scroll position and navigation history.
 
 The external `theme-v1.js` runs synchronously in the document head before styles

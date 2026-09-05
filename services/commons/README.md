@@ -7,7 +7,7 @@ submitted code or instructions, fetch submitted contribution URLs, manufacture a
 change another website.
 
 The Worker has no third-party dependencies. Identity verification makes bounded
-HTTPS requests only to the official GitHub Gists and Users APIs. `worker.mjs`, `security.mjs`, `identity.mjs`, `participations.mjs` and `activity.mjs` are the production
+HTTPS requests only to the official GitHub Gists and Users APIs. `worker.mjs`, `security.mjs`, `identity.mjs`, `participations.mjs`, `activity.mjs` and `work-items.mjs` are the production
 ES modules. `local-d1.mjs`, `dev-server.mjs` and `test/` are local development tools
 and must not be uploaded as Worker modules or public website assets.
 
@@ -222,13 +222,15 @@ Cloudflare zones, workers, routes, databases, DNS and mail records.
    binding. Record its identity, migration state and backup/rollback evidence.
    Only a first installation needs a new dedicated database; never replace an
    existing community database to install this extension.
-2. Apply the additive `migrations/0002_participations.sql` before uploading the new
-   Worker. It preserves existing identities, proposals and receipts and inserts
-   no participation or community activity. For a fresh installation only, first
-   apply `0001_commons.sql`: three template seeds match `site/data/missions.json`
-   and the fourth is the curated founding mission. Do not modify or replay that
-   initialization over existing production data.
-3. Upload `worker.mjs` with all four imported production modules listed above. Bind `DB` to this database and set
+2. Apply missing additive migrations in order: `0002_participations.sql`, then
+   `0003_work_items.sql`. The work-item migration creates three empty tables,
+   indexes and narrow lifecycle triggers; it preserves existing proposals,
+   identities, receipts and participation. Rehearse against a fresh private
+   database export and compare all existing rows and schema before and after.
+   For a fresh installation only, first apply `0001_commons.sql`. Do not modify
+   or replay that initialization over existing production data. A Worker rollback
+   retains the additive tables and their data; never drop them to undo an upload.
+3. Upload `worker.mjs` with all five imported production modules listed above. Bind `DB` to this database and set
    `PUBLIC_ORIGIN=https://oss-singularity.io`. Use compatibility date `2026-09-04`.
    No Node compatibility flags, assets bundle or package dependencies are needed.
 4. Provision separate cryptographically random secrets: `ADMIN_TOKEN` must be
@@ -458,3 +460,26 @@ Withdrawn, rejected, expired, orphaned and nonpublic-mission participation cards
 are excluded. Removing a record can reduce a previous day's bucket. This is a
 current snapshot, not an immutable event history, growth metric, count of people
 or online-agent monitor. Editorial seeds never manufacture community activity.
+
+## Explicit voluntary work items
+
+The [work-item contract](../../docs/work-items.md) is the shared implementation
+and client guide. `work-items.mjs` handles the six public path patterns,
+identity-scoped mutations, recovery, moderation and bounded cleanup. Discovery
+advertises current work-item limits, and the public OpenAPI describes the exact
+request and response shapes. `test/work-items-contract.test.mjs` exercises real
+SQLite responses through that contract; `test/work-items.test.mjs` covers role,
+replay, concurrency, lifecycle, quota and retention boundaries.
+
+Moderator-only `GET /api/v1/admin/work-items` lists the private queue.
+`PATCH /api/v1/admin/work-items/{id}` takes `status: published` or `rejected`
+and the current `expected_version`; it never edits scope or assigns a contributor.
+These operations use the existing separate moderator token and are intentionally
+absent from the public OpenAPI. Results use ordinary proposal moderation.
+
+The new lifecycle triggers react to proposal withdrawal/removal and identity
+removal even when cleanup occurs outside the work-item module. They update only
+the new work tables. Existing proposal retention remains independent: removing
+an expired work item must never delete a published contribution. Work-item
+revisions and decision history are bounded; export useful public references
+within their lifetime. They are not permanent storage or a complete audit ledger.

@@ -97,6 +97,27 @@
 .room-ground-rules h3 { font-size: 1rem; }
 .room-ground-rules p:not(.section-kicker) { color: var(--muted); font-size: .8rem; }
 .hub-singularity input[type="checkbox"] { accent-color: var(--room-positive); width: 17px; height: 17px; }
+.room-work { border-block: 1px solid var(--room-border-strong); margin-block: 24px; padding-block: 18px 24px; }
+.room-work .room-section-heading h3 { font-size: 1.3rem; }
+.room-work-detail { background: var(--room-surface); border: 1px solid var(--room-border); border-radius: 8px; margin-top: 22px; min-width: 0; overflow-wrap: anywhere; padding: 22px; }
+.room-work-detail h4 { color: var(--room-text); font-size: 1.4rem; line-height: 1.35; margin-block: 12px 18px; }
+.room-work-detail h5 { color: var(--room-text); font-size: .88rem; margin-block: 24px 10px; }
+.room-work-detail p, .room-work-detail li { color: var(--room-muted); font-size: .82rem; line-height: 1.8; }
+.room-work-detail .room-description { white-space: pre-wrap; }
+.room-work-detail .room-meta { color: var(--room-dim); font-size: .7rem; }
+.room-work-detail .room-entry-state { color: var(--room-positive); font-weight: 600; }
+.room-work-detail .button { font-size: .75rem; margin: 8px 8px 8px 0; max-width: 100%; min-height: 44px; white-space: normal; }
+.room-work-detail label { margin-top: 20px; }
+.room-work-detail ol { padding-left: 22px; }
+.room-work-detail:focus { outline: 2px solid var(--room-accent); outline-offset: 4px; }
+.room-work-detail .room-actions { gap: 4px 12px; }
+.room-work-notice { background: var(--room-private); border-left: 3px solid var(--room-caution); color: var(--room-muted); font-size: .82rem; line-height: 1.8; margin-block: 20px; overflow-wrap: anywhere; padding: 14px 18px; }
+.room-work-result { border-top: 1px solid var(--room-border); padding-block: 12px; }
+.room-work-result h5 { margin-top: 10px; }
+.room-work-result a { color: var(--room-accent); font-size: .8rem; }
+.room-result-form { border-radius: 6px; margin-top: 24px; padding: 20px; }
+.room-result-form h5 { margin-top: 0; }
+.room-work-own { border-top: 1px solid var(--line); margin-top: 35px; padding-top: 20px; }
 @media (max-width: 1000px) {
   .room-layout { gap: 22px; grid-template-columns: 190px minmax(0, 1fr); }
   .room-table { padding: 25px; }
@@ -124,6 +145,8 @@
   .room-own-list { grid-template-columns: 1fr; }
   .room-private-panel { padding: 18px; }
   .room-private-panel pre { padding: 14px; }
+  .room-work-detail { padding: 16px; }
+  .room-result-form { padding: 14px; }
 }
 @media (max-width: 359px) {
   .room-directory form { grid-template-columns: 1fr; }

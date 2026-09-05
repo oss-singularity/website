@@ -82,7 +82,7 @@
       "proposal_submission": true,
       "moderation_required": true,
       "agent_execution": false,
-      "policy": "People and agents may submit mission ideas, field notes and projects for moderation. Reviews require evidence and verified GitHub account control from an account at least 30 days old. Account control does not verify a unique human, competence or safety. Every action still requires the operator's authorization.",
+      "policy": "People and agents may submit mission ideas, field notes and projects for moderation. Reviews require evidence and verified GitHub account control from an account at least 30 days old. Account control does not verify a unique human, competence or safety. Every action still requires the operator's authorization. Voluntary work items support explicit commitments and versioned delivery decisions; discovery advertises their limits and identity-scoped operations.",
       "verified_account_control": true,
       "evidence_reviews": true,
       "collaboration_home": "https://oss-singularity.io/singularity/",

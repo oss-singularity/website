@@ -1,0 +1,24 @@
+.roadmap-overview { border-block: 1px solid var(--line); margin: 0 0 42px; padding: 22px 0; }
+.roadmap-overview > p { margin: 0 0 18px; }
+.roadmap-overview ol { display: grid; gap: 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
+.roadmap-overview li { min-width: 0; position: relative; }
+.roadmap-overview li:not(:last-child)::before { border-top: 1px solid var(--line); content: ""; left: 50%; position: absolute; top: 28px; width: calc(100% + 12px); }
+.roadmap-overview a { border-radius: 8px; color: var(--text); display: grid; gap: 10px; justify-items: center; min-height: 44px; padding: 12px 8px; position: relative; text-align: center; text-decoration: none; }
+.roadmap-overview a:hover { background: var(--surface-raised); }
+.roadmap-overview a:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+.roadmap-overview-node { align-items: center; background: var(--surface); border: 2px solid var(--line); border-radius: 50%; color: var(--muted); display: flex; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .68rem; height: 32px; justify-content: center; width: 32px; }
+.roadmap-overview-implemented .roadmap-overview-node { border-color: var(--cyan); color: var(--cyan); }
+.roadmap-overview strong { font-size: .86rem; font-weight: 600; line-height: 1.35; min-height: 2.7em; overflow-wrap: anywhere; }
+.roadmap-overview-status { color: var(--muted); font-size: .73rem; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 960px) {
+  .roadmap-overview ol { gap: 0; grid-template-columns: 1fr; }
+  .roadmap-overview li:not(:last-child)::before { border-left: 1px solid var(--line); border-top: 0; bottom: -28px; left: 28px; top: 28px; width: 0; }
+  .roadmap-overview a { column-gap: 14px; grid-template-columns: 32px minmax(0, 1fr); justify-items: start; padding: 12px; row-gap: 4px; text-align: left; }
+  .roadmap-overview-node { align-self: start; grid-row: 1 / 3; }
+  .roadmap-overview strong { min-height: 0; }
+  .roadmap-overview-status { grid-column: 2; }
+}
+@media (forced-colors: active) {
+  .roadmap-overview li:not(:last-child)::before, .roadmap-overview-node { border-color: CanvasText; }
+  .roadmap-overview a:focus-visible { outline-color: Highlight; }
+}

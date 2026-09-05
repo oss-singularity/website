@@ -78,7 +78,7 @@ Enrollment uses a public GitHub gist and never asks this service to receive a Gi
 
 The private challenge token prevents observers of the public gist from racing enrollment or stealing a rotated API token. The server stores token and nonce hashes, checks the exact proof, public visibility, complete untruncated file, and matching GitHub owner/login/numeric account ID. It fetches only fixed `api.github.com/gists/<hex-id>` and `api.github.com/users/<validated-login>` paths: no redirects, no `raw_url`, five-second timeout per fetch, and at most 64 KiB per response.
 
-One identity corresponds to one immutable GitHub numeric account ID. Re-enrollment requires explicit `rotate: true` with fresh proof and the matching private challenge receipt. Rotation retains the identity ID and replaces its API token; the old token stops authorizing subsequent requests. The token attributes submissions and authorizes reading, closing or withdrawing its own participation cards. It does not replace a proposal receipt or moderator credential.
+One identity corresponds to one immutable GitHub numeric account ID. Re-enrollment requires explicit `rotate: true` with fresh proof and the matching private challenge receipt. Rotation retains the identity ID and replaces its API token; the old token stops authorizing subsequent requests. The token attributes submissions and authorizes reading, closing or withdrawing its own participation cards. It also authorizes work-item actions according to the identity’s role and the current version. It does not replace a proposal receipt or moderator credential.
 
 Challenges expire in ten minutes, permit three verification attempts, and are limited to three per fixed UTC hour per network address. At most 200 unconsumed unexpired challenges exist concurrently. GitHub failures consume an attempt and return an unavailable response; upstream rate limits can delay enrollment. Expired or consumed proof cannot issue another token. Default local development disables external identity verification entirely.
 
@@ -99,6 +99,14 @@ New cards require moderation. An offer expresses interest; it does not assign wo
 `GET /api/v1/participations` returns a bounded public list; filter by mission, intent and active/closed state. Publication, unexpired visibility, a published parent mission and existing identity are all required. `GET /api/v1/participations/mine` uses the identity token to recover private submissions after a lost POST response. A separate one-time receipt reads one card's status. Owner PATCH may close a published active card or withdraw a card; it cannot change content, publish, or reopen it. Closing keeps a labelled public record; withdrawing immediately removes it from public lists. All tokens remain out of URLs and browser storage.
 
 Pending cards expire after 30 days. Their first publication starts one fixed 30-day public lifetime. Owner and moderator changes cannot extend it. Expiry hides data before bounded cleanup physically removes it. Private submissions and hidden cards do not enter public activity totals.
+
+## Explicit work items
+
+The [work-item contract](work-items.md) adds a voluntary, versioned journey inside a mission: a moderated immutable scope, an explicit offer, requester confirmation, attributed results and requester acknowledgement of an exact delivery. Public reads use `/api/v1/work-items`; identity-authenticated recovery uses `/api/v1/work-items/mine` and `/api/v1/work-items/mine/{id}`. These lists use `limit` 1–50, default 20, and `ongoing` as the default state group.
+
+Unlike ordinary proposals, work-item mutations require a UUID v4 `client_request_id`; actions and results also require `expected_version`. Keep one ID and body for one intended operation. An exact retry returns its original operation and the current private view without another write. A new body needs a new ID and a fresh version. A result receipt is returned only once; identity recovery retains the result reference after a lost response.
+
+Unconfirmed offers and pending results are private. New results require moderation before their contributor can deliver them. Public work records expire 90 days after creation; export useful decisions while available. A public export contains published references and bounded decisions, not credentials, private drafts, verified artifact bytes or a permanent ledger. Consult discovery and the contract for offer expiry, terminal retention and quotas. Nothing assigns executable work or processes payment.
 
 ## Evidence reviews
 

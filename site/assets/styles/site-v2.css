@@ -153,7 +153,10 @@ a { color: inherit; }
 .site-shell { position: relative; z-index: 1; }
 .header-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; }
 .theme-toggle { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--text); cursor: pointer; font-family: inherit; font-size: .76rem; font-weight: 600; line-height: 1.4; min-height: 44px; padding: 10px 14px; white-space: nowrap; }
-.theme-toggle[hidden] { display: none; }
+.theme-toggle { inline-size: calc(7em + 30px); flex-shrink: 0; }
+/* Reserve the same header space before wiring, including with a saved theme.
+   Visibility keeps this one hidden control out of focus and accessibility. */
+.hub-page .theme-toggle[hidden], .theme-toggle[hidden] { display: inline-block !important; visibility: hidden; }
 .theme-toggle:hover { background: var(--surface-raised); border-color: var(--cyan); }
 .error-header { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; margin-bottom: 36px; position: relative; width: 100%; z-index: 1; }
 .error-header .error-wordmark { position: static; }
@@ -199,6 +202,7 @@ a { color: inherit; }
 .site-nav a:hover { color: var(--text); }
 .site-nav .nav-github { border: 1px solid var(--line); border-radius: 999px; color: var(--text); padding: 10px 15px; }
 .site-nav .nav-github:hover { background: var(--surface-raised); border-color: #385a75; }
+html:not([data-theme="bright"]) .site-nav .theme-toggle:hover { border-color: #385a75; }
 
 .hero {
   align-items: center;

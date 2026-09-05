@@ -474,12 +474,16 @@ test('additive migration preserves an existing database and restart does not rep
   const upgraded = new SQLiteD1(path);
   assert.deepEqual(upgraded.sqlite.prepare('SELECT * FROM proposals ORDER BY id').all(), before);
   assert.equal(upgraded.sqlite.prepare('SELECT COUNT(*) AS count FROM participations').get().count, 0);
-  assert.deepEqual(upgraded.sqlite.prepare('SELECT name FROM local_migrations ORDER BY name').all().map(row => row.name), ['0001_commons.sql', '0002_participations.sql']);
+  for (const table of ['work_items', 'work_item_results', 'work_item_events']) {
+    assert.equal(upgraded.sqlite.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count, 0);
+  }
+  assert.deepEqual(upgraded.sqlite.prepare('SELECT name FROM local_migrations ORDER BY name').all().map(row => row.name), ['0001_commons.sql', '0002_participations.sql', '0003_work_items.sql']);
   upgraded.sqlite.prepare("DELETE FROM proposals WHERE id = 'ship-feature'").run();
   upgraded.sqlite.close();
   const reopened = new SQLiteD1(path);
   assert.equal(reopened.sqlite.prepare('SELECT COUNT(*) AS count FROM proposals').get().count, 3);
   assert.equal(reopened.sqlite.prepare('PRAGMA integrity_check').get().integrity_check, 'ok');
   assert.equal(reopened.sqlite.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
+  assert.deepEqual(reopened.sqlite.prepare('PRAGMA foreign_key_check').all(), []);
   reopened.sqlite.close();
 });
