@@ -1,0 +1,22 @@
+/* Local lab only: a transparent, noninteractive layer inside the Observatory. */
+.obs-streams-host { isolation: isolate; }
+.obs-streams-host > .star-grid, .obs-streams-host > .constellation-orbit { z-index: 0; }
+.obs-streams-host > .constellation-core { z-index: 2; }
+.obs-streams-host > .map-node, .obs-streams-host > .map-coordinate { z-index: 3; }
+.obs-stream-layer { height: 100%; inset: 0; overflow: hidden; pointer-events: none; position: absolute; width: 100%; z-index: 1; }
+.obs-stream-layer * { pointer-events: none; }
+.obs-stream-group { color: var(--cyan, #65e5ff); }
+.obs-stream-1 { color: var(--pink, #ff63c8); }
+.obs-stream-lane, .obs-stream-haze { stroke: currentColor; stroke-linecap: round; }
+.obs-stream-lane { opacity: .52; stroke-width: 1.1; }
+.obs-stream-haze { opacity: .08; stroke-width: 6; }
+.obs-stream-packet { fill: var(--text, #f7f8fb); stroke: currentColor; stroke-width: .7; }
+.obs-stream-anchor { fill: currentColor; opacity: .72; }
+.obs-stream-layer[data-variant="wide-wormhole"] .obs-stream-lane { opacity: .27; stroke-width: .9; }
+.obs-stream-layer[data-variant="wide-wormhole"] .obs-stream-lane:nth-of-type(4) { opacity: .7; stroke-width: 1.2; }
+.obs-stream-layer[data-variant="wide-wormhole"] .obs-stream-haze { opacity: .08; stroke-width: 15; }
+html[data-theme="bright"] .obs-stream-lane { opacity: .62; }
+html[data-theme="bright"] .obs-stream-haze { opacity: .06; }
+@media (prefers-reduced-motion: reduce) {
+  .obs-stream-packet { opacity: .45; }
+}

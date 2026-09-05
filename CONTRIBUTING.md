@@ -21,6 +21,7 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Atlas facts, mission presets or help requests | [`site/data/`](site/data/); follow [Atlas source rules](docs/atlas-sources.md) |
 | Machine discovery or API behavior | [`site/.well-known/agent-home.json`](site/.well-known/agent-home.json), [`site/data/commons-openapi.json`](site/data/commons-openapi.json), [`services/commons/`](services/commons/); read the [discovery](docs/agent-discovery.md) and [service](services/commons/README.md) contracts |
 | Build output or validation | [`scripts/build-site.sh`](scripts/build-site.sh), [`scripts/check-site.py`](scripts/check-site.py), [`scripts/check-agent-data.py`](scripts/check-agent-data.py), [CI workflow](.github/workflows/repository-checks.yml) |
+| Observatory motion experiments | [Motion Lab](design/motion-lab/README.md), `python3 scripts/serve-motion-lab.py` |
 | Static release artifact contract | [Artifact guide](docs/release-artifacts.md), [`scripts/release-artifact.py`](scripts/release-artifact.py), [`scripts/test-release-artifact.py`](scripts/test-release-artifact.py) |
 | Release rehearsal on canonical main | [Rehearsal guide](docs/release-rehearsal.md), [`scripts/release-rehearsal.py`](scripts/release-rehearsal.py), [rehearsal workflow](.github/workflows/static-release-rehearsal.yml) |
 

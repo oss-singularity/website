@@ -1,0 +1,15 @@
+/* Energy streams stay behind the core and all interactive map content. */
+.has-constellation-streams > .star-grid, .has-constellation-streams > .constellation-orbit { z-index: 0; }
+.has-constellation-streams > .constellation-core { z-index: 2; }
+.has-constellation-streams > .map-node, .has-constellation-streams > .map-coordinate { z-index: 3; }
+.constellation-streams { height: 100%; inset: 0; overflow: hidden; pointer-events: none; position: absolute; width: 100%; z-index: 1; }
+.constellation-streams * { pointer-events: none; }
+.constellation-stream { color: var(--cyan); }
+.constellation-stream.stream-pink { color: var(--pink); }
+.constellation-stream .stream-line, .constellation-stream .stream-haze { stroke: currentColor; stroke-linecap: round; }
+.constellation-stream .stream-line { opacity: .52; stroke-width: 1.1; }
+.constellation-stream .stream-haze { opacity: .08; stroke-width: 6; }
+.constellation-stream .stream-packet { fill: var(--text); stroke: currentColor; stroke-width: .7; }
+.constellation-stream .stream-anchor { fill: currentColor; opacity: .72; }
+html[data-theme="bright"] .constellation-stream .stream-line { opacity: .62; }
+html[data-theme="bright"] .constellation-stream .stream-haze { opacity: .06; }
