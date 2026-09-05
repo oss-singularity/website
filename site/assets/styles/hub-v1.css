@@ -163,8 +163,9 @@
 .simulation-steps [data-state="complete"] .stage-indicator { background: var(--green); border-color: var(--green); }
 .guide-layout { align-items: start; display: grid; gap: 75px; grid-template-columns: 235px minmax(0, 760px); padding: 25px 0; }
 .guide-toc { border-top: 1px solid var(--line); padding-top: 15px; position: sticky; top: 25px; }
-.guide-toc a { color: var(--muted); display: block; font-size: .78rem; padding: 14px 0; text-decoration: none; }
-.guide-toc a:hover { color: var(--cyan); }
+.guide-toc a { align-items: center; border-left: 2px solid transparent; border-radius: 0 5px 5px 0; color: var(--muted); display: flex; font-size: .78rem; min-height: 44px; padding: 12px 13px; text-decoration: none; transition: background-color .2s ease, border-color .2s ease, color .2s ease; }
+.guide-toc a:hover, .guide-toc a:focus-visible { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 4%, transparent); }
+.guide-toc a[aria-current="location"] { background: color-mix(in srgb, var(--cyan) 9%, transparent); border-left-color: var(--cyan); color: var(--cyan-soft); }
 .guide-content > section { border-top: 1px solid var(--line); padding: 35px 0 55px; }
 .guide-content > section > p:not(.section-kicker), .guide-checklist, .guide-content details p { color: #b8c8d5; font-size: .96rem; line-height: 1.85; }
 .loop-diagram { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; margin: 32px 0; }
@@ -322,4 +323,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .hub-page *, .hub-page *::before, .hub-page *::after { animation: none !important; scroll-behavior: auto !important; transition: none !important; }
+}
+@media (forced-colors: active) {
+  .guide-toc a[aria-current="location"] { border-left-color: Highlight; outline: 1px solid Highlight; outline-offset: -1px; }
+  .guide-toc a:focus-visible { outline: 3px solid Highlight; outline-offset: 3px; }
 }

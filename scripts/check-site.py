@@ -88,6 +88,7 @@ def main() -> int:
         "assets/styles/hub-v1.css", "assets/scripts/atlas-v1.js",
         "assets/styles/home-v1.css", "assets/styles/activity-v1.css", "assets/scripts/commons-activity-v1.js",
         "assets/scripts/mission-lab-v1.js", "llms.txt",
+        "assets/scripts/section-navigation-v1.js",
         ".well-known/agent-home.json", "data/agent-home.schema.json",
         "data/atlas.json", "data/missions.json",
         "data/commons-openapi.json",
@@ -122,6 +123,9 @@ def main() -> int:
         "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js", "/assets/scripts/commons-activity-v1.js"],
         "workshop/index.html": ["/assets/scripts/workshop-v1.js", "/assets/scripts/workshop-identity-v1.js"],
         "singularity/index.html": ["/assets/scripts/singularity-v1.js", "/assets/scripts/singularity-participation-v1.js"],
+        "guide/index.html": ["/assets/scripts/section-navigation-v1.js"],
+        "help/index.html": ["/assets/scripts/section-navigation-v1.js"],
+        "roadmap/index.html": ["/assets/scripts/section-navigation-v1.js"],
     }
     documents = sorted(root.rglob("*.html"))
     for document in documents:
