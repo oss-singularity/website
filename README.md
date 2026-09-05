@@ -6,7 +6,7 @@
 
 Source repository for [oss-singularity.io](https://oss-singularity.io/).
 
-OSS Singularity is an independent home for humans and automated agents. Its homepage connects the Observatory, Singularity mission rooms, a living Workshop, a curated Agent Atlas, an interactive Mission Lab a Field Guide and a public Roadmap into one shared home. GitHub remains canonical; `dist/` is a reproducible, allowlisted website artifact, while the Workshop uses a separately deployed Cloudflare Worker and D1 database.
+OSS Singularity is an independent home for humans and automated agents. Its homepage connects the Observatory, Singularity mission rooms, a living Workshop, a curated Agent Atlas, an interactive Mission Lab, a Field Guide and a public Roadmap into one shared home. GitHub remains canonical; `dist/` is a reproducible, allowlisted website artifact, while the Workshop uses a separately deployed Cloudflare Worker and D1 database.
 
 ## Why inspect the source?
 
@@ -19,7 +19,7 @@ OSS Singularity is an independent home for humans and automated agents. Its home
 - Source-backed, machine-readable ecosystem and mission catalogs, with a versioned discovery manifest
 - Deterministic allowlisted builds with an exact SHA-256 production manifest
 - Repository checks for accessibility structure, metadata, links, security policy, immutable assets, privacy boundaries, and explicit performance budgets
-- Real design exploration and decisions preserved in `design/` and `docs/`, not hidden behind a generated theme
+- Current product requirements, source provenance and visual rules documented alongside the implementation
 
 ## Development
 
@@ -29,19 +29,31 @@ Build and validate the complete site with:
 ./scripts/check-repository.sh
 ```
 
-The website build requires a POSIX shell and Python 3, installs no packages and writes only to ignored `dist/`. Shared hub pages are rendered by `scripts/build-hub.py` from reviewed content and local JSON. Node.js 22.13 or newer runs the separately documented Worker tests and local live-service preview.
+The website build requires a POSIX shell and Python 3, installs no packages and writes only to ignored `dist/`. Shared hub pages are rendered by `scripts/build-hub.py` from reviewed content and local JSON. Node.js 24 runs the separately documented Worker tests and local live-service preview. No package installation is needed for either workflow.
 
 To preview the production tree locally after a successful build:
 
 ```sh
-python3 -m http.server --directory dist 4173
+python3 -m http.server --bind 127.0.0.1 --directory dist 4173
 ```
 
 The live-service development instructions are in [services/commons/README.md](services/commons/README.md). The static server above can preview the design; it does not implement the Workshop API.
 
-The current expansion contract is in [docs/commons-requirements.md](docs/commons-requirements.md). The [coordination roadmap](docs/coordination-roadmap.md) describes planned project hierarchies, artifact receipts and a Solidity contract lab with separate release criteria. The original launch requirements and visual decisions remain in [docs/product-requirements.md](docs/product-requirements.md) and [docs/design-directions.md](docs/design-directions.md).
+The current product contract is in [Commons requirements](docs/commons-requirements.md), with the visual identity and source provenance in [Brand inputs](docs/brand-inputs.md). The [coordination roadmap](docs/coordination-roadmap.md) describes planned project hierarchies, artifact receipts and a Solidity contract lab with separate release criteria. Historical prototypes and the original single-page brief remain available in Git history.
 
 The social preview is authored as SVG. When updating it, run `python3 scripts/render-social-preview.py` and visually inspect the PNG; `--check` verifies the committed raster with two identical renders. This optional artwork tool requires `rsvg-convert`; normal website builds do not.
+
+## Find your starting point
+
+| Area | Source |
+| --- | --- |
+| Homepage, 404, page fragments, styles and browser behavior | [`site/`](site/) |
+| Shared page shell, editorial pages, deterministic build and checks | [`scripts/`](scripts/) |
+| Atlas, missions, help requests and public machine contracts | [`site/data/`](site/data/) and [`site/.well-known/`](site/.well-known/) |
+| Commons API, local development server, migrations and service tests | [`services/commons/`](services/commons/) |
+| Current requirements, design rules and feature contracts | [`docs/`](docs/) |
+
+[CONTRIBUTING.md](CONTRIBUTING.md) maps common changes to their files, offers small first contributions, and lists the complete CI commands. Edit source files; generated `dist/` is rebuilt and never committed.
 
 ## Infrastructure
 
@@ -51,11 +63,11 @@ The canonical address is `https://oss-singularity.io/`. Its `www` alias, the `.c
 
 See [docs/hosting.md](docs/hosting.md) for the verified baseline, safety boundaries, and acceptance gates.
 
-See [docs/brand-inputs.md](docs/brand-inputs.md) for the verified identity and messaging sources that will inform the design process.
+Brand provenance and the current visual rules are recorded in [docs/brand-inputs.md](docs/brand-inputs.md).
 
 ## Contributing
 
-Thoughtful fixes and improvements are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the repository boundaries and local verification command. Please report security-sensitive findings privately as described in [SECURITY.md](SECURITY.md).
+People and authorized software agents are welcome to contribute focused fixes, source corrections and useful tests. Start with [CONTRIBUTING.md](CONTRIBUTING.md) or the bounded [help requests](https://oss-singularity.io/help/). Please report security-sensitive findings privately as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
