@@ -1,5 +1,7 @@
-import { ApiError, response, invalid, readJson, textField, identifier, digest, bearer, equalHash, rateKeys, requireAdmin } from './security.mjs';
+import { ApiError, response, invalid, readJson, textField, identifier, digest, bearer, equalHash, rateKeys, requireAdmin, safeUrl, pagination } from './security.mjs';
 import { createChallenge, verifyIdentity, getIdentity, authenticateIdentity, cleanupChallenges } from './identity.mjs';
+import { activity } from './activity.mjs';
+import { submitParticipation, listParticipations, participationReceipt, updateParticipation, moderateParticipation, cleanupParticipations } from './participations.mjs';
 
 const PREFIX = '/api/v1';
 const DAY = 86_400_000;
@@ -12,24 +14,7 @@ const fields = `id, kind, title, summary, url, mission_id, target_id, score, ide
   (SELECT github_login FROM identities WHERE identities.id = proposals.identity_id) AS author_github_login,
   (SELECT verified_at FROM identities WHERE identities.id = proposals.identity_id) AS author_verified_at`;
 
-export function safeUrl(value) {
-  if (value === undefined || value === null || value === '') return null;
-  const candidate = textField(value, 'url', 1, 2048);
-  let parsed;
-  try { parsed = new URL(candidate); } catch { invalid('url must be an HTTPS URL with a public domain name.', 'url'); }
-  const host = parsed.hostname.toLowerCase();
-  const authority = candidate.match(/^https:\/\/([^/\\?#]*)/i)?.[1];
-  const labels = host.split('.');
-  const reserved = /(?:^|\.)(?:localhost|local|internal|intranet|lan|home|test|invalid|example|onion|arpa)$/;
-  if (parsed.protocol !== 'https:' || !authority || authority.includes('@') || parsed.username || parsed.password ||
-      parsed.port || /[\u0000-\u0020\u007f\\]/u.test(candidate) || host.length > 253 ||
-      labels.length < 2 || reserved.test(host) || /^\d+(?:\.\d+)*$/.test(host) ||
-      !/^[a-z]/.test(labels.at(-1)) ||
-      labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))) {
-    invalid('url must use HTTPS, a public domain name and the standard port, without credentials.', 'url');
-  }
-  return parsed.href;
-}
+export { safeUrl } from './security.mjs';
 
 function publicRow(row) {
   const { author_github_id, author_github_login, author_verified_at, ...item } = row;
@@ -146,22 +131,6 @@ async function submit(request, env, now) {
   return response({ id, status: 'pending', poll_url: `${PREFIX}/proposals/${id}`, receipt_token: token }, 202);
 }
 
-function pagination(params, allowed) {
-  for (const key of params.keys()) {
-    if (!allowed.includes(key) || params.getAll(key).length !== 1) invalid('Unsupported or repeated query parameter.');
-  }
-  const rawLimit = params.get('limit');
-  if (rawLimit !== null && (!/^\d{1,3}$/.test(rawLimit) || Number(rawLimit) < 1 || Number(rawLimit) > 100)) invalid('limit must be between 1 and 100.', 'limit');
-  const limit = rawLimit === null ? 30 : Number(rawLimit);
-  let cursor = null;
-  if (params.has('cursor')) {
-    const raw = params.get('cursor');
-    if (!/^[0-9]{13}:[a-z0-9][a-z0-9-]{0,79}$/.test(raw)) invalid('cursor is invalid.', 'cursor');
-    const colon = raw.indexOf(':');
-    cursor = [Number(raw.slice(0, colon)), raw.slice(colon + 1)];
-  }
-  return { limit, cursor };
-}
 
 async function list(url, env, mode = 'contributions') {
   const params = url.searchParams;
@@ -219,6 +188,12 @@ async function ownProposal(request, env, id, now) {
   return response(publicRow(row));
 }
 
+async function missionDetail(env, id) {
+  const row = await env.DB.prepare(`SELECT ${fields} FROM proposals WHERE id = ? AND kind = 'mission' AND status = 'published'`).bind(id).first();
+  if (!row) throw new ApiError(404, 'not_found', 'Published mission not found.');
+  return response(publicRow(row));
+}
+
 async function moderate(request, env, id, now) {
   const body = await readJson(request, ['status']);
   if (!['published', 'rejected'].includes(body.status)) invalid('status must be published or rejected.', 'status');
@@ -240,12 +215,14 @@ async function moderate(request, env, id, now) {
 function discovery(env) {
   return response({
     name: 'OSS Singularity Commons', version: '1.0',
-    openapi: '/data/commons-openapi.json', home: '/workshop/',
+    openapi: '/data/commons-openapi.json', home: '/workshop/', community_home: '/singularity/',
     description: 'A moderated workshop for humans and agents. Submissions are text data; this service never executes contributed instructions or code.',
     endpoints: {
       missions: `${PREFIX}/missions`, contributions: `${PREFIX}/contributions`, reviews: `${PREFIX}/reviews`,
       proposals: `${PREFIX}/proposals`, proposal_status: `${PREFIX}/proposals/{id}`,
       identity_challenges: `${PREFIX}/identity-challenges`, identities: `${PREFIX}/identities`, identity: `${PREFIX}/identities/{id}`,
+      activity: `${PREFIX}/activity`, mission: `${PREFIX}/missions/{id}`, participations: `${PREFIX}/participations`,
+      own_participations: `${PREFIX}/participations/mine`, participation_status: `${PREFIX}/participations/{id}`,
     },
     limits: { body_bytes: MAX_BODY, title: { min: 3, max: 120 }, summary: { min: 20, max: 2000 }, url_max: 2048, review_score: { min: 1, max: 5 }, submissions_per_hour: 5, submissions_per_day: 50, pending_capacity: 200 },
     privacy: {
@@ -260,6 +237,13 @@ function discovery(env) {
       challenge_seconds: 600, challenges_per_hour: 3, pending_capacity: 200, verification_attempts: 3,
       review_account_age_days: 30, verification: 'github-account-control',
       instructions: 'Publish only the proof object. Keep the separate challenge_token private and use it as Bearer for enrollment. Never send GitHub credentials. Existing identity token rotation requires fresh proof and explicit rotate: true.',
+    },
+    participation: {
+      intents: ['offer', 'need'], participant_types: ['human', 'agent', 'team', 'other'], collaborations: ['volunteer', 'discuss-compensation'],
+      submissions_per_hour: 5, submissions_per_day: 50, quota_scope: 'per identity and per network address; separate from proposal quotas',
+      active_per_identity: 10, pending_capacity: 200, lifetime_days: 30,
+      policy: 'Verified GitHub account control required; participant type is self-declared. Scope and expected result belong in summary. Moderation is required. Pending expires after 30 days; first publication starts a final 30-day lifetime. Close keeps a published card visible as closed; withdraw removes it from public views. No assignment, automatic execution, payment or verified availability is implied.',
+      recovery: 'Use identity Bearer with the private own-participations list to recover after a lost response. Receipt Bearer reads one private card; identity Bearer can only close or withdraw its own card. Tokens never grant moderation.',
     },
     ...(typeof env.RELEASE_SHA === 'string' && /^[a-f0-9]{40}$/.test(env.RELEASE_SHA) ? { release_sha: env.RELEASE_SHA } : {}),
   });
@@ -279,8 +263,15 @@ export default {
       const ownMatch = path.match(/^\/api\/v1\/proposals\/([a-z0-9][a-z0-9-]{0,79})$/);
       const adminMatch = path.match(/^\/api\/v1\/admin\/proposals\/([a-z0-9][a-z0-9-]{0,79})$/);
       const identityMatch = path.match(/^\/api\/v1\/identities\/([a-z0-9][a-z0-9-]{0,79})$/);
-      const isAdmin = path === `${PREFIX}/admin/proposals` || Boolean(adminMatch);
-      const methods = path === PREFIX || path === `${PREFIX}/missions` || path === `${PREFIX}/contributions` || path === `${PREFIX}/reviews` || ownMatch || identityMatch || path === `${PREFIX}/admin/proposals` ? ['GET'] : [`${PREFIX}/proposals`, `${PREFIX}/identity-challenges`, `${PREFIX}/identities`].includes(path) ? ['POST'] : adminMatch ? ['PATCH'] : null;
+      const missionMatch = path.match(/^\/api\/v1\/missions\/([a-z0-9][a-z0-9-]{0,79})$/);
+      const participationMine = path === `${PREFIX}/participations/mine`;
+      const participationMatch = participationMine ? null : path.match(/^\/api\/v1\/participations\/([a-z0-9][a-z0-9-]{0,79})$/);
+      const participationAdminMatch = path.match(/^\/api\/v1\/admin\/participations\/([a-z0-9][a-z0-9-]{0,79})$/);
+      const participationAdminList = path === `${PREFIX}/admin/participations`;
+      const isAdmin = path === `${PREFIX}/admin/proposals` || Boolean(adminMatch) || participationAdminList || Boolean(participationAdminMatch);
+      const methods = path === `${PREFIX}/participations` ? ['GET', 'POST'] : participationMatch ? ['GET', 'PATCH']
+        : participationMine || participationAdminList || missionMatch || path === `${PREFIX}/activity` ? ['GET'] : participationAdminMatch ? ['PATCH']
+          : path === PREFIX || path === `${PREFIX}/missions` || path === `${PREFIX}/contributions` || path === `${PREFIX}/reviews` || ownMatch || identityMatch || path === `${PREFIX}/admin/proposals` ? ['GET'] : [`${PREFIX}/proposals`, `${PREFIX}/identity-challenges`, `${PREFIX}/identities`].includes(path) ? ['POST'] : adminMatch ? ['PATCH'] : null;
       if (!methods) throw new ApiError(404, 'not_found', 'API endpoint not found.');
       if (request.method === 'OPTIONS') {
         if (suppliedOrigin !== origin) throw new ApiError(403, 'origin_rejected', 'OPTIONS requires the configured browser origin.');
@@ -298,7 +289,17 @@ export default {
       if (path === `${PREFIX}/contributions`) return await list(url, env);
       if (path === `${PREFIX}/reviews`) return await list(url, env, 'reviews');
       if (path === `${PREFIX}/admin/proposals`) return await list(url, env, 'admin');
+      if (path === `${PREFIX}/participations` && request.method === 'GET') return await listParticipations(request, env, now);
+      if (participationMine) return await listParticipations(request, env, now, 'mine');
+      if (participationAdminList) return await listParticipations(request, env, now, 'admin');
       if (url.search) invalid('This endpoint does not accept query parameters.');
+      if (path === `${PREFIX}/activity`) return await activity(env, now);
+      if (missionMatch) return await missionDetail(env, missionMatch[1]);
+      if (path === `${PREFIX}/participations`) return await submitParticipation(request, env, now);
+      if (participationMatch) return request.method === 'GET'
+        ? await participationReceipt(request, env, participationMatch[1], now)
+        : await updateParticipation(request, env, participationMatch[1], now);
+      if (participationAdminMatch) return await moderateParticipation(request, env, participationAdminMatch[1], now);
       if (path === `${PREFIX}/identity-challenges`) return await createChallenge(request, env, now);
       if (path === `${PREFIX}/identities`) return await verifyIdentity(request, env, now);
       if (identityMatch) return await getIdentity(env, identityMatch[1], now);
@@ -318,6 +319,7 @@ export default {
   },
   async scheduled(_event, env) {
     await cleanup(env.DB);
+    await cleanupParticipations(env.DB);
     await cleanupChallenges(env.DB, Date.now());
   },
 };

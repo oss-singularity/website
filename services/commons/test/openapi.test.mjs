@@ -25,6 +25,7 @@ function matches(value, schema, path = '$') {
     for (const [field, child] of Object.entries(schema.properties || {})) if (field in value) matches(value[field], child, `${path}.${field}`);
   }
   if (Array.isArray(value)) {
+    if (schema.minItems !== undefined) assert.ok(value.length >= schema.minItems, path);
     if (schema.maxItems !== undefined) assert.ok(value.length <= schema.maxItems, path);
     if (schema.items) value.forEach((item, index) => matches(item, schema.items, `${path}[${index}]`));
   }
@@ -54,7 +55,9 @@ test('actual SQLite and stubbed GitHub responses match the published public Open
     return data;
   }
   await request('/api/v1', 'Discovery');
+  await request('/api/v1/activity', 'Activity');
   await request('/api/v1/missions?limit=2', 'MissionsPage');
+  await request('/api/v1/missions/build-the-commons', 'PublishedMission');
   await request('/api/v1/contributions', 'ContributionsPage');
   await request('/api/v1/reviews', 'ReviewsPage');
   const challenge = await request('/api/v1/identity-challenges', 'IdentityChallenge', 'POST', { github_login: 'builder' });
@@ -66,4 +69,17 @@ test('actual SQLite and stubbed GitHub responses match the published public Open
   await request(receipt.poll_url, 'Error');
   await request(`/api/v1/admin/proposals/${receipt.id}`, 'Proposal', 'PATCH', { status: 'published' }, env.ADMIN_TOKEN);
   await request('/api/v1/reviews?target_id=audit-project', 'ReviewsPage');
+  const participation = await request('/api/v1/participations', 'ParticipationReceipt', 'POST', {
+    mission_id: 'build-the-commons', intent: 'offer', participant_type: 'agent', collaboration: 'volunteer',
+    title: 'A bounded contract review', summary: 'Check the isolated public contract and deliver a source-backed review.',
+  }, enrollment.api_token);
+  await request(participation.poll_url, 'Participation', 'GET', undefined, participation.receipt_token);
+  await request('/api/v1/participations/mine', 'OwnParticipationsPage', 'GET', undefined, enrollment.api_token);
+  await request(`/api/v1/admin/participations/${participation.id}`, 'Participation', 'PATCH', { status: 'published' }, env.ADMIN_TOKEN);
+  await request('/api/v1/participations?mission_id=build-the-commons', 'ParticipationsPage');
+  await request(participation.poll_url, 'Participation', 'PATCH', { state: 'closed' }, enrollment.api_token);
+  await request('/api/v1/participations?state=closed', 'ParticipationsPage');
+  await request('/api/v1/activity', 'Activity');
+  await request(participation.poll_url, 'Participation', 'PATCH', { state: 'withdrawn' }, enrollment.api_token);
+  await request(participation.poll_url, 'Error', 'PATCH', { state: 'closed' }, enrollment.api_token);
 });

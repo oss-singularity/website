@@ -2,6 +2,8 @@ Options -Indexes
 DirectoryIndex index.html
 ErrorDocument 404 /404.html
 AddType application/json .json
+AddType application/manifest+json .webmanifest
+AddType text/plain .sha256
 
 <IfModule mod_rewrite.c>
   RewriteEngine On

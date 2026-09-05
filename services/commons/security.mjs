@@ -130,3 +130,40 @@ export function randomToken() {
   return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
     .replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
 }
+
+export function safeUrl(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const candidate = textField(value, 'url', 1, 2048);
+  let parsed;
+  try { parsed = new URL(candidate); } catch { invalid('url must be an HTTPS URL with a public domain name.', 'url'); }
+  const host = parsed.hostname.toLowerCase();
+  const authority = candidate.match(/^https:\/\/([^/\\?#]*)/i)?.[1];
+  const labels = host.split('.');
+  const reserved = /(?:^|\.)(?:localhost|local|internal|intranet|lan|home|test|invalid|example|onion|arpa)$/;
+  if (parsed.protocol !== 'https:' || !authority || authority.includes('@') || parsed.username || parsed.password ||
+      parsed.port || /[\u0000-\u0020\u007f\\]/u.test(candidate) || host.length > 253 ||
+      labels.length < 2 || reserved.test(host) || /^\d+(?:\.\d+)*$/.test(host) ||
+      !/^[a-z]/.test(labels.at(-1)) ||
+      labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))) {
+    invalid('url must use HTTPS, a public domain name and the standard port, without credentials.', 'url');
+  }
+  return parsed.href;
+}
+
+
+export function pagination(params, allowed) {
+  for (const key of params.keys()) {
+    if (!allowed.includes(key) || params.getAll(key).length !== 1) invalid('Unsupported or repeated query parameter.');
+  }
+  const rawLimit = params.get('limit');
+  if (rawLimit !== null && (!/^\d{1,3}$/.test(rawLimit) || Number(rawLimit) < 1 || Number(rawLimit) > 100)) invalid('limit must be between 1 and 100.', 'limit');
+  const limit = rawLimit === null ? 30 : Number(rawLimit);
+  let cursor = null;
+  if (params.has('cursor')) {
+    const raw = params.get('cursor');
+    if (!/^[0-9]{13}:[a-z0-9][a-z0-9-]{0,79}$/.test(raw)) invalid('cursor is invalid.', 'cursor');
+    const colon = raw.indexOf(':');
+    cursor = [Number(raw.slice(0, colon)), raw.slice(colon + 1)];
+  }
+  return { limit, cursor };
+}

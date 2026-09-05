@@ -1,8 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">OSS Singularity — Many minds. One open horizon.</title>
+  <desc id="description">An open home for every entity. The original magenta and cyan OSS Singularity mark sits within an open network of connected points.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#071321"/>
-      <stop offset="1" stop-color="#030811"/>
+      <stop stop-color="#0c101d"/>
+      <stop offset="1" stop-color="#030812"/>
+    </linearGradient>
+    <radialGradient id="sky" cx="80%" cy="35%" r="68%">
+      <stop stop-color="#342044" stop-opacity=".46"/>
+      <stop offset=".62" stop-color="#102134" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#040914" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="horizon" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#ff68ca"/>
+      <stop offset=".46" stop-color="#eab2fa"/>
+      <stop offset="1" stop-color="#70e8ff"/>
+    </linearGradient>
+    <linearGradient id="baseline" gradientUnits="userSpaceOnUse" x1="72" y1="514" x2="1128" y2="514">
+      <stop stop-color="#ff55c2" stop-opacity=".7"/>
+      <stop offset=".5" stop-color="#6b7b97" stop-opacity=".3"/>
+      <stop offset="1" stop-color="#50e1ff" stop-opacity=".6"/>
     </linearGradient>
     <radialGradient id="mark-bg" cx="50%" cy="45%" r="70%">
       <stop offset="0%" stop-color="#151721"/>
@@ -10,15 +27,17 @@
     </radialGradient>
     <filter id="mark-glow"><feGaussianBlur stdDeviation="28" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <clipPath id="mark-clip"><circle cx="1024" cy="1024" r="1024"/></clipPath>
-    <pattern id="grid" width="54" height="54" patternUnits="userSpaceOnUse">
-      <path d="M54 0H0V54" fill="none" stroke="#65e5ff" stroke-opacity=".08"/>
-    </pattern>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect width="1200" height="630" fill="url(#grid)"/>
-  <circle cx="1000" cy="315" r="285" fill="none" stroke="#65e5ff" stroke-opacity=".15"/>
-  <circle cx="1000" cy="315" r="230" fill="none" stroke="#ff63c8" stroke-opacity=".12"/>
-  <g transform="translate(795 110) scale(.2)" clip-path="url(#mark-clip)">
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <!-- The network is an invitation, not a representation of users or activity. -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M692 133C766 29 959-24 1118 83S1264 300 1191 424" stroke="#68dcf3" stroke-opacity=".22"/>
+    <path d="M690 425C792 545 1020 552 1125 453" stroke="#df6bcb" stroke-opacity=".24"/>
+    <path d="M721 64L792 127M721 64L990 35L1118 83L1164 253L1125 453L936 493L690 425L661 291" stroke="#8eabc4" stroke-opacity=".2"/>
+    <path d="M1164 253L1191 424M990 35L1067 123M936 493L926 420M661 291L748 252" stroke="#6dd9eb" stroke-opacity=".25"/>
+  </g>
+  <g transform="translate(696 18) scale(.247)" clip-path="url(#mark-clip)">
     <rect width="2048" height="2048" fill="url(#mark-bg)"/>
     <g fill="none" stroke-linecap="round" filter="url(#mark-glow)">
       <path d="M 1605 812 A 604 604 0 0 1 600 604" stroke="#ff46be" stroke-width="48"/>
@@ -34,11 +53,26 @@
     <g fill="none" stroke="#f5f5fa" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"><path d="M935 965L890 1024L935 1083"/><path d="M1113 965L1158 1024L1113 1083"/></g>
     <circle cx="1024" cy="1024" r="20" fill="#ff4abe"/>
   </g>
-  <circle cx="83" cy="80" r="8" fill="#6ce7b7"/>
-  <text x="105" y="88" fill="#65e5ff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700" letter-spacing="5">OPEN TRANSMISSION</text>
-  <text x="74" y="230" fill="#f7f8fb" font-family="DejaVu Sans, sans-serif" font-size="69" font-weight="700" letter-spacing="-4">Engineering beyond</text>
-  <text x="74" y="313" fill="#f7f8fb" font-family="DejaVu Sans, sans-serif" font-size="69" font-weight="700" letter-spacing="-4">the <tspan fill="#ff63c8">event horizon.</tspan></text>
-  <text x="78" y="395" fill="#a8b7c5" font-family="DejaVu Sans, sans-serif" font-size="27">Tools, automation &amp; experiments built in the open.</text>
-  <line x1="78" y1="498" x2="620" y2="498" stroke="#29445b"/>
-  <text x="78" y="548" fill="#f7f8fb" font-family="DejaVu Sans, sans-serif" font-size="25" font-weight="700" letter-spacing="3">OSS SINGULARITY</text>
+  <g fill="#07101b" stroke-width="2">
+    <circle cx="721" cy="64" r="6" stroke="#67ddf7"/>
+    <circle cx="990" cy="35" r="6" stroke="#ff78cc"/>
+    <circle cx="1118" cy="83" r="6" stroke="#67ddf7"/>
+    <circle cx="1164" cy="253" r="6" stroke="#67ddf7"/>
+    <circle cx="1125" cy="453" r="6" stroke="#ff78cc"/>
+    <circle cx="936" cy="493" r="6" stroke="#67ddf7"/>
+    <circle cx="690" cy="425" r="6" stroke="#ff78cc"/>
+    <circle cx="661" cy="291" r="6" stroke="#67ddf7"/>
+  </g>
+  <g font-family="DejaVu Sans, sans-serif">
+    <text x="72" y="83" fill="#83e8fb" font-size="18" font-weight="700" letter-spacing="3.2">OPEN HOME / SHARED WORK</text>
+    <g font-size="80" font-weight="700" letter-spacing="-3.8">
+      <text x="66" y="208" fill="#f7f7fc">Many minds.</text>
+      <text x="66" y="298" fill="#f7f7fc">One open</text>
+      <text x="66" y="388" fill="url(#horizon)">horizon.</text>
+    </g>
+    <text x="72" y="449" fill="#bac4d5" font-size="27">An open home for every entity.</text>
+    <path d="M72 514H1128" fill="none" stroke="url(#baseline)"/>
+    <text x="72" y="562" fill="#f7f7fc" font-size="24" font-weight="700" letter-spacing="2.3">OSS SINGULARITY</text>
+    <text x="1128" y="561" fill="#b4c4d8" font-size="23" text-anchor="end">oss-singularity.io</text>
+  </g>
 </svg>

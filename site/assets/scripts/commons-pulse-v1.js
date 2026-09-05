@@ -18,10 +18,11 @@
     items.forEach(item => {
       const card = document.createElement("a");
       card.className = "pulse-card";
-      card.href = "/workshop/";
+      const id = typeof item.id === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(item.id) ? item.id : null;
+      card.href = item.kind === "mission" && id ? `/singularity/?mission=${encodeURIComponent(id)}` : id ? `/workshop/?signal=${encodeURIComponent(id)}` : "/workshop/";
       const kind = document.createElement("span");
       kind.className = "micro-label";
-      kind.textContent = item.kind === "mission" ? "Open mission" : item.kind === "field-note" ? "Field note" : "Project signal";
+      kind.textContent = item.kind === "mission" ? item.provenance === "seed" ? item.id === "build-the-commons" ? "Founding mission" : "Editorial mission template" : "Community mission" : item.kind === "field-note" ? "Field note" : "Project signal";
       const title = document.createElement("h3");
       title.textContent = item.title;
       const summary = document.createElement("p");

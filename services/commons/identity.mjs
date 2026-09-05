@@ -102,7 +102,7 @@ async function githubJson(path) {
   const timer = setTimeout(() => controller.abort(), 5000);
   try {
     const result = await fetch(`https://api.github.com${path}`, {
-      redirect: 'error', signal: controller.signal,
+      redirect: 'manual', signal: controller.signal,
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'OSS-Singularity-Identity', 'X-GitHub-Api-Version': '2026-03-10' },
     });
     if (result.status === 404) invalid('The public GitHub proof or account could not be found.', 'gist_url');

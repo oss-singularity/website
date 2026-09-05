@@ -47,7 +47,7 @@ function mockGitHub(t, document, account = { id: 42, login: 'builder', created_a
   const calls = [];
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     calls.push(url);
-    assert.equal(options.redirect, 'error');
+    assert.equal(options.redirect, 'manual');
     assert.equal(options.headers.Authorization, undefined);
     assert.match(url, /^https:\/\/api\.github\.com\/(gists\/[a-f0-9]+|users\/builder)$/);
     return new Response(JSON.stringify(url.includes('/gists/') ? (typeof document === 'function' ? document() : document) : account));
@@ -162,13 +162,43 @@ test('GitHub fetches are fixed-origin, bounded and never follow supplied raw URL
   const value = await challenge(env);
   let calls = 0;
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    calls++; assert.equal(url, `https://api.github.com/gists/${GIST}`); assert.equal(options.redirect, 'error');
+    calls++; assert.equal(url, `https://api.github.com/gists/${GIST}`); assert.equal(options.redirect, 'manual');
     return new Response(' '.repeat(65_537), { headers: { 'content-length': '1' } });
   });
   for (let index = 0; index < 3; index++) assert.equal((await verify(env, value)).status, 400);
   assert.equal((await verify(env, value)).status, 401);
   assert.equal(calls, 3);
   assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM identities').get().n, 0);
+});
+
+test('GitHub gist and account redirects are rejected without following Location', async t => {
+  const env = setup(t);
+  const gistUrl = `https://api.github.com/gists/${GIST}`;
+  const accountUrl = 'https://api.github.com/users/builder';
+  const location = 'https://redirect-target.example/identity-proof';
+  const account = { id: 42, login: 'builder', created_at: new Date(NOW - 40 * DAY).toISOString() };
+  let value, redirectedUrl, status;
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push({ url, redirect: options.redirect });
+    const content = JSON.stringify(url === gistUrl ? proofFixture(value) : account);
+    if (url === redirectedUrl) return new Response(status === 304 ? null : content, { status, headers: { Location: location } });
+    return new Response(content);
+  });
+  let index = 0;
+  for (redirectedUrl of [gistUrl, accountUrl]) {
+    for (status = 300; status < 400; status++) {
+      value = await challenge(env, 'builder', { 'cf-connecting-ip': `203.0.113.${++index}` });
+      calls.length = 0;
+      const result = await verify(env, value);
+      assert.equal(result.status, 503, `${redirectedUrl}: ${status}`);
+      assert.equal(result.body.error.code, 'upstream_unavailable');
+      const expectedUrls = redirectedUrl === gistUrl ? [gistUrl] : [gistUrl, accountUrl];
+      assert.deepEqual(calls, expectedUrls.map(url => ({ url, redirect: 'manual' })));
+      assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM identities').get().n, 0);
+      assert.equal(env.DB.sqlite.prepare('SELECT consumed_at FROM identity_challenges WHERE id = ?').get(value.id).consumed_at, null);
+    }
+  }
 });
 
 test('challenge expiry and concurrent hourly quota prevent reuse and unbounded issuance', async t => {

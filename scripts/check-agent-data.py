@@ -221,26 +221,34 @@ def validate_openapi(spec: dict) -> None:
     require(spec.get("servers") == [{"url": ORIGIN, "description": "Canonical OSS Singularity origin"}],
             "Commons OpenAPI must target only the canonical origin")
     operations = {
-        "/api/v1": "get", "/api/v1/missions": "get", "/api/v1/contributions": "get",
-        "/api/v1/reviews": "get", "/api/v1/proposals": "post", "/api/v1/proposals/{id}": "get",
-        "/api/v1/identity-challenges": "post", "/api/v1/identities": "post", "/api/v1/identities/{id}": "get",
+        "/api/v1": ("get",), "/api/v1/activity": ("get",), "/api/v1/missions": ("get",), "/api/v1/missions/{id}": ("get",),
+        "/api/v1/contributions": ("get",), "/api/v1/reviews": ("get",),
+        "/api/v1/proposals": ("post",), "/api/v1/proposals/{id}": ("get",),
+        "/api/v1/identity-challenges": ("post",), "/api/v1/identities": ("post",),
+        "/api/v1/identities/{id}": ("get",), "/api/v1/participations": ("get", "post"),
+        "/api/v1/participations/mine": ("get",), "/api/v1/participations/{id}": ("get", "patch"),
     }
     require(set(spec.get("paths", {})) == set(operations), "Commons OpenAPI public route set differs")
-    require(spec.get("security") == [], "Commons public reads and submission must not claim account authentication")
+    require(spec.get("security") == [], "Commons public reads must not claim account authentication")
+    scopes = {
+        ("/api/v1/proposals/{id}", "get"): [{"ReceiptBearer": []}],
+        ("/api/v1/proposals", "post"): [{}, {"IdentityBearer": []}],
+        ("/api/v1/identities", "post"): [{"ChallengeBearer": []}],
+        ("/api/v1/participations", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/participations/mine", "get"): [{"IdentityBearer": []}],
+        ("/api/v1/participations/{id}", "get"): [{"ReceiptBearer": []}],
+        ("/api/v1/participations/{id}", "patch"): [{"IdentityBearer": []}],
+    }
     names = set()
-    for path, method in operations.items():
-        require(set(spec["paths"][path]) == {method}, f"Commons OpenAPI method differs: {path}")
-        operation = spec["paths"][path][method]
-        name = operation.get("operationId")
-        require(isinstance(name, str) and name not in names, f"Commons OpenAPI operationId missing or repeated: {path}")
-        names.add(name)
-        expected_security = {
-            "/api/v1/proposals/{id}": [{"ReceiptBearer": []}],
-            "/api/v1/proposals": [{}, {"IdentityBearer": []}],
-            "/api/v1/identities": [{"ChallengeBearer": []}],
-        }.get(path, [])
-        require(operation.get("security", []) == expected_security,
-                f"Commons OpenAPI receipt security differs: {path}")
+    for path, methods in operations.items():
+        require(set(spec["paths"][path]) == set(methods), f"Commons OpenAPI methods differ: {path}")
+        for method in methods:
+            operation = spec["paths"][path][method]
+            name = operation.get("operationId")
+            require(isinstance(name, str) and name not in names, f"Commons OpenAPI operationId missing or repeated: {path}")
+            names.add(name)
+            require(operation.get("security", []) == scopes.get((path, method), []),
+                    f"Commons OpenAPI credential scope differs: {method} {path}")
     components = spec.get("components", {})
     bearer = components.get("securitySchemes", {}).get("ReceiptBearer", {})
     require(bearer.get("type") == "http" and bearer.get("scheme") == "bearer",
@@ -268,6 +276,22 @@ def validate_openapi(spec: dict) -> None:
             "Commons public proof must not contain a private token")
     require(set(schemas.get("Identity", {}).get("properties", {})).isdisjoint({"token_hash", "api_token", "challenge_token"}),
             "Commons public identities must not expose credentials")
+
+    participation = schemas.get("ParticipationRequest", {})
+    require(participation.get("additionalProperties") is False and
+            set(participation.get("properties", {})) == {"mission_id", "intent", "participant_type", "collaboration", "title", "summary", "url"},
+            "Participation request must not accept client-supplied identity or unsupported fields")
+    require(set(participation.get("required", [])) == {"mission_id", "intent", "participant_type", "collaboration", "title", "summary"},
+            "Participation requires an explicit mission, intent and collaboration terms")
+    require(set(schemas.get("Participation", {}).get("properties", {})).isdisjoint({"receipt_hash", "receipt_token", "token_hash", "api_token"}),
+            "Participation cards must not expose credentials")
+    require(set(schemas.get("ParticipationReceipt", {}).get("required", [])) == {"id", "status", "state", "expires_at", "poll_url", "receipt_token"},
+            "Participation receipt must expose pending state and expiry")
+    state_request = schemas.get("ParticipationStateRequest", {})
+    require(state_request.get("additionalProperties") is False and set(state_request.get("properties", {})) == {"state"},
+            "Participation owner changes must not edit content or moderation")
+    require(set(state_request.get("properties", {}).get("state", {}).get("enum", [])) == {"closed", "withdrawn"},
+            "Participation owner changes must not reopen or publish cards")
 
     def references(value: object) -> None:
         if isinstance(value, dict):
@@ -303,7 +327,7 @@ def validate_founding_mission(value: dict) -> None:
         text_field(statement, f"founding statement.{language}")
     for name in ("participants", "outcomes"):
         string_array(value[name], f"founding mission.{name}")
-    require(value["homepage"] == ORIGIN + "/mission/" and value["participation_url"] == ORIGIN + "/workshop/" and value["api"] == ORIGIN + "/api/v1",
+    require(value["homepage"] == ORIGIN + "/mission/" and value["participation_url"] == ORIGIN + "/singularity/" and value["api"] == ORIGIN + "/api/v1",
             "founding mission routes differ")
     https_url(value["source"], "founding mission.source")
     require(isinstance(value["first_contributions"], list) and len(value["first_contributions"]) == 4,
@@ -336,7 +360,7 @@ def check(root: Path) -> tuple[int, int]:
     urls = [manifest["$schema"], manifest["homepage"], *manifest["pages"].values()]
     urls.extend(resource["url"] for resource in manifest["resources"].values())
     workshop = manifest["services"]["workshop"]
-    urls.extend(workshop[key] for key in ("homepage", "discovery", "openapi"))
+    urls.extend(workshop[key] for key in ("homepage", "collaboration_home", "discovery", "openapi"))
     for url in urls:
         if url not in RUNTIME_DISCOVERY_URLS:
             local_target(root, url)
@@ -429,6 +453,17 @@ def self_test() -> int:
     rejected(lambda: validate_openapi(invalid))
     invalid = copy.deepcopy(openapi)
     invalid["components"]["schemas"]["ChallengeProof"]["properties"]["challenge_token"] = {"type": "string"}
+    rejected(lambda: validate_openapi(invalid))
+    for path, method in (("/api/v1/participations", "post"), ("/api/v1/participations/mine", "get"),
+                         ("/api/v1/participations/{id}", "get"), ("/api/v1/participations/{id}", "patch")):
+        invalid = copy.deepcopy(openapi)
+        invalid["paths"][path][method]["security"] = []
+        rejected(lambda: validate_openapi(invalid))
+    invalid = copy.deepcopy(openapi)
+    invalid["components"]["schemas"]["ParticipationRequest"]["properties"]["identity_id"] = {"type": "string"}
+    rejected(lambda: validate_openapi(invalid))
+    invalid = copy.deepcopy(openapi)
+    invalid["components"]["schemas"]["ParticipationStateRequest"]["properties"]["state"]["enum"].append("active")
     rejected(lambda: validate_openapi(invalid))
     invalid = copy.deepcopy(founding)
     invalid["api"] = ORIGIN + "/api/unimplemented"

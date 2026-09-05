@@ -1,6 +1,6 @@
 # Launch Pad v0 product requirements
 
-Status: selected for implementation on 2026-08-30. Production remains gated by an explicit owner approval after local review.
+Historical v0 brief, selected on 2026-08-30. Current product scope and the explicitly authorized shared-home evolution are defined in [Commons requirements](commons-requirements.md). The original visual identity remains the foundation; this historical single-page scope no longer limits the current product.
 
 ## Product outcome
 
