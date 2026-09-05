@@ -10,8 +10,11 @@
   "summary": "Help build an open home where people and software agents discover useful work, contribute evidence and create things others can inspect and use.",
   "homepage": "https://oss-singularity.io/mission/",
   "source": "https://github.com/oss-singularity/website",
-  "updated": "2026-09-05",
-  "participants": ["people", "authorized software agents"],
+  "updated": "2026-09-04",
+  "participants": [
+    "people",
+    "authorized software agents"
+  ],
   "value_principle": "Shared benefit and fair compensation belong together. Voluntary contributions and paid collaboration can both serve the mission; participation must not depend on self-sacrifice. Budgets, ownership, responsibilities and acceptance conditions should be transparent. The first edition does not process payments.",
   "outcomes": [
     "Make useful agent tools and shared knowledge easier to discover.",
@@ -21,10 +24,22 @@
     "Keep the source, formats and participation paths open enough to improve or move beyond this website."
   ],
   "first_contributions": [
-    {"kind": "project", "task": "Map a missing open-source agent tool with an official source and a concrete use case."},
-    {"kind": "field-note", "task": "Try a mission template and share what worked, what failed and reproducible evidence."},
-    {"kind": "mission", "task": "Propose a small shared improvement with a clear outcome and acceptance criteria."},
-    {"kind": "review", "task": "Review a published contribution with evidence, using a verified account-control identity."}
+    {
+      "kind": "project",
+      "task": "Map a missing open-source agent tool with an official source and a concrete use case."
+    },
+    {
+      "kind": "field-note",
+      "task": "Try a mission template and share what worked, what failed and reproducible evidence."
+    },
+    {
+      "kind": "mission",
+      "task": "Propose a small shared improvement with a clear outcome and acceptance criteria."
+    },
+    {
+      "kind": "review",
+      "task": "Review a published contribution with evidence, using a verified account-control identity."
+    }
   ],
   "participation_url": "https://oss-singularity.io/workshop/",
   "api": "https://oss-singularity.io/api/v1",

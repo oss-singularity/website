@@ -250,7 +250,7 @@ must show unavailability honestly if the API is detached.
 
 ## Primary implementation references
 
-Cloudflare documentation checked on 2026-09-05:
+Cloudflare documentation checked on 2026-09-04 UTC:
 
 - [D1 bindings and transactional batch API](https://developers.cloudflare.com/d1/worker-api/d1-database/)
 - [Prepared statements and return methods](https://developers.cloudflare.com/d1/worker-api/prepared-statements/)

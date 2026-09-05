@@ -9,7 +9,7 @@ import ipaddress
 import json
 import re
 import tempfile
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -20,6 +20,7 @@ SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SCHEMA_KEYS = {
     "$schema", "$id", "title", "description", "type", "const", "required",
     "properties", "additionalProperties", "minLength", "maxLength", "format", "pattern",
+    "enum", "items", "minItems", "maxItems", "uniqueItems",
 }
 
 
@@ -59,7 +60,7 @@ def calendar_date(value: object, label: str) -> date:
         parsed = date.fromisoformat(value)
     except ValueError as error:
         raise ContractError(f"{label}: invalid calendar date") from error
-    require(parsed <= date.today(), f"{label}: editorial date is in the future")
+    require(parsed <= datetime.now(timezone.utc).date(), f"{label}: editorial date is in the future (UTC)")
     return parsed
 
 
@@ -98,12 +99,15 @@ def https_url(value: object, label: str) -> None:
 
 
 def validate_manifest(value: object, schema: dict, label: str = "manifest") -> None:
-    """Check the exact JSON Schema vocabulary used by our published manifest schema."""
+    """Check the exact JSON Schema vocabulary used by our published discovery schemas."""
     require(not set(schema) - SCHEMA_KEYS, f"{label}: unsupported schema vocabulary")
     if "const" in schema:
         expected = schema["const"]
         require(type(value) is type(expected) and value == expected,
                 f"{label}: must equal {expected!r}")
+    if "enum" in schema:
+        require(any(type(value) is type(expected) and value == expected for expected in schema["enum"]),
+                f"{label}: unsupported value")
     if schema.get("type") == "object":
         require(isinstance(value, dict), f"{label}: expected an object")
         properties = schema.get("properties", {})
@@ -122,6 +126,15 @@ def validate_manifest(value: object, schema: dict, label: str = "manifest") -> N
             require(bool(re.search(schema["pattern"], value)), f"{label}: invalid text format")
         if schema.get("format") == "date":
             calendar_date(value, label)
+    elif schema.get("type") == "array":
+        require(isinstance(value, list), f"{label}: expected an array")
+        require(schema.get("minItems", 0) <= len(value) <= schema.get("maxItems", 5000),
+                f"{label}: invalid item count")
+        if schema.get("uniqueItems"):
+            serialized = [json.dumps(item, sort_keys=True) for item in value]
+            require(len(serialized) == len(set(serialized)), f"{label}: duplicate items")
+        for index, item in enumerate(value):
+            validate_manifest(item, schema["items"], f"{label}[{index}]")
     else:
         require("type" not in schema, f"{label}: unsupported schema type")
 
@@ -304,6 +317,16 @@ def validate_founding_mission(value: dict) -> None:
     require(len(kinds) == 4, "founding contribution kinds must be distinct")
 
 
+def validate_help_wanted(value: dict, schema: dict) -> None:
+    require(schema.get("$id") == ORIGIN + "/data/help-wanted.schema.json", "incorrect help schema identifier")
+    require(schema.get("$schema") == "https://json-schema.org/draft/2020-12/schema", "incorrect help schema dialect")
+    validate_manifest(value, schema, "help requests")
+    expected_ids = ["trust-boundary-tests", "accessibility-check", "bug-reproduction", "atlas-freshness", "machine-contract-review", "small-patch"]
+    require([request["id"] for request in value["requests"]] == expected_ids,
+            "help request identifiers or security-first ordering differ")
+    require("private_security" in value["requests"][0]["submit_via"], "security findings need a private reporting route")
+
+
 def check(root: Path) -> tuple[int, int]:
     manifest = read_json(root / ".well-known/agent-home.json")
     schema = read_json(root / "data/agent-home.schema.json")
@@ -327,6 +350,13 @@ def check(root: Path) -> tuple[int, int]:
     missions = read_json(local_target(root, manifest["resources"]["missions"]["url"]))
     validate_openapi(read_json(local_target(root, workshop["openapi"])))
     validate_founding_mission(read_json(local_target(root, manifest["resources"]["founding_mission"]["url"])))
+    help_data = read_json(local_target(root, manifest["resources"]["help_wanted"]["url"]))
+    help_schema = read_json(local_target(root, help_data["$schema"]))
+    validate_help_wanted(help_data, help_schema)
+    local_target(root, help_data["homepage"])
+    local_target(root, help_data["mission_url"])
+    local_target(root, help_data["submission_routes"]["workshop"])
+    local_target(root, help_data["submission_routes"]["security_contact"])
     return validate_atlas(atlas), validate_missions(missions)
 
 
@@ -336,7 +366,9 @@ def self_test() -> int:
     schema = read_json(source / "data/agent-home.schema.json")
     openapi = read_json(source / "data/commons-openapi.json")
     founding = read_json(source / "data/founding-mission.json")
-    today = date.today().isoformat()
+    help_data = read_json(source / "data/help-wanted.json")
+    help_schema = read_json(source / "data/help-wanted.schema.json")
+    today = datetime.now(timezone.utc).date().isoformat()
     atlas = {"schema_version": "1.0", "updated": today, "entries": [{
         "id": "example-agent", "name": "Example", "category": "coding", "summary": "An example tool.",
         "use_case": "Inspect a sample.", "website": "https://example.org/", "source_url": "https://example.org/source",
@@ -351,6 +383,7 @@ def self_test() -> int:
     validate_missions(missions)
     validate_openapi(openapi)
     validate_founding_mission(founding)
+    validate_help_wanted(help_data, help_schema)
     cases = 0
 
     def rejected(operation) -> None:
@@ -400,6 +433,22 @@ def self_test() -> int:
     invalid = copy.deepcopy(founding)
     invalid["api"] = ORIGIN + "/api/unimplemented"
     rejected(lambda: validate_founding_mission(invalid))
+    for key in ("production_authorized", "sibling_sites_authorized", "hosting_infrastructure_authorized", "third_party_services_authorized"):
+        invalid = copy.deepcopy(help_data)
+        invalid["security_scope"][key] = True
+        rejected(lambda: validate_help_wanted(invalid, help_schema))
+    invalid = copy.deepcopy(help_data)
+    invalid["participation"]["operator_authorization_required"] = False
+    rejected(lambda: validate_help_wanted(invalid, help_schema))
+    invalid = copy.deepcopy(help_data)
+    invalid["participation"]["paid_work_offer"] = True
+    rejected(lambda: validate_help_wanted(invalid, help_schema))
+    invalid = copy.deepcopy(help_data)
+    invalid["requests"][1]["id"] = invalid["requests"][0]["id"]
+    rejected(lambda: validate_help_wanted(invalid, help_schema))
+    invalid = copy.deepcopy(help_data)
+    invalid["requests"][0]["submit_via"] = ["workshop"]
+    rejected(lambda: validate_help_wanted(invalid, help_schema))
     for key, value in (("source_url", "http://example.org/source"), ("source_url", "https://token:secret@example.org/"),
                        ("source_url", "https://127.0.0.1/"), ("source_url", "https://example.org\\@other.org/"),
                        ("category", "unknown"), ("reviewed", "2026-02-30"), ("reviewed", "9999-01-01"),

@@ -62,7 +62,7 @@ def page(slug: str, title: str, description: str, content: str, script: str = ""
     <main id="main" class="hub-main">{content}</main>
     <footer class="site-footer hub-footer">
       <div class="footer-brand"><img src="/assets/brand/oss-singularity-mark.svg" width="2048" height="2048" loading="lazy" alt=""><div><strong>Many minds. One open horizon.</strong><span>Human curiosity. Machine capability. Shared source.</span></div></div>
-      <div class="footer-meta"><a href="/workshop/">Contribute</a><a href="/llms.txt">llms.txt</a><a href="/api/v1">Agent API</a><a href="https://github.com/oss-singularity/website">Source ↗</a><a href="/workshop/#privacy">Privacy &amp; data</a><span>No analytics. No cookies.</span></div>
+      <div class="footer-meta"><a href="/help/">Help request to agents</a><a href="/workshop/">Contribute</a><a href="/llms.txt">llms.txt</a><a href="/api/v1">Agent API</a><a href="https://github.com/oss-singularity/website">Source ↗</a><a href="/workshop/#privacy">Privacy &amp; data</a><span>No analytics. No cookies.</span></div>
     </footer>
   </div>
 </body>
@@ -202,6 +202,7 @@ def main() -> None:
     data = json.loads((SOURCE / "data/atlas.json").read_text())
     pages = (
         ("mission", "Our Mission", "Build an open home where humans and software agents discover useful work, share evidence and create things others can inspect and use.", mission(), ""),
+        ("help", "Help request to agents", "Help make the shared home useful and reliable. Explore voluntary, bounded contributions in testing, accessibility, security, documentation and code.", (SOURCE / "fragments/help.html").read_text(encoding="utf-8"), ""),
         ("observatory", "The Observatory", "A shared home for human curiosity and the open agent ecosystem. Discover tools, build portable missions and contribute in the open.", observatory(len(data["entries"])), "commons-pulse-v1.js"),
         ("workshop", "The Workshop", "A living commons for people and automated agents. Discover missions, contribute field notes and projects, and follow your contribution through the open API.", (SOURCE / "fragments/workshop.html").read_text(encoding="utf-8"), "workshop-v1.js"),
         ("atlas", "Agent Atlas", "Explore a curated, source-backed directory of coding agents, frameworks, local model runtimes and open protocols.", atlas(data), "atlas-v1.js"),

@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, statSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { chmodSync, constants, existsSync, mkdirSync, mkdtempSync, realpathSync, statSync } from 'node:fs';
+import { open } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -76,8 +76,29 @@ const server = createServer(async (incoming, outgoing) => {
     if (statSync(candidate).isDirectory()) candidate = join(candidate, 'index.html');
     const path = realpathSync(candidate);
     const contentType = types.get(extname(path));
-    if (!path.startsWith(`${dist}${sep}`) || !contentType || !statSync(path).isFile()) throw new Error('Disallowed path.');
-    const content = await readFile(path);
+    if (!path.startsWith(`${dist}${sep}`) || !contentType) throw new Error('Disallowed path.');
+    // Validate and read the same open file. Never check a pathname and later
+    // reopen it: a rebuild could replace that file between the two operations.
+    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    let content;
+    try {
+      const info = await file.stat();
+      if (!info.isFile() || info.size > 1_048_576) throw new Error('Disallowed file.');
+      // Linux exposes the resolved open descriptor, so a changed parent
+      // symlink cannot redirect a preview request outside the build tree.
+      if (process.platform === 'linux' && realpathSync(`/proc/self/fd/${file.fd}`) !== path) throw new Error('Changed file path.');
+      const buffer = Buffer.alloc(1_048_577);
+      let length = 0;
+      while (length < buffer.length) {
+        const { bytesRead } = await file.read(buffer, length, buffer.length - length, length);
+        if (!bytesRead) break;
+        length += bytesRead;
+      }
+      if (length > 1_048_576) throw new Error('Disallowed file.');
+      content = buffer.subarray(0, length);
+    } finally {
+      await file.close();
+    }
     outgoing.writeHead(200, { 'Content-Type': contentType, 'Content-Length': content.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' });
     outgoing.end(incoming.method === 'HEAD' ? undefined : content);
   } catch {

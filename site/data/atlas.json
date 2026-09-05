@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated": "2026-09-05",
+  "updated": "2026-09-04",
   "entries": [
     {
       "id": "aider",
@@ -11,8 +11,12 @@
       "website": "https://aider.chat/",
       "source_url": "https://github.com/Aider-AI/aider",
       "license": "Apache-2.0",
-      "reviewed": "2026-09-05",
-      "tags": ["CLI", "Git", "pair programming"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "CLI",
+        "Git",
+        "pair programming"
+      ]
     },
     {
       "id": "cline",
@@ -23,8 +27,12 @@
       "website": "https://cline.bot/",
       "source_url": "https://github.com/cline/cline",
       "license": "Apache-2.0 (core)",
-      "reviewed": "2026-09-05",
-      "tags": ["IDE", "CLI", "MCP"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "IDE",
+        "CLI",
+        "MCP"
+      ]
     },
     {
       "id": "goose",
@@ -35,8 +43,12 @@
       "website": "https://goose-docs.ai/",
       "source_url": "https://github.com/aaif-goose/goose",
       "license": "Apache-2.0",
-      "reviewed": "2026-09-05",
-      "tags": ["desktop", "CLI", "MCP"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "desktop",
+        "CLI",
+        "MCP"
+      ]
     },
     {
       "id": "opencode",
@@ -47,8 +59,12 @@
       "website": "https://opencode.ai/",
       "source_url": "https://github.com/anomalyco/opencode",
       "license": "MIT",
-      "reviewed": "2026-09-05",
-      "tags": ["CLI", "planning", "subagents"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "CLI",
+        "planning",
+        "subagents"
+      ]
     },
     {
       "id": "openhands",
@@ -59,8 +75,12 @@
       "website": "https://www.openhands.dev/",
       "source_url": "https://github.com/OpenHands/OpenHands",
       "license": "MIT (Agent Canvas)",
-      "reviewed": "2026-09-05",
-      "tags": ["self-hosted", "automation", "ACP"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "self-hosted",
+        "automation",
+        "ACP"
+      ]
     },
     {
       "id": "qwen-code",
@@ -71,8 +91,12 @@
       "website": "https://qwenlm.github.io/qwen-code-docs/en/users/overview",
       "source_url": "https://github.com/QwenLM/qwen-code",
       "license": "Apache-2.0",
-      "reviewed": "2026-09-05",
-      "tags": ["CLI", "headless", "MCP"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "CLI",
+        "headless",
+        "MCP"
+      ]
     },
     {
       "id": "crewai",
@@ -83,8 +107,12 @@
       "website": "https://docs.crewai.com/",
       "source_url": "https://github.com/crewAIInc/crewAI",
       "license": "MIT (framework)",
-      "reviewed": "2026-09-05",
-      "tags": ["Python", "multi-agent", "workflows"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "Python",
+        "multi-agent",
+        "workflows"
+      ]
     },
     {
       "id": "langgraph",
@@ -95,8 +123,12 @@
       "website": "https://docs.langchain.com/oss/python/langgraph/",
       "source_url": "https://github.com/langchain-ai/langgraph",
       "license": "MIT (library)",
-      "reviewed": "2026-09-05",
-      "tags": ["state", "workflows", "human review"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "state",
+        "workflows",
+        "human review"
+      ]
     },
     {
       "id": "smolagents",
@@ -107,8 +139,12 @@
       "website": "https://huggingface.co/docs/smolagents/",
       "source_url": "https://github.com/huggingface/smolagents",
       "license": "Apache-2.0",
-      "reviewed": "2026-09-05",
-      "tags": ["Python", "code agents", "tools"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "Python",
+        "code agents",
+        "tools"
+      ]
     },
     {
       "id": "ollama",
@@ -119,8 +155,12 @@
       "website": "https://ollama.com/",
       "source_url": "https://github.com/ollama/ollama",
       "license": "MIT (runtime)",
-      "reviewed": "2026-09-05",
-      "tags": ["local models", "API", "runtime"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "local models",
+        "API",
+        "runtime"
+      ]
     },
     {
       "id": "llama-cpp",
@@ -131,8 +171,12 @@
       "website": "https://llama.app/",
       "source_url": "https://github.com/ggml-org/llama.cpp",
       "license": "MIT (engine)",
-      "reviewed": "2026-09-05",
-      "tags": ["C/C++", "inference", "quantization"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "C/C++",
+        "inference",
+        "quantization"
+      ]
     },
     {
       "id": "mcp",
@@ -143,8 +187,12 @@
       "website": "https://modelcontextprotocol.io/",
       "source_url": "https://github.com/modelcontextprotocol/modelcontextprotocol",
       "license": "MIT (specification repo)",
-      "reviewed": "2026-09-05",
-      "tags": ["MCP", "tools", "interoperability"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "MCP",
+        "tools",
+        "interoperability"
+      ]
     },
     {
       "id": "a2a",
@@ -155,8 +203,12 @@
       "website": "https://a2a-protocol.org/",
       "source_url": "https://github.com/a2aproject/A2A",
       "license": "Apache-2.0 (protocol repo)",
-      "reviewed": "2026-09-05",
-      "tags": ["A2A", "agent discovery", "interoperability"]
+      "reviewed": "2026-09-04",
+      "tags": [
+        "A2A",
+        "agent discovery",
+        "interoperability"
+      ]
     }
   ]
 }

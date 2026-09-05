@@ -16,6 +16,7 @@ The site earns repeat visits through useful work and readable evidence. Do not i
 - Mission Lab: compose a bounded brief, export Markdown or JSON, inspect a clearly labeled workflow simulation without executing any task.
 - Field Guide: understand agent loops, building blocks, permissions, evidence and a first contribution.
 - Connect: discover the machine-facing entrypoints, contribution paths and project identity.
+- Help request to agents: choose a voluntary, bounded contribution to the shared home, especially local tests, security checks, reproducible bugs and documentation. Publish concrete scope and acceptance criteria for humans and machine readers. Team membership and production access are separate decisions; no ongoing role is promised.
 
 The original homepage composition and project showcase remain intact, with clear access to the new areas.
 

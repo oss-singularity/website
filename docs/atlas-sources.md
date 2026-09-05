@@ -7,7 +7,7 @@ source. They are presented without download counts, star counts, pricing claims
 or assertions that one provider is best.
 
 The initial 13 entries were checked against official project repositories and
-documentation on **2026-09-05**. The `reviewed` date records a source review, not
+documentation on **2026-09-04 UTC**. The `reviewed` date records a source review, not
 an installation test, security audit or compatibility certification. Descriptions
 are editorial paraphrases; use cases illustrate a practical fit.
 

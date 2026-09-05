@@ -60,7 +60,8 @@
         "guide",
         "connect",
         "workshop",
-        "mission"
+        "mission",
+        "help"
       ],
       "properties": {
         "observatory": {
@@ -83,6 +84,9 @@
         },
         "mission": {
           "const": "https://oss-singularity.io/mission/"
+        },
+        "help": {
+          "const": "https://oss-singularity.io/help/"
         }
       }
     },
@@ -93,7 +97,9 @@
         "overview",
         "atlas",
         "missions",
-        "founding_mission"
+        "founding_mission",
+        "help_wanted",
+        "help_schema"
       ],
       "properties": {
         "overview": {
@@ -169,6 +175,42 @@
             },
             "schema_version": {
               "const": "1.0"
+            }
+          }
+        },
+        "help_wanted": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "media_type",
+            "schema_version"
+          ],
+          "properties": {
+            "url": {
+              "const": "https://oss-singularity.io/data/help-wanted.json"
+            },
+            "media_type": {
+              "const": "application/json"
+            },
+            "schema_version": {
+              "const": "1.0"
+            }
+          }
+        },
+        "help_schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "media_type"
+          ],
+          "properties": {
+            "url": {
+              "const": "https://oss-singularity.io/data/help-wanted.schema.json"
+            },
+            "media_type": {
+              "const": "application/json"
             }
           }
         }

@@ -1,16 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import worker from '../worker.mjs';
 import { SQLiteD1 } from '../local-d1.mjs';
 import { gistId } from '../identity.mjs';
+import { digest } from '../security.mjs';
 
 const ORIGIN = 'https://oss-singularity.io';
 const NOW = Date.parse('2026-09-05T12:34:00Z');
 const DAY = 86_400_000;
 const ADMIN = 'test_only_admin_token_at_least_32_characters';
 const GIST = '0123456789abcdef0123456789abcdef';
-const hash = value => createHash('sha256').update(value).digest('hex');
 const auth = token => ({ authorization: `Bearer ${token}` });
 
 function setup(t) {
@@ -59,10 +59,10 @@ function verify(env, value, extra = {}) {
   return send(env, '/identities', 'POST', { challenge_id: value.id, gist_url: `https://gist.github.com/builder/${GIST}`, ...extra }, auth(value.challenge_token));
 }
 
-function accountFixture(env, age = 40 * DAY, githubId = 42) {
+async function accountFixture(env, age = 40 * DAY, githubId = 42) {
   const id = randomUUID();
   const token = `test_identity_${randomUUID().replaceAll('-', '')}`;
-  env.DB.sqlite.prepare('INSERT INTO identities VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, githubId, `builder-${githubId}`, NOW - age, NOW, NOW, hash(token));
+  env.DB.sqlite.prepare('INSERT INTO identities VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, githubId, `builder-${githubId}`, NOW - age, NOW, NOW, await digest(token));
   return { id, token };
 }
 
@@ -87,10 +87,13 @@ test('public gist proof needs a separate private challenge receipt; enrollment s
   assert.equal(created.body.identity.github_id, 42);
   assert.equal(created.body.identity.review_eligible, true);
   const stored = env.DB.sqlite.prepare('SELECT * FROM identities').get();
-  assert.equal(stored.token_hash, hash(created.body.api_token));
+  assert.match(created.body.api_token, /^[A-Za-z0-9_-]{43}$/);
+  assert.match(stored.token_hash, /^[a-f0-9]{64}$/);
+  assert.notEqual(stored.token_hash, created.body.api_token);
+  assert.equal(stored.token_hash, await digest(created.body.api_token));
   const storedChallenge = env.DB.sqlite.prepare('SELECT * FROM identity_challenges').get();
-  assert.equal(storedChallenge.token_hash, hash(value.challenge_token));
-  assert.equal(storedChallenge.nonce_hash, hash(value.proof.nonce));
+  assert.equal(storedChallenge.token_hash, await digest(value.challenge_token));
+  assert.equal(storedChallenge.nonce_hash, await digest(value.proof.nonce));
   assert.ok(!JSON.stringify(storedChallenge).includes(value.challenge_token));
   const profile = await send(env, `/identities/${created.body.identity.id}`);
   assert.deepEqual(profile.body, created.body.identity);
@@ -128,7 +131,7 @@ test('concurrent verification consumes one proof and issues only one usable API 
   assert.equal(results.filter(result => result.status === 409 || result.status === 401).length, 1);
   assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM identities').get().n, 1);
   const success = results.find(result => result.status === 201);
-  assert.equal(env.DB.sqlite.prepare('SELECT token_hash FROM identities').get().token_hash, hash(success.body.api_token));
+  assert.equal(env.DB.sqlite.prepare('SELECT token_hash FROM identities').get().token_hash, await digest(success.body.api_token));
 });
 
 test('proof identity, public visibility, complete content and exact nonce are checked', async t => {
@@ -197,7 +200,7 @@ test('new verified accounts enroll but cannot review before the exact 30-day thr
 
 test('evidence reviews require authenticated identity, target, integer score and evidence URL', async t => {
   const env = setup(t);
-  const identity = accountFixture(env);
+  const identity = await accountFixture(env);
   assert.equal((await send(env, '/proposals', 'POST', review())).status, 401);
   for (const body of [review({ target_id: 'missing' }), review({ target_id: undefined }), review({ score: 0 }), review({ score: 6 }), review({ score: 1.5 }), review({ score: '4' }), review({ score: true }), review({ url: null }), review({ url: 'http://example.org' }), review({ mission_id: 'audit-project' }), { ...note(), score: 4 }, { ...note(), target_id: '' }]) {
     assert.equal((await send(env, '/proposals', 'POST', body, auth(identity.token))).status, 400);
@@ -207,7 +210,7 @@ test('evidence reviews require authenticated identity, target, integer score and
 
 test('a review is private until moderated and displays verified account provenance without aggregates', async t => {
   const env = setup(t);
-  const identity = accountFixture(env);
+  const identity = await accountFixture(env);
   const created = await send(env, '/proposals', 'POST', review(), auth(identity.token));
   assert.equal(created.status, 202);
   assert.deepEqual((await send(env, '/reviews')).body.items, []);
@@ -216,7 +219,7 @@ test('a review is private until moderated and displays verified account provenan
   assert.equal(own.body.identity_id, identity.id);
   assert.equal(own.body.author.github_id, 42);
   assert.equal(own.body.author.verification, 'github-account-control');
-  assert.ok(!JSON.stringify(own.body).includes(hash(identity.token)));
+  assert.ok(!JSON.stringify(own.body).includes(await digest(identity.token)));
   assert.equal((await send(env, `/admin/proposals/${created.body.id}`, 'PATCH', { status: 'published' }, auth(ADMIN))).status, 200);
   const feed = await send(env, '/reviews?target_id=audit-project');
   assert.equal(feed.body.items[0].id, created.body.id);
@@ -227,14 +230,14 @@ test('a review is private until moderated and displays verified account provenan
 
 test('one active review per numeric GitHub identity and target survives concurrent requests and rotation', async t => {
   const env = setup(t);
-  const identity = accountFixture(env);
+  const identity = await accountFixture(env);
   const attempts = await Promise.all(Array.from({ length: 8 }, (_, index) => send(env, '/proposals', 'POST', review(), { ...auth(identity.token), 'cf-connecting-ip': `203.0.113.${index + 50}` })));
   assert.equal(attempts.filter(result => result.status === 202).length, 1);
   assert.equal(attempts.filter(result => result.status === 409 && result.body.error.code === 'duplicate_review').length, 7);
   assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM rate_limits').get().n, 2);
   const created = attempts.find(result => result.status === 202);
   const newToken = 'rotated_test_identity_token_at_least_32';
-  env.DB.sqlite.prepare('UPDATE identities SET token_hash = ? WHERE id = ?').run(hash(newToken), identity.id);
+  env.DB.sqlite.prepare('UPDATE identities SET token_hash = ? WHERE id = ?').run(await digest(newToken), identity.id);
   assert.equal((await send(env, '/proposals', 'POST', review(), auth(newToken))).body.error.code, 'duplicate_review');
   await send(env, `/admin/proposals/${created.body.id}`, 'PATCH', { status: 'rejected' }, auth(ADMIN));
   const replacement = await send(env, '/proposals', 'POST', review(), auth(newToken));
@@ -244,7 +247,7 @@ test('one active review per numeric GitHub identity and target survives concurre
 
 test('review publication rechecks target state and public feeds hide withdrawn targets', async t => {
   const env = setup(t);
-  const identity = accountFixture(env);
+  const identity = await accountFixture(env);
   const target = await send(env, '/proposals', 'POST', note());
   await send(env, `/admin/proposals/${target.body.id}`, 'PATCH', { status: 'published' }, auth(ADMIN));
   const created = await send(env, '/proposals', 'POST', review({ target_id: target.body.id }), auth(identity.token));
@@ -260,7 +263,7 @@ test('review publication rechecks target state and public feeds hide withdrawn t
 
 test('submission rechecks a review target inside the transaction after preliminary validation', async t => {
   const env = setup(t);
-  const identity = accountFixture(env);
+  const identity = await accountFixture(env);
   const batch = env.DB.batch.bind(env.DB);
   env.DB.batch = async statements => {
     if (statements.some(statement => statement.sql.includes('INSERT INTO proposals'))) {

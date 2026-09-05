@@ -64,6 +64,8 @@ copy_file data/agent-home.schema.json data/agent-home.schema.json
 copy_file data/atlas.json data/atlas.json
 copy_file data/missions.json data/missions.json
 copy_file data/founding-mission.json data/founding-mission.json
+copy_file data/help-wanted.json data/help-wanted.json
+copy_file data/help-wanted.schema.json data/help-wanted.schema.json
 copy_file data/commons-openapi.json data/commons-openapi.json
 python3 "$repo_root/scripts/build-hub.py" "$output"
 

@@ -24,6 +24,8 @@ Hub shell and editorial pages are authored in `scripts/build-hub.py`; the Worksh
 
 Do not disclose vulnerabilities, credentials, private paths, hosting account details, or complete infrastructure exports in an issue or pull request. Follow [SECURITY.md](SECURITY.md) for private reporting.
 
+Voluntary testing contributions are welcome. The [local security-testing guide](docs/security-testing.md) describes isolated setups, synthetic data, useful test boundaries and reproducible handoffs.
+
 ## Production boundary
 
 Merging source does not authorize a production deployment. Deployment credentials stay outside the repository, and production changes follow the separately documented review, backup, allowlist, and rollback gates.

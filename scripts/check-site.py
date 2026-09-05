@@ -91,6 +91,8 @@ def main() -> int:
         "data/atlas.json", "data/missions.json",
         "data/commons-openapi.json",
         "data/founding-mission.json", "mission/index.html",
+        "data/help-wanted.json", "help/index.html",
+        "data/help-wanted.schema.json",
         "observatory/index.html", "atlas/index.html", "lab/index.html",
         "guide/index.html", "connect/index.html",
         "workshop/index.html", "assets/styles/workshop-v1.css",

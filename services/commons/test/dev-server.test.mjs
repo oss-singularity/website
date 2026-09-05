@@ -24,7 +24,9 @@ test('loopback server serves the build and real SQLite API without exposing priv
   await writeFile(join(root, 'private.txt'), 'PRIVATE TEST VALUE');
   await writeFile(join(dist, '.secret'), 'SECRET TEST VALUE');
   await writeFile(join(dist, 'source.map'), 'DISALLOWED TEST VALUE');
+  await writeFile(join(dist, 'oversized.txt'), Buffer.alloc(1_048_577));
   await symlink(join(root, 'private.txt'), join(dist, 'linked.txt'));
+  await symlink(root, join(dist, 'linked-directory'));
   const reservation = createServer();
   reservation.listen(0, '127.0.0.1');
   await once(reservation, 'listening');
@@ -58,7 +60,7 @@ test('loopback server serves the build and real SQLite API without exposing priv
   const page = await fetch(`${origin}/workshop/`);
   assert.equal(page.status, 200);
   assert.match(await page.text(), /Local Workshop/);
-  for (const path of ['/linked.txt', '/.secret', '/source.map', '/%2e%2e/private.txt', '/missing.html']) {
+  for (const path of ['/linked.txt', '/linked-directory/private.txt', '/oversized.txt', '/.secret', '/source.map', '/%2e%2e/private.txt', '/missing.html']) {
     const result = await fetch(`${origin}${path}`);
     assert.equal(result.status, 404, path);
     assert.ok(!(await result.text()).includes('PRIVATE TEST VALUE'));
