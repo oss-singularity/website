@@ -22,7 +22,10 @@
 .home-path h3 { font-size: clamp(1.7rem, 3vw, 2.65rem); font-weight: 650; letter-spacing: -.05em; line-height: 1.15; margin: 25px 0 15px; }
 .home-path p { color: var(--muted); font-size: .95rem; line-height: 1.8; margin: 0; max-width: 43ch; }
 .home-path .journey-link { color: var(--cyan-soft); font-size: .81rem; padding-top: 25px; }
-.home-path-community { background: var(--home-community-card); }
+/* Prepare the wash before the first hover; keep the gradient painted. */
+.home-path.home-path-community { background: var(--home-community-card); isolation: isolate; }
+.home-path-community::before { background-color: var(--home-card-hover); border-radius: inherit; content: ""; inset: 0; opacity: 0; pointer-events: none; position: absolute; transition: opacity .2s; will-change: opacity; z-index: -1; }
+.home-path-community:hover::before { opacity: 1; }
 .home-path-symbol { color: var(--pink); font-size: clamp(6rem, 12vw, 10rem); font-weight: 300; line-height: 1.4; margin-block: auto; text-shadow: 0 0 60px #ff63c829; }
 .home-path-community h3 { font-size: clamp(2.5rem, 4.8vw, 4.5rem); margin-top: 0; }
 .home-path-tools { display: grid; gap: 20px; }
@@ -52,5 +55,5 @@
   .home-pulse { padding-block: 35px 55px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .home-path, .home-orbits .coordinates { transition: none; }
+  .home-path, .home-path-community::before, .home-orbits .coordinates { transition: none; }
 }

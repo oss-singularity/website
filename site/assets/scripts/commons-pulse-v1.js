@@ -1,5 +1,37 @@
 (() => {
   "use strict";
+  const artwork = document.querySelector(".hub-observatory .constellation");
+  if (!artwork || typeof IntersectionObserver !== "function" || typeof matchMedia !== "function") return;
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  if (typeof reducedMotion.addEventListener !== "function") return;
+  let inView = false;
+  let pageActive = true;
+  const updateMotion = () => {
+    artwork.dataset.coreMotion = inView && pageActive && !document.hidden && !reducedMotion.matches ? "running" : "paused";
+  };
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (entry.target === artwork) inView = entry.isIntersecting && entry.intersectionRatio > 0;
+    }
+    updateMotion();
+  });
+  observer.observe(artwork);
+  updateMotion();
+  reducedMotion.addEventListener("change", updateMotion);
+  document.addEventListener("visibilitychange", updateMotion);
+  addEventListener("pagehide", () => { pageActive = false; updateMotion(); });
+  addEventListener("pageshow", () => {
+    // Restored scroll positions need a fresh visibility observation before resuming.
+    pageActive = true;
+    inView = false;
+    observer.unobserve(artwork);
+    observer.observe(artwork);
+    updateMotion();
+  });
+})();
+
+(() => {
+  "use strict";
   const board = document.querySelector("#commons-pulse");
   const status = document.querySelector("#pulse-status");
   if (!board || !status) return;
