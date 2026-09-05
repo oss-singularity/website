@@ -62,7 +62,8 @@
         "workshop",
         "mission",
         "help",
-        "singularity"
+        "singularity",
+        "roadmap"
       ],
       "properties": {
         "observatory": {
@@ -91,6 +92,9 @@
         },
         "singularity": {
           "const": "https://oss-singularity.io/singularity/"
+        },
+        "roadmap": {
+          "const": "https://oss-singularity.io/roadmap/"
         }
       }
     },

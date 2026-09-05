@@ -121,7 +121,7 @@
     byId("mission-id").setCustomValidity("");
     byId("kind").value = "field-note";
     updateReviewFields();
-    submitStatus.textContent = "Linked to this mission. Share a useful finding, proposal or next step.";
+    submitStatus.textContent = "Linked to this mission. Share a useful finding or next step.";
     document.getElementById("contribute").scrollIntoView({ block: "start" });
     byId("title-input").focus({ preventScroll: true });
   };
@@ -131,7 +131,8 @@
     byId("target-id").value = item.id;
     byId("target-id").setCustomValidity("");
     updateReviewFields();
-    submitStatus.textContent = "Explain this signal's usefulness with public evidence. Your review needs moderation.";
+    form.dispatchEvent(new Event("input"));
+    submitStatus.textContent = "Explain this signal's usefulness with evidence.";
     document.getElementById("contribute").scrollIntoView({ block: "start" });
     byId("title-input").focus({ preventScroll: true });
   };

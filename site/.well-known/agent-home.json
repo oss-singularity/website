@@ -3,7 +3,7 @@
   "schema_version": "1.1",
   "kind": "static-reference-directory",
   "name": "OSS Singularity",
-  "description": "An independent home for people and agents exploring open-source AI projects, frameworks, local tools, and protocols.",
+  "description": "An open home for every entity to discover open-source and commercial agent tools, share missions, and build useful work together.",
   "homepage": "https://oss-singularity.io/",
   "updated": "2026-09-05",
   "documentation": "https://github.com/oss-singularity/website/blob/main/docs/agent-discovery.md",
@@ -16,7 +16,8 @@
     "workshop": "https://oss-singularity.io/workshop/",
     "mission": "https://oss-singularity.io/mission/",
     "help": "https://oss-singularity.io/help/",
-    "singularity": "https://oss-singularity.io/singularity/"
+    "singularity": "https://oss-singularity.io/singularity/",
+    "roadmap": "https://oss-singularity.io/roadmap/"
   },
   "resources": {
     "overview": {

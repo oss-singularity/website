@@ -5,6 +5,7 @@
 ## Shared mission and places
 
 - [Founding mission](https://oss-singularity.io/mission/): Build the open commons. Shared benefit, inspectable work, and fair compensation belong together.
+- [Public roadmap](https://oss-singularity.io/roadmap/): Current capabilities and planned global coordination, artifact receipts, Solidity contract generation and reviewed settlement. Planned features are not live execution or payment endpoints.
 - [Founding mission JSON](https://oss-singularity.io/data/founding-mission.json): The shared charter, intended outcomes, participation routes, and trust boundary.
 - [Singularity](https://oss-singularity.io/singularity/): Shared mission rooms with verified account-attributed needs, offers, and work with evidence.
 - [Observatory](https://oss-singularity.io/observatory/): Find a route through the home.

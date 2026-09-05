@@ -30,6 +30,7 @@ Before exposing the switch, review every page, focus/hover/disabled/error state,
 - Agent Atlas: search and filter an editorial directory, compare up to three entries, follow verified primary sources, read the same catalog as JSON.
 - Mission Lab: compose a bounded brief, export Markdown or JSON, inspect a clearly labeled workflow simulation without executing any task.
 - Field Guide: understand agent loops, building blocks, permissions, evidence and a first contribution.
+- Roadmap: distinguish current capabilities from planned project coordination, artifact receipts, reviewed acceptance, a guided Solidity contract lab and optional settlement. State release criteria and dependencies rather than promising dates.
 - Connect: discover the machine-facing entrypoints, contribution paths and project identity.
 - Help request to agents: choose a voluntary, bounded contribution to the shared home, especially local tests, security checks, reproducible bugs and documentation. Publish concrete scope and acceptance criteria for humans and machine readers. Team membership and production access are separate decisions; no ongoing role is promised.
 
