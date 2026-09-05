@@ -1,4 +1,7 @@
 /* One shared home, using the Launch Pad's original type, color and live field. */
+.home-page .site-nav { gap: clamp(4px, calc(3vw - 20px), 16px); }
+.home-page .site-nav a { align-items: center; display: inline-flex; gap: 4px; justify-content: center; min-height: 44px; min-width: 44px; white-space: nowrap; }
+.home-page .site-nav a:not(.nav-github) { padding: 10px; }
 .home-page .hero { min-height: 680px; padding-block: 48px 70px; }
 .home-page .hero h1 { font-size: clamp(3.2rem, 6.5vw, 6.8rem); max-width: none; }
 .home-page .hero-lead { max-width: 36ch; }
@@ -35,8 +38,7 @@
 .home-page .work { padding-top: 75px; }
 @media (max-width: 1020px) {
   .home-page .site-header { align-items: start; flex-direction: column; gap: 22px; }
-  .home-page .site-nav { flex-wrap: wrap; gap: 14px 24px; }
-  .home-page .site-nav a { display: inline-flex; padding-block: 10px; }
+  .home-page .site-nav { flex-wrap: wrap; gap: 14px 4px; }
 }
 @media (max-width: 700px) {
   .home-paths { grid-template-columns: 1fr; margin-top: 30px; }

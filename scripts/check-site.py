@@ -102,10 +102,18 @@ def main() -> int:
         "singularity/index.html", "assets/styles/singularity-v1.css",
         "assets/scripts/singularity-v1.js", "assets/scripts/singularity-participation-v1.js",
     }
+    social_path = "assets/social/oss-singularity-social-preview.png"
+    social_bytes = (root / social_path).read_bytes()
+    social_version = hashlib.sha256(social_bytes).hexdigest()[:12]
+    social_versioned_path = f"assets/social/oss-singularity-social-preview.{social_version}.png"
+    required.add(social_versioned_path)
     actual = {str(path.relative_to(root)) for path in root.rglob("*") if path.is_file()}
     if actual != required:
         fail(f"build allowlist mismatch: missing={sorted(required - actual)} extra={sorted(actual - required)}")
 
+    if (root / social_versioned_path).read_bytes() != social_bytes:
+        fail("fingerprinted social preview differs from the stable image alias")
+    social_image = f"https://oss-singularity.io/{social_versioned_path}"
     html_bytes = 0
     script_allowlist = {
         "index.html": ["/assets/scripts/reactive-field-v2.js", "/assets/scripts/commons-pulse-v1.js", "/assets/scripts/commons-activity-v1.js"],
@@ -138,6 +146,17 @@ def main() -> int:
             canonical = "https://oss-singularity.io" + suffix
             if not any(tag == "link" and attrs.get("rel") == "canonical" and attrs.get("href") == canonical for tag, attrs in parser.attrs):
                 fail(f"incorrect canonical in {relative}")
+            for attribute, name in (("property", "og:image"), ("property", "og:image:secure_url"), ("name", "twitter:image")):
+                images = [attrs.get("content") for tag, attrs in parser.attrs if tag == "meta" and attrs.get(attribute) == name]
+                if images != [social_image]:
+                    fail(f"{relative} must reference the current versioned {name} image")
+            metadata = {attrs.get("property", attrs.get("name")): attrs.get("content") for tag, attrs in parser.attrs if tag == "meta"}
+            for name, value in (("og:image:type", "image/png"), ("og:image:width", "1200"), ("og:image:height", "630"), ("twitter:card", "summary_large_image")):
+                if metadata.get(name) != value:
+                    fail(f"incorrect {name} in {relative}")
+            for name in ("og:title", "og:description", "og:image:alt", "twitter:title", "twitter:description", "twitter:image:alt"):
+                if not metadata.get(name, "").strip():
+                    fail(f"missing {name} in {relative}")
         if len(parser.ids) != len(set(parser.ids)):
             fail(f"{document.name} contains duplicate ids")
 
