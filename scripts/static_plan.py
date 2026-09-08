@@ -1,4 +1,4 @@
-"""Pure, bounded static file operation planning for a future offline backend.
+"""Pure, bounded static file operation planning for the offline fixture backend.
 
 TRUST PREREQUISITES: trusted code has captured both payloads without races,
 validated the candidate against CURRENT product checks, checked historical

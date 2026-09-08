@@ -1,10 +1,11 @@
 # Static operation planner
 
-`scripts/static_plan.py` is the first internal component of the planned
+`scripts/static_plan.py` is the pure planning component of the
 [static transition rehearsal](release-static-transition.md). Its `build_plan`
 function calculates a deterministic file plan entirely in memory. It does not
 read an installation, write files, acquire locks, apply a plan or deploy a site.
-The journal, recovery backend and command-line rehearsal remain unimplemented.
+The fixture backend now implements journaling and recovery separately. A
+command-line rehearsal and remote publication adapter remain future work.
 
 ## Trusted inputs
 
@@ -38,7 +39,7 @@ mode, UID and GID. The baseline's owned-inventory hash covers root metadata,
 predecessor files and all their parent directories. Canonical hash inputs use
 sorted JSON keys, compact separators and ASCII escaping. The tests provide
 synthetic examples of the exact shapes; this internal interface can evolve with
-the future backend.
+the fixture backend.
 
 ## Planned operations
 
@@ -69,14 +70,15 @@ operations, directory preconditions, preserved paths and a deterministic
 
 **This is private planning data, not a public release receipt.** It contains
 installation paths and numeric ownership metadata. It contains no payload or
-overlay contents. A future public report must deliberately select safe fields.
+overlay contents. The fixture report deliberately selects a smaller set of safe fields.
 The plan hash is an integrity binding, not a signature or grant of authority.
 
-A future backend must independently capture and recheck the real installation,
-serialize operations, durably journal intent and outcomes, reconcile interrupted
-writes and enforce conditional rollback. It must consume the verified captured
-bytes. Neither this plan nor individual atomic file replacement establishes an
-atomic switch of the entire website.
+The fixture backend captures and rechecks its exclusively owned installation,
+serializes operations, journals intent and outcomes, reconciles interrupted writes
+and enforces conditional rollback using the captured bytes. A future remote
+adapter must establish those properties for its actual target independently.
+Neither this plan nor individual atomic file replacement establishes an atomic
+switch of the entire website.
 
 Run `python3 scripts/test-static-plan.py` for the offline fixtures. They exercise
 legitimate asset additions and retirement, independent baseline failures, path
