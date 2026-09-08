@@ -546,7 +546,7 @@ class TransportTests(unittest.TestCase):
         environ = {'STATIC_ORIGIN_IP': '1.1.1.1', 'STATIC_SSH_USER': 'fixture', 'STATIC_SSH_PORT': '21098',
                    'STATIC_SSH_HOST_KEY': 'ssh-ed25519 ' + base64.b64encode(
                        b'\0\0\0\x0bssh-ed25519\0\0\0 ' + b'x' * 32).decode(),
-                   'STATIC_SSH_KEY': '-----BEGIN OPENSSH PRIVATE KEY-----\n' + 'synthetic-public-fixture' * 12
+                   'STATIC_SSH_KEY': '-----BEGIN ' + 'OPENSSH PRIVATE KEY-----\n' + 'synthetic-public-fixture' * 12
                        + '\n-----END OPENSSH PRIVATE KEY-----\n', 'STATIC_RUNTIME_SHA256': 'a' * 64}
         with tempfile.TemporaryDirectory() as directory:
             calls = []

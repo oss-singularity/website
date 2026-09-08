@@ -230,6 +230,7 @@ class HTTP:
 
     def tls(self):
         context = ssl.create_default_context()
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
         results = []
         for surface in ['origin', 'edge']:
             for host in [HOST, WWW]:

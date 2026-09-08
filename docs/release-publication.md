@@ -88,7 +88,7 @@ The flag must be repository-scoped because it is evaluated before the job starts
 
 | Environment setting | Purpose |
 | --- | --- |
-| Variable `RELEASE_READER_CLIENT_ID` and secret `RELEASE_READER_PRIVATE_KEY` | Private GitHub App installed only on this repository with Administration read and mandatory Metadata read. The action creates a temporary token restricted to this repository and revokes it after the job. |
+| Variable `RELEASE_READER_CLIENT_ID` and secret `RELEASE_READER_PRIVATE_KEY` | Private GitHub App with Administration read and mandatory Metadata read. The organization may reuse the reader across its repositories; this action explicitly requests a temporary token restricted to `website` and revokes it after the job. |
 | Secret `CF_RELEASE_TOKEN` | Only this zone: cache purge plus the read permissions needed for zone, settings, DNS and cache-rule verification. No DNS, Worker, database or configuration write permission. |
 | Secrets `STATIC_ORIGIN_IP`, `STATIC_SSH_USER`, `STATIC_SSH_PORT` | Independently verified provider connection binding. Values stay outside source and reports. |
 | Secrets `STATIC_SSH_HOST_KEY`, `STATIC_SSH_KEY` | Pinned Ed25519 host key and separate restricted SSH identity. The key accepts only the installed fixed command, with no operator identity fallback. |

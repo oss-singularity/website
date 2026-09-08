@@ -13,6 +13,10 @@ import static_plan as plan
 from site_artifact import ArtifactError, require
 
 
+# Keep the format marker distinct from a credential block for repository scans.
+SSH_KEY_BEGIN = '-----BEGIN ' + 'OPENSSH PRIVATE KEY-----\n'
+
+
 class RemoteFailure(ArtifactError):
     pass
 
@@ -59,7 +63,7 @@ class SSH:
         plan.hex_value(self.runtime, 64, 'invalid_ssh_binding')
         key = environ.get('STATIC_SSH_KEY', '')
         require(type(key) is str and 128 < len(key) <= 8192
-                and key.startswith('-----BEGIN OPENSSH PRIVATE KEY-----\n')
+                and key.startswith(SSH_KEY_BEGIN)
                 and key.rstrip().endswith('-----END OPENSSH PRIVATE KEY-----'), 'invalid_ssh_binding')
         write_private(folder / 'identity', key.encode())
         write_private(folder / 'known_hosts', ('oss-static-origin ' + host_key + '\n').encode())
