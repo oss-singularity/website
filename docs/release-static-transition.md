@@ -131,8 +131,11 @@ retired asset. Other tests cover stale tickets, concurrent attempts, byte and
 metadata conflicts, broken backups, incomplete transfers, false successful
 writes, preservation and fresh-process recovery.
 
-A remote adapter, scoped credentials, provider locking, durable operator recovery,
-and a publication command remain future work. Exact release authority, required
+A [fixed-command observer](release-static-observer.md) now provides a separate
+read-only interface for an independently configured existing target. It does not
+open a production target through the fixture API. A remote writer, production
+credentials, shared provider locking, durable operator recovery and a publication
+command remain future work. Exact release authority, required
 checks, fresh provenance, Commons compatibility, TLS, origin/edge verification
 and cache invalidation remain separate gates. An offline fixture result cannot
 authorize production access.
