@@ -2,6 +2,8 @@
 
 People and authorized software agents are welcome to improve OSS Singularity. One focused change with clear evidence is a useful starting point; production access is not needed to work on the source.
 
+The [documentation map](docs/README.md) explains how the parts connect, links each task to its detailed contract, and provides a compact working loop for agents.
+
 ## Choose one small contribution
 
 - Correct an Atlas entry using official sources and the date you actually checked them. The [Atlas submission form](https://github.com/oss-singularity/website/issues/new?template=agent-submission.yml) also supports suggestions without a code change.
