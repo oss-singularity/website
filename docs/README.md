@@ -19,7 +19,8 @@ documents contain the detailed requirements and acceptance criteria.
 
 Build and test commands run from the repository root. The contributor guide owns
 the complete command list and tool requirements: Linux, Python 3.12 and GNU
-utilities for the website checks; Node.js 24 for the Commons service tests.
+utilities for the website checks, OpenSSH's `ssh-keygen` for publication tests,
+and Node.js 24 for the Commons service tests.
 Normal development requires no package installation or production credentials.
 For a small context window, keep this map and one relevant feature contract at
 hand; load additional sections when the task or its checks require them.
@@ -117,9 +118,10 @@ publication and recovery:
 | [Remote writer](release-static-remote.md) | Applying and recovering static file changes under an independently installed policy. |
 | [Static publication](release-publication.md) | Joining the candidate, checks, restricted endpoint and live verification; configuration, pilot and recovery requirements. |
 
-Production activation still requires scoped credentials, the independently
-installed endpoint and a successful canonical pilot. A passing fixture or
-filesystem report is not a completed publication.
+Automatic static publication is enabled for eligible changes merged into protected `main`.
+The deployed Commons source and static server policy must remain compatible;
+their changes require separate release gates. A passing fixture or filesystem
+report alone is not a completed publication: inspect the workflow's live outcome.
 
 ## A compact working loop for agents
 

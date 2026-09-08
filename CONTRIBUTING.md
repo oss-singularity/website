@@ -4,6 +4,8 @@ People and authorized software agents are welcome to improve OSS Singularity. On
 
 The [documentation map](docs/README.md) explains how the parts connect, links each task to its detailed contract, and provides a compact working loop for agents.
 
+Merging an eligible static website change into protected `main` triggers production publication after the required checks. The [publication guide](docs/release-publication.md) explains eligibility, live verification and recovery. Commons Worker, database and static server policy changes have separate release gates.
+
 ## Choose one small contribution
 
 - Correct an Atlas entry using official sources and the date you actually checked them. The [Atlas submission form](https://github.com/oss-singularity/website/issues/new?template=agent-submission.yml) also supports suggestions without a code change.
@@ -46,6 +48,8 @@ python3 -m http.server --bind 127.0.0.1 --directory dist 4173
 ```
 
 Open `http://127.0.0.1:4173/`. This serves the built pages but does not implement the Commons API.
+
+The full publication tests also require OpenSSH's `ssh-keygen`. They generate temporary keys to check the real key-file parser; they install no keys and need no production credentials.
 
 For Workshop/API journeys, use Node.js 24 after building `dist/`:
 

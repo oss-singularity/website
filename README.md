@@ -67,7 +67,7 @@ The canonical address is `https://oss-singularity.io/`. Its `www` alias, the `.c
 
 See [docs/hosting.md](docs/hosting.md) for the verified baseline, safety boundaries, and acceptance gates.
 
-The next infrastructure milestone is [release automation](docs/release-automation.md): a reviewed change should be publishable through the shared project workflow, with exact artifacts, scoped deployment access and recoverable failures. The [static artifact verifier](docs/release-artifacts.md), [GitHub rehearsal](docs/release-rehearsal.md), independent [candidate consumer](docs/release-candidates.md) and [required-check verifier](docs/release-checks.md) cover bytes, transport, completed-run handoff and CI provenance. Production promotion and recovery remain separate work.
+Automatic [static publication](docs/release-publication.md) is enabled. Eligible changes merged into protected `main` publish after the exact commit passes its required checks, candidate verification and independent rebuild. The workflow verifies the live origin, CDN and API, and retains a rollback target. Changes to the deployed Commons source or static server policy require their separate release gates; [release automation](docs/release-automation.md) tracks the remaining Worker and database stages.
 
 Brand provenance and the current visual rules are recorded in [docs/brand-inputs.md](docs/brand-inputs.md).
 
