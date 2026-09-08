@@ -47,6 +47,7 @@ def cli(argv=None):
             'http_bytes_mismatch', 'http_mime_mismatch', 'http_cache_mismatch',
             'http_security_mismatch', 'api_unverified', 'http_transport_failed',
             'remote_outcome_unconfirmed', 'missing_credential', 'source_wait_expired', 'edge_policy_mismatch',
+            'remote_host_identity_failed', 'remote_authentication_failed', 'remote_connection_failed',
             'provider_configuration_changed', 'github_read_failed', 'ambiguous_workflow_runs',
             'unsuccessful_run', 'artifact_identity_mismatch'} else 'publication_failed',
             'publication_verified': False}

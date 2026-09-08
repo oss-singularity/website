@@ -21,6 +21,27 @@ class RemoteFailure(ArtifactError):
     pass
 
 
+def failure_code(raw):
+    """Report only a fixed category; SSH diagnostics can contain private data.
+
+    A category does not establish the outcome of a mutation. Callers still
+    reconcile the original attempt after every RemoteFailure.
+    """
+    lower = raw.lower()
+    categories = {
+        'remote_host_identity_failed': (b'host key verification failed', b'remote host identification has changed',
+                                        b'no ed25519 host key is known'),
+        'remote_authentication_failed': (b'permission denied', b'invalid format', b'error in libcrypto',
+                                         b'no supported authentication methods'),
+        'remote_connection_failed': (b'connection timed out', b'connection refused', b'network is unreachable',
+                                     b'connection reset', b'kex_exchange_identification', b'connection closed'),
+    }
+    for code, messages in categories.items():
+        if any(message in lower for message in messages):
+            return code
+    return 'remote_outcome_unconfirmed'
+
+
 def validate_report(value, runtime, identity=None, descriptor=None):
     require(type(value) is dict and value.get('schema_version') == 1
             and type(value['schema_version']) is int and value.get('kind') == 'static-remote-transition'
@@ -65,7 +86,9 @@ class SSH:
         require(type(key) is str and 128 < len(key) <= 8192
                 and key.startswith(SSH_KEY_BEGIN)
                 and key.rstrip().endswith('-----END OPENSSH PRIVATE KEY-----'), 'invalid_ssh_binding')
-        write_private(folder / 'identity', key.encode())
+        # Secret input may omit its last newline; OpenSSH requires it when
+        # reading this private-key format from a file.
+        write_private(folder / 'identity', (key.rstrip('\r\n') + '\n').encode())
         write_private(folder / 'known_hosts', ('oss-static-origin ' + host_key + '\n').encode())
         self.args = ['ssh', '-F', '/dev/null', '-T', '-i', str(folder / 'identity'), '-p', port, '-l', user]
         options = {'IdentitiesOnly': 'yes', 'IdentityAgent': 'none', 'ControlMaster': 'no', 'ControlPath': 'none',
@@ -84,14 +107,25 @@ class SSH:
         require(0 < len(raw) <= 12 * 1024 * 1024, 'request_limit')
         self.count += 1
         output = self.folder / ('response-' + str(self.count))
+        errors = self.folder / ('errors-' + str(self.count))
         fd = os.open(output, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        error_fd = None
         try:
+            error_fd = os.open(errors, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+
+            def diagnostic_code():
+                info = os.fstat(error_fd)
+                if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 16384:
+                    return 'remote_outcome_unconfirmed'
+                os.lseek(error_fd, 0, os.SEEK_SET)
+                return failure_code(os.read(error_fd, 16384))
+
             try:
-                result = self.runner(self.args, input=raw, stdout=fd, stderr=subprocess.DEVNULL, check=False,
+                result = self.runner(self.args, input=raw, stdout=fd, stderr=error_fd, check=False,
                                      timeout=80, env={'PATH': '/usr/bin:/bin', 'LC_ALL': 'C'},
                                      preexec_fn=limit_response)
             except Exception:
-                raise RemoteFailure('remote_outcome_unconfirmed') from None
+                raise RemoteFailure(diagnostic_code()) from None
             info = os.fstat(fd)
             require(stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and info.st_size <= 16384,
                     'remote_response_invalid')
@@ -99,14 +133,17 @@ class SSH:
             try:
                 value = checks.decode(os.read(fd, 16385))
             except ArtifactError:
-                raise RemoteFailure('remote_outcome_unconfirmed') from None
+                raise RemoteFailure(diagnostic_code()) from None
             if result.returncode != 0:
                 code = value.get('error') if type(value) is dict else None
-                raise RemoteFailure('remote_stale_attempt' if code == 'stale_attempt' else 'remote_outcome_unconfirmed')
+                raise RemoteFailure('remote_stale_attempt' if code == 'stale_attempt' else diagnostic_code())
             return validate_report(value, self.runtime)
         finally:
             os.close(fd)
             output.unlink()
+            if error_fd is not None:
+                os.close(error_fd)
+                errors.unlink()
 
     def status(self, identity=None, descriptor=None):
         value = self.call({'schema': 1, 'operation': 'status', 'identity': identity})
