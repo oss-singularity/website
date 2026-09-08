@@ -1,10 +1,9 @@
 # Release automation
 
-**Static publication is implemented; production activation is not complete.** The goal
-is that an approved contribution can reach production through a reviewed PR,
-successful checks and a reproducible release, without requiring Codex or one
-maintainer's workstation. Routine promotion should become automatic once the
-gates below have demonstrated reliable behavior.
+**Automatic static publication is enabled.** Eligible contributions reach
+production through a reviewed PR, successful checks and a reproducible release,
+without requiring Codex or one maintainer's workstation. Separate Worker and
+database promotion remain the next infrastructure stage.
 
 The offline [static artifact contract](release-artifacts.md) validates payload
 bytes and a constrained descriptor, including an independent rebuild comparison.
@@ -22,8 +21,16 @@ engine behind a separate fixed command and static policy. Its registered private
 material has bounded, resumable retention while preserving the current rollback
 target. The [static publication client and workflow](release-publication.md)
 join these contracts with durable deployment intent, live acceptance and
-conditional rollback. Scoped production access and a successful canonical pilot
-remain required before enabling routine publication.
+conditional rollback. Scoped production access and the canonical publication,
+rollback and republication pilot are verified; see the
+[pilot evidence](release-publication.md#pilot-reports-and-exceptional-recovery).
+
+| Stage | Current state |
+| --- | --- |
+| Constrained static adapter | Installed and verified with a separate restricted identity. |
+| Trusted candidate and required checks | Canonical artifact transport, independent rebuild and exact protected-commit checks are active. |
+| Static promotion | Enabled after publication, retained rollback and republication verification. |
+| Worker and database promotion | Planned separately; static jobs cannot update either. |
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing
@@ -75,8 +82,8 @@ journal, attempt-bound recovery and conditional rollback. Current product and
 historical integrity checks run before preparation. Fresh-process crash tests
 exercise both directions. The separate fixed-command observer can inspect an
 existing static installation. A separate restricted writer implements filesystem
-operations with pinned server configuration and attempt-bound recovery; it is
-not an enabled production publication workflow.
+operations with pinned server configuration and attempt-bound recovery. The
+publication workflow adds the source, live-verification and deployment-record gates.
 
 1. **Portable, constrained adapter.** Extract a release interface without
    workstation paths or private historical state. Fix the permitted destinations

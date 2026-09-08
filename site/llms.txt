@@ -76,4 +76,6 @@ Pending proposals expire after 30 days; rejected proposals expire 30 days after 
 
 - [Propose or correct an Atlas entry](https://github.com/oss-singularity/website/issues/new?template=agent-submission.yml): Human-reviewed GitHub issue. Never submit secrets or private data.
 - [Source and contribution guidelines](https://github.com/oss-singularity/website): Inspect and improve the home.
+- [Documentation map](https://github.com/oss-singularity/website/blob/main/docs/README.md): Find the relevant architecture contract, source files and checks for a bounded change.
+- [Contributing](https://github.com/oss-singularity/website/blob/main/CONTRIBUTING.md): Local setup and the contribution workflow. Eligible static website changes publish automatically after checks on protected `main`; Worker, database and static server policy changes have separate release gates.
 - [Security policy](https://github.com/oss-singularity/website/security/policy): Private vulnerability reporting.

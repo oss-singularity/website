@@ -2,14 +2,14 @@
 
 The [publication workflow](../.github/workflows/static-publication.yml) joins the
 existing candidate, required-check, filesystem and live-verification contracts.
-**Activation is not complete.** A configured environment, restricted production
-endpoint, scoped credentials and a successful canonical pilot are required
-before enabling automatic runs. The Worker and database remain separate release
-stages; this workflow cannot update either.
+**Automatic static publication is enabled.** The protected environment,
+restricted production endpoint and scoped credentials have passed a canonical
+publication, retained rollback and republication pilot. The Worker and database
+remain separate release stages; this workflow cannot update either.
 
 ## What a contributor can expect
 
-Once enabled, successful repository checks on the current protected `main`
+Successful repository checks on the current protected `main`
 trigger a static publication. The client independently verifies all required
 checks, including CodeQL, and consumes the single successful rehearsal for that
 same commit. A failed check, ambiguous run, changed artifact or newer `main`
@@ -114,6 +114,15 @@ Those bootstrap bindings cannot be initialized or changed by a publication
 request.
 
 ## Pilot, reports and exceptional recovery
+
+The initial pilot on 8 September 2026 verified a canonical
+[plan](https://github.com/oss-singularity/website/actions/runs/34234743741),
+[publication](https://github.com/oss-singularity/website/actions/runs/34235432795),
+an operator-exercised retained rollback, and
+[republication](https://github.com/oss-singularity/website/actions/runs/34236230540).
+Independent provider checks confirmed preservation before and after each direction.
+The pilot used unchanged page content to exercise release generations and
+recovery; installed integration tests cover rollback of changed file preimages.
 
 Dispatch `plan` on canonical `main` first. It runs the real candidate download,
 required-check, rebuild, baseline HTTP, API and edge-configuration checks. It
