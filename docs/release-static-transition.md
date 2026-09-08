@@ -7,8 +7,10 @@ It grants no release authority and enables no production automation.
 
 The [pure planner](release-static-plan.md) supplies the operation order and
 preservation rules. `scripts/static_fixture.py` creates the private filesystem
-and anchors its descriptors; `scripts/static_transition.py` owns preparation,
-journaling, application and recovery. `scripts/test-static-transition.py`
+and anchors its descriptors; `scripts/static_transition.py` keeps the fixture
+preparation API. The shared `scripts/static_engine.py` owns journaling,
+application and recovery, using `scripts/static_posix.py` for bounded filesystem
+operations. `scripts/test-static-transition.py`
 contains executable examples, product integration and failure cases.
 
 ## Fixture and trust boundary
@@ -133,9 +135,11 @@ writes, preservation and fresh-process recovery.
 
 A [fixed-command observer](release-static-observer.md) now provides a separate
 read-only interface for an independently configured existing target. It does not
-open a production target through the fixture API. A remote writer, production
-credentials, shared provider locking, durable operator recovery and a publication
-command remain future work. Exact release authority, required
+open a production target through the fixture API. The separate
+[restricted remote writer](release-static-remote.md) uses the same engine with
+its own installed target binding and static server policy. Production
+credentials, provider acceptance, operational retention and a complete publication
+workflow remain separate work. Exact release authority, required
 checks, fresh provenance, Commons compatibility, TLS, origin/edge verification
 and cache invalidation remain separate gates. An offline fixture result cannot
 authorize production access.

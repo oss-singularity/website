@@ -102,10 +102,9 @@ path and file attacks, size limits, concurrent changes and preservation. They
 also build the current site and observe its actual generated manifest through
 the CLI. They do not install credentials or contact a provider.
 
-Remote writes remain separate work. In particular, a path allowlist alone must
-not permit uploaded files or `.htaccess` changes to enable server-side execution
-and escape the static destination. The writer needs an independently enforced
-static-content/configuration policy, durable journal and recovery, independently
-trusted baseline, fresh release/check evidence, compatibility checks and exact
-origin/edge/TLS/cache verification. The read-only observer does not satisfy those
-promotion gates or grant database access.
+The separate [restricted writer](release-static-remote.md) now provides filesystem
+operations with an independently installed static-content/configuration policy,
+the shared durable journal and an independently trusted baseline. Its lock must
+be the same one configured here. Fresh release/check evidence, compatibility and
+exact origin/edge/TLS/cache verification remain production promotion gates. The
+read-only observer neither satisfies those gates nor grants database access.

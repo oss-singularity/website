@@ -17,7 +17,9 @@ policy and exact workflow, run, job and check provenance. It uses caller-managed
 read access; the rehearsal workflow does not receive additional permissions.
 The [fixed-command observer](release-static-observer.md) provides a read-only
 remote entry point with independently installed target configuration. Remote
-writes and production promotion remain separate work.
+[filesystem writes](release-static-remote.md) now share the tested transition
+engine behind a separate fixed command and static policy. Production activation
+and promotion remain separate work.
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing
@@ -61,7 +63,9 @@ It combines the [operation planner](release-static-plan.md) with a durable
 journal, attempt-bound recovery and conditional rollback. Current product and
 historical integrity checks run before preparation. Fresh-process crash tests
 exercise both directions. The separate fixed-command observer can inspect an
-existing static installation; there is no remote publication command yet.
+existing static installation. A separate restricted writer implements filesystem
+operations with pinned server configuration and attempt-bound recovery; it is
+not an enabled production publication workflow.
 
 1. **Portable, constrained adapter.** Extract a release interface without
    workstation paths or private historical state. Fix the permitted destinations
