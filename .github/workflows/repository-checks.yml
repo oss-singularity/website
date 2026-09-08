@@ -50,3 +50,7 @@ jobs:
         run: |
           python3 scripts/test-static-remote.py
           python3 -O scripts/test-static-remote.py
+      - name: Validate static publication handoff and recovery
+        run: |
+          python3 scripts/test-static-publication.py
+          python3 -O scripts/test-static-publication.py

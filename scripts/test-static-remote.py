@@ -67,9 +67,9 @@ def file_contents(path):
 
 
 @contextmanager
-def installation(candidate=None):
+def installation(candidate=None, *, predecessor=None):
     access = candidate['.htaccess'] if candidate is not None else ACCESS
-    old = payload({'.htaccess': access, 'index.html': b'old page',
+    old = predecessor if predecessor is not None else payload({'.htaccess': access, 'index.html': b'old page',
                    'assets/scripts/retired.js': b'retained old asset',
                    'assets/styles/same.css': b'unchanged'})
     new = candidate if candidate is not None else payload({'.htaccess': access,
