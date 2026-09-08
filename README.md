@@ -55,7 +55,7 @@ The social preview is authored as SVG. When updating it, run `python3 scripts/re
 | Shared page shell, editorial pages, deterministic build and checks | [`scripts/`](scripts/) |
 | Atlas, missions, help requests and public machine contracts | [`site/data/`](site/data/) and [`site/.well-known/`](site/.well-known/) |
 | Commons API, local development server, migrations and service tests | [`services/commons/`](services/commons/) |
-| Current requirements, design rules and feature contracts | [`docs/`](docs/) |
+| Guided reading paths, architecture and detailed feature contracts | [Documentation map](docs/README.md) |
 
 [CONTRIBUTING.md](CONTRIBUTING.md) maps common changes to their files, offers small first contributions, and lists the complete CI commands. Edit source files; generated `dist/` is rebuilt and never committed.
 
