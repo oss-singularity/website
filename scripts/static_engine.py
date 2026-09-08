@@ -82,6 +82,11 @@ class Transition:
     def _event(self, name):
         self.checkpoint(name)
 
+    def _allocate_material(self, attempt_id):
+        os.mkdir(attempt_id, mode=0o700, dir_fd=self.fds['control'])
+        os.fsync(self.fds['control'])
+        return fs.identity(os.stat(attempt_id, dir_fd=self.fds['control'], follow_symlinks=False))
+
     @contextmanager
     def _material(self):
         descriptor = os.open(self.attempt['id'], fs.DIR_FLAGS, dir_fd=self.fds['control'])
@@ -115,9 +120,7 @@ class Transition:
         steps.extend(dict(item) for item in result['operations'] if item['operation'] != 'keep')
         attempt_id = uuid.uuid4().hex if attempt_identity is None else attempt_identity
         plan.hex_value(attempt_id, 32, 'invalid_attempt')
-        os.mkdir(attempt_id, mode=0o700, dir_fd=self.fds['control'])
-        os.fsync(self.fds['control'])
-        material_id = fs.identity(os.stat(attempt_id, dir_fd=self.fds['control'], follow_symlinks=False))
+        material_id = self._allocate_material(attempt_id)
         self.state['attempt_count'] += 1
         self.state['attempt'] = {
             'id': attempt_id, 'material_identity': material_id, 'plan': result,

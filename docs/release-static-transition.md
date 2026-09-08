@@ -138,8 +138,13 @@ read-only interface for an independently configured existing target. It does not
 open a production target through the fixture API. The separate
 [restricted remote writer](release-static-remote.md) uses the same engine with
 its own installed target binding and static server policy. Production
-credentials, provider acceptance, operational retention and a complete publication
+credentials, provider acceptance and a complete publication
 workflow remain separate work. Exact release authority, required
 checks, fresh provenance, Commons compatibility, TLS, origin/edge verification
 and cache invalidation remain separate gates. An offline fixture result cannot
 authorize production access.
+
+The remote entry point additionally registers retired private material and offers
+bounded, resumable maintenance. Its allocation reservation covers process exits
+before the initial attempt journal. These are remote lifecycle operations; the
+fixture API retains its eight-attempt test bound and never adopts existing roots.

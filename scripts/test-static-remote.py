@@ -300,7 +300,7 @@ class RemoteTests(unittest.TestCase):
             expected = self.prepare(fixture)
             for field, value in [('identity', '0' * 32), ('plan_sha256', '0' * 64), ('generation', 6)]:
                 stale = {**expected, field: value}
-                for action in ('apply', 'reconcile', 'rollback'):
+                for action in ('apply', 'reconcile', 'rollback', 'maintain'):
                     with self.subTest(field=field, action=action):
                         self.rejected(fixture, self.action(action, stale), 'stale_attempt')
             self.rejected(fixture, {'schema': 1, 'operation': 'status', 'identity': '0' * 32}, 'stale_attempt')
@@ -463,6 +463,146 @@ class RemoteTests(unittest.TestCase):
                     self.assertEqual(actual[name], fixture.original['.htaccess'] if name == '.htaccess' else raw, name)
                 self.success(fixture, self.action('rollback', expected))
                 self.assertEqual(file_contents(fixture.target), fixture.original)
+
+    def next_request(self, fixture, number):
+        status = self.success(fixture, {'schema': 1, 'operation': 'status', 'identity': None})
+        files = payload({**{name: raw for name, raw in fixture.candidate.items() if name != MANIFEST},
+                         'index.html': f'page revision {number}'.encode()})
+        commit = f'{number + 100:040x}'
+        return {**fixture.request, 'identity': uuid.uuid4().hex,
+                'expected_generation': status['generation'],
+                'expected_predecessor_commit': status['baseline_commit'],
+                'expected_manifest_sha256': status['baseline_manifest_sha256'],
+                'candidate_commit': commit, 'candidate_descriptor': encode(descriptor(files, commit)),
+                'files': {name: encode(raw) for name, raw in files.items()}}
+
+    def two_releases(self, fixture):
+        first = self.prepare(fixture)
+        self.success(fixture, self.action('apply', first))
+        second = self.success(fixture, self.next_request(fixture, 2))['ticket']
+        self.success(fixture, self.action('apply', second))
+        return first, second
+
+    def test_maintenance_keeps_current_rollback_and_all_target_bytes(self):
+        with installation() as fixture:
+            first, second = self.two_releases(fixture)
+            before = file_contents(fixture.target)
+            put(fixture.control / 'operator-note', b'preserve operator material')
+            result = self.success(fixture, self.action('maintain', second))
+            self.assertEqual(result['retained_attempts'], 1)
+            self.assertEqual(result['ticket'], second)
+            self.assertEqual(file_contents(fixture.target), before)
+            self.assertFalse((fixture.control / first['identity']).exists())
+            self.assertTrue((fixture.control / second['identity']).is_dir())
+            self.assertEqual((fixture.control / 'operator-note').read_bytes(), b'preserve operator material')
+            self.rejected(fixture, self.action('maintain', first), 'stale_attempt')
+            self.success(fixture, self.action('rollback', second))
+            self.assertEqual((fixture.target / 'index.html').read_bytes(), b'new page')
+            self.success(fixture, self.action('maintain', second))
+
+    def test_twenty_releases_have_bounded_material_and_descriptors(self):
+        with installation() as fixture:
+            for number in range(20):
+                request = self.next_request(fixture, number)
+                expected = self.success(fixture, request)['ticket']
+                self.success(fixture, self.action('apply', expected))
+                self.success(fixture, self.action('maintain', expected))
+                children = list(fixture.control.iterdir())
+                self.assertEqual(sum(path.is_dir() for path in children), 1)
+                self.assertLessEqual(sum(path.name.startswith('descriptor-') for path in children), 2)
+                self.assertLessEqual(len(children), 6)
+            self.assertEqual((fixture.target / 'index.html').read_bytes(), b'page revision 19')
+
+    def test_eight_retained_attempts_can_be_compacted_before_ninth(self):
+        with installation() as fixture:
+            for number in range(8):
+                expected = self.success(fixture, self.next_request(fixture, number))['ticket']
+                self.success(fixture, self.action('apply', expected))
+            request = self.next_request(fixture, 9)
+            self.rejected(fixture, request, 'attempt_limit')
+            self.success(fixture, self.action('maintain', expected))
+            self.success(fixture, request)
+
+    def test_maintenance_requires_closed_verified_state_and_intact_current_backup(self):
+        with installation() as fixture:
+            first = self.prepare(fixture)
+            self.rejected(fixture, self.action('maintain', first), 'unfinished_attempt')
+        with installation() as fixture:
+            first, second = self.two_releases(fixture)
+            source = next((fixture.control / second['identity']).glob('before-*'))
+            source.write_bytes(b'changed backup')
+            self.rejected(fixture, self.action('maintain', second))
+            self.assertTrue((fixture.control / first['identity']).is_dir())
+
+    def test_maintenance_rejects_unregistered_or_substituted_material(self):
+        for kind in ('unknown-file', 'symlink', 'hardlink', 'unknown-attempt'):
+            with self.subTest(kind=kind), installation() as fixture:
+                first, second = self.two_releases(fixture)
+                directory = fixture.control / first['identity']
+                if kind == 'unknown-file':
+                    put(directory / 'operator-note', b'preserve')
+                elif kind == 'unknown-attempt':
+                    (fixture.control / uuid.uuid4().hex).mkdir(mode=0o700)
+                elif kind == 'symlink':
+                    source = next(directory.glob('before-*'))
+                    source.unlink()
+                    source.symlink_to(fixture.peer / 'sentinel')
+                else:
+                    source = next(directory.glob('before-*'))
+                    source.unlink()
+                    os.link(fixture.peer / 'sentinel', source)
+                self.rejected(fixture, self.action('maintain', second))
+                self.assertTrue(directory.is_dir())
+
+    def test_maintenance_resumes_after_actual_process_exits(self):
+        events = ('retention-intent', 'retention-entry-0', 'retention-material-removed',
+                  'retention-records-removed', 'retention-count-committed', 'retention-completed')
+        for event in events:
+            with self.subTest(event=event), installation() as fixture:
+                first, second = self.two_releases(fixture)
+                before = file_contents(fixture.target)
+                request = self.action('maintain', second)
+                self.stop(fixture, request, event)
+                status = self.success(fixture, {'schema': 1, 'operation': 'status', 'identity': second['identity']})
+                if status['maintenance_pending']:
+                    self.rejected(fixture, self.next_request(fixture, 3), 'maintenance_required')
+                    self.rejected(fixture, self.action('rollback', second), 'maintenance_required')
+                result = self.success(fixture, request)
+                self.assertEqual(result['retained_attempts'], 1)
+                self.assertEqual(file_contents(fixture.target), before)
+                self.assertFalse((fixture.control / first['identity']).exists())
+                self.success(fixture, self.action('rollback', second))
+                self.assertEqual((fixture.target / 'index.html').read_bytes(), b'new page')
+
+    def test_changed_material_after_retention_intent_blocks_deletion(self):
+        with installation() as fixture:
+            first, second = self.two_releases(fixture)
+            self.stop(fixture, self.action('maintain', second), 'retention-intent')
+            source = next((fixture.control / first['identity']).glob('before-*'))
+            source.write_bytes(b'new independent data')
+            self.rejected(fixture, self.action('maintain', second), 'maintenance_conflict')
+            self.assertEqual(source.read_bytes(), b'new independent data')
+
+    def test_reserved_allocation_recovers_before_the_first_attempt_journal(self):
+        for event in ('allocation-reserved', 'allocation-created'):
+            with self.subTest(event=event), installation() as fixture:
+                self.stop(fixture, fixture.request, event)
+                status = self.success(fixture, {'schema': 1, 'operation': 'status', 'identity': None})
+                self.assertEqual(status['phase'], 'empty')
+                self.assertFalse((fixture.control / fixture.request['identity']).exists())
+                self.assertFalse((fixture.control / 'allocation.json').exists())
+                expected = self.prepare(fixture)
+                self.success(fixture, self.action('apply', expected))
+                self.success(fixture, self.action('rollback', expected))
+                self.assertEqual(file_contents(fixture.target), fixture.original)
+
+    def test_ambiguous_reserved_directory_is_preserved_for_operator_recovery(self):
+        with installation() as fixture:
+            self.stop(fixture, fixture.request, 'allocation-created')
+            unexpected = fixture.control / fixture.request['identity'] / 'unexpected'
+            put(unexpected, b'preserve this new file')
+            self.rejected(fixture, {'schema': 1, 'operation': 'status', 'identity': None}, 'maintenance_conflict')
+            self.assertEqual(unexpected.read_bytes(), b'preserve this new file')
 
 
 if __name__ == '__main__':

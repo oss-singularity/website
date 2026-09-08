@@ -1,0 +1,68 @@
+name: Release access audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  security-events: read
+
+jobs:
+  read-access:
+    if: >-
+      github.server_url == 'https://github.com' &&
+      github.repository == 'oss-singularity/website' &&
+      github.repository_id == '1351274990' &&
+      github.ref == 'refs/heads/main' &&
+      github.ref_protected &&
+      github.sha == github.workflow_sha
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Observe built-in token access to release policy endpoints
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *_args):
+                  return None
+
+          opener = urllib.request.build_opener(NoRedirect())
+          endpoints = {
+              "branch": "/branches/main",
+              "protection": "/branches/main/protection",
+              "rules": "/rules/branches/main",
+              "codeql_setup": "/code-scanning/default-setup",
+          }
+          results = {}
+          for name, path in endpoints.items():
+              request = urllib.request.Request(
+                  "https://api.github.com/repos/oss-singularity/website" + path,
+                  headers={
+                      "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2026-03-10",
+                  }, method="GET")
+              try:
+                  with opener.open(request, timeout=15) as response:
+                      results[name] = response.status
+              except urllib.error.HTTPError as error:
+                  results[name] = error.code
+              except Exception:
+                  results[name] = "transport_failed"
+          report = {"schema": 1, "read_only": True, "credential": "GITHUB_TOKEN",
+                    "http_status": results, "all_readable": all(code == 200 for code in results.values()),
+                    "deployment_authorized": False}
+          print(json.dumps(report, sort_keys=True))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("Read-only capability audit; no production access.\n\n```json\n")
+              summary.write(json.dumps(report, sort_keys=True, indent=2))
+              summary.write("\n```\n")
