@@ -28,16 +28,18 @@ hand; load additional sections when the task or its checks require them.
 
 ```mermaid
 flowchart LR
-    source["site/: authored pages, fragments, data and assets"] --> build["scripts/build-site.sh + build-hub.py"]
-    build --> dist["dist/: generated static website"]
+    source["site/"] --> build["Build scripts"]
+    build --> dist["dist/"]
     dist --> browser["Browser"]
-    browser -->|"same-origin /api/*"| worker["services/commons/: Cloudflare Worker"]
-    worker --> database["Dedicated D1 database"]
+    browser -->|"/api/*"| worker["Commons Worker"]
+    worker --> database["D1 database"]
 ```
 
-The build produces static HTML, CSS, JavaScript and JSON from reviewed source.
-The browser enhances those pages and calls the separate Commons API for shared
-data. In local development, the [service development server](../services/commons/README.md#local-testing-and-same-origin-development)
+The build uses `scripts/build-site.sh` and `scripts/build-hub.py` to produce
+static HTML, CSS, JavaScript and JSON from reviewed source. The browser enhances
+those pages and calls the same-origin Commons API for shared data. That API runs
+as a Cloudflare Worker with its own D1 database. In local development, the
+[service development server](../services/commons/README.md#local-testing-and-same-origin-development)
 serves the built pages and uses local SQLite in place of the production service.
 
 Edit [`site/`](../site/), [`scripts/`](../scripts/) or
