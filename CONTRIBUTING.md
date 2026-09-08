@@ -28,6 +28,7 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Required release checks and provenance | [Check guide](docs/release-checks.md), [`scripts/release-checks.py`](scripts/release-checks.py), [`scripts/test-release-checks.py`](scripts/test-release-checks.py) |
 | Pure static operation planning | [Planner guide](docs/release-static-plan.md), [`scripts/static_plan.py`](scripts/static_plan.py), [`scripts/test-static-plan.py`](scripts/test-static-plan.py) |
 | Offline static file transitions and recovery | [Fixture guide](docs/release-static-transition.md), [`scripts/static_transition.py`](scripts/static_transition.py), [`scripts/static_fixture.py`](scripts/static_fixture.py), [`scripts/test-static-transition.py`](scripts/test-static-transition.py) |
+| Fixed-command remote static observation | [Observer guide](docs/release-static-observer.md), [`scripts/static-remote-observe.py`](scripts/static-remote-observe.py), [`scripts/test-static-remote-observe.py`](scripts/test-static-remote-observe.py) |
 
 Generated `dist/` is intentionally ignored. Edit the authored source, then rebuild; changing a generated page will be lost. Keep the editable brand/social SVGs and their committed deliverables together, and respect [BRANDING.md](BRANDING.md).
 
@@ -73,9 +74,11 @@ python3 scripts/test-release-checks.py
 python3 scripts/test-static-plan.py
 python3 scripts/test-static-transition.py
 python3 -O scripts/test-static-transition.py
+python3 scripts/test-static-remote-observe.py
+python3 -O scripts/test-static-remote-observe.py
 ```
 
-The first command rebuilds and validates the static site, references, metadata, budgets and public data contracts. The service suite uses real SQLite transactions; the browser-controller tests cover mission handoff, theme behavior and private-state boundaries. The Python suites check machine contracts, static artifacts, rehearsal, candidate consumption, required-check provenance, static operation planning and journaled fixture transitions. Recovery tests terminate disposable worker processes and reopen their journals in fresh processes. CI runs these without production access. Report the checks you actually ran and any that remain for review; automated checks do not replace visual or accessibility review.
+The first command rebuilds and validates the static site, references, metadata, budgets and public data contracts. The service suite uses real SQLite transactions; the browser-controller tests cover mission handoff, theme behavior and private-state boundaries. The Python suites check machine contracts, static artifacts, rehearsal, candidate consumption, required-check provenance, static operation planning, journaled fixture transitions and fixed-command observation. Recovery tests terminate disposable worker processes and reopen their journals in fresh processes. Observer tests use synthetic roots and local subprocesses; they never connect to SSH or a hosting account. CI runs these without production access. Report the checks you actually ran and any that remain for review; automated checks do not replace visual or accessibility review.
 
 ## Security
 

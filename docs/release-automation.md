@@ -15,7 +15,9 @@ completed canonical run, both artifact identities and the captured bytes. The
 [required-check verifier](release-checks.md) separately checks the current branch
 policy and exact workflow, run, job and check provenance. It uses caller-managed
 read access; the rehearsal workflow does not receive additional permissions.
-Provider adapters and production promotion remain separate work.
+The [fixed-command observer](release-static-observer.md) provides a read-only
+remote entry point with independently installed target configuration. Remote
+writes and production promotion remain separate work.
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing
@@ -58,7 +60,8 @@ an internal filesystem backend in exclusively self-created local fixtures.
 It combines the [operation planner](release-static-plan.md) with a durable
 journal, attempt-bound recovery and conditional rollback. Current product and
 historical integrity checks run before preparation. Fresh-process crash tests
-exercise both directions. There is no publication command or remote adapter yet.
+exercise both directions. The separate fixed-command observer can inspect an
+existing static installation; there is no remote publication command yet.
 
 1. **Portable, constrained adapter.** Extract a release interface without
    workstation paths or private historical state. Fix the permitted destinations

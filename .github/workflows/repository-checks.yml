@@ -42,3 +42,7 @@ jobs:
         run: |
           python3 scripts/test-static-transition.py
           python3 -O scripts/test-static-transition.py
+      - name: Validate fixed-command static observation and isolation boundaries
+        run: |
+          python3 scripts/test-static-remote-observe.py
+          python3 -O scripts/test-static-remote-observe.py
