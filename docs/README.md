@@ -117,7 +117,7 @@ filesystem recovery:
 | [Remote writer](release-static-remote.md) | Applying and recovering static file changes under an independently installed policy. |
 
 These components do not yet enable automatic production publishing. Production
-credentials, operational retention and complete promotion gates remain separate
+credentials and complete promotion gates remain separate
 work. A passing fixture or filesystem report is not permission to deploy.
 
 ## A compact working loop for agents

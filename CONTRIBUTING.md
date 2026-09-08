@@ -31,7 +31,7 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Pure static operation planning | [Planner guide](docs/release-static-plan.md), [`scripts/static_plan.py`](scripts/static_plan.py), [`scripts/test-static-plan.py`](scripts/test-static-plan.py) |
 | Offline static file transitions and recovery | [Fixture guide](docs/release-static-transition.md), [`scripts/static_transition.py`](scripts/static_transition.py), [`scripts/static_fixture.py`](scripts/static_fixture.py), [`scripts/test-static-transition.py`](scripts/test-static-transition.py) |
 | Fixed-command remote static observation | [Observer guide](docs/release-static-observer.md), [`scripts/static-remote-observe.py`](scripts/static-remote-observe.py), [`scripts/test-static-remote-observe.py`](scripts/test-static-remote-observe.py) |
-| Restricted static writes and remote recovery | [Remote writer guide](docs/release-static-remote.md), [`scripts/static-remote-release.py`](scripts/static-remote-release.py), [`scripts/static_remote.py`](scripts/static_remote.py), [`scripts/test-static-remote.py`](scripts/test-static-remote.py) |
+| Restricted static writes, retention and remote recovery | [Remote writer guide](docs/release-static-remote.md), [`scripts/static-remote-release.py`](scripts/static-remote-release.py), [`scripts/static_remote.py`](scripts/static_remote.py), [`scripts/static_retention.py`](scripts/static_retention.py), [`scripts/test-static-remote.py`](scripts/test-static-remote.py) |
 
 Generated `dist/` is intentionally ignored. Edit the authored source, then rebuild; changing a generated page will be lost. Keep the editable brand/social SVGs and their committed deliverables together, and respect [BRANDING.md](BRANDING.md).
 

@@ -1,8 +1,9 @@
 # Restricted static filesystem writer
 
 `scripts/static-remote-release.py` is an installed SSH endpoint for one fixed
-static destination. It supports preparation, application, status, reconciliation
-and conditional rollback. It does not enable automatic production deployment.
+static destination. It supports preparation, application, status, reconciliation,
+conditional rollback and bounded maintenance of its private release material.
+It does not enable automatic production deployment.
 GitHub provenance, required checks, compatibility and HTTP verification remain
 the separate gates in the [release architecture](release-automation.md).
 
@@ -14,7 +15,7 @@ through a fixture handle.
 
 ## Independently installed boundary
 
-An operator installs the exact launcher and the seven modules listed in its
+An operator installs the exact launcher and the eight modules listed in its
 `MODULES` constant. Keep that directory outside every public root and outside the
 writer's control directory. Files must be single-link, current-owner 0400 regular
 files; the containing directory must be 0500 or 0700. Launch with an absolute
@@ -102,8 +103,8 @@ the existing baseline; it never trusts the request to redefine that baseline.
 The predecessor is reconstructed from the managed installed bytes and the
 separately pinned configuration block. Its exact stored descriptor and the
 journal's independent baseline must still match. Historical code is not run.
-Descriptor objects are retained only after successful plan preparation and are
-bounded by the engine's attempt limit.
+Descriptor objects are retained only after successful plan preparation. They are
+bounded by the retained-attempt limit and the maintenance rules below.
 
 The response provides a ticket containing `identity`, `plan_sha256` and the
 original `generation`. Retain the original request identity and submitted
@@ -124,12 +125,51 @@ retired assets and unmanaged files, and conditionally restores only its own
 verified preimages. It does not atomically switch the whole site or provide a
 compare-and-swap against an uncooperative same-user writer.
 
+Preparation reserves its private material directory before creating it. If a
+process ends before the first attempt journal, the next fixed operation can
+remove that reserved empty directory and close the reservation. Once the attempt
+journal exists, it owns the material and normal attempt reconciliation applies.
+The target is unchanged by reservation recovery. An unexpected nonempty or
+substituted directory requires operator investigation and is preserved. Status
+may finish this bounded private reservation recovery; the separate observer
+remains the strictly read-only endpoint.
+
+## Bounded retention
+
+`maintain` accepts the exact current ticket, after its phase is `verified`,
+`rolled_back` or `aborted`. It revalidates the target and keeps the current
+attempt, its material, and its current/predecessor descriptors. In particular,
+maintenance after a verified application preserves that attempt's rollback.
+
+Before a new attempt replaces a closed one, the endpoint records that old
+material directory's identity and descriptor hashes in a private archive record.
+Maintenance deletes only material registered through those records. It does not
+discover ownership from a directory name or remove unregistered operator files.
+Symlinks, hardlinks, changed identities and unknown material entries stop cleanup.
+The archive records are private control metadata, not public release receipts.
+
+Each retired attempt is removed through a bounded, checksummed deletion journal.
+It captures exact file hashes, metadata and identities before unlinking. A fresh
+process can observe already-removed entries and resume after a lost response.
+While a deletion journal is pending, new preparation, application, reconciliation
+and rollback are blocked; `status` reports `maintenance_pending` and the same
+`maintain` ticket resumes cleanup. This process never writes target files, resets
+the active attempt, or rewinds the release generation.
+
+The eight-attempt bound applies to retained material, not the lifetime number of
+releases. Call maintenance after each completed publication to keep one current
+rollback target and at most its two descriptors. Eight accumulated completed
+attempts can be compacted before a ninth preparation. Unregistered material from
+an older endpoint is not automatically adopted; an operator must review that
+state when upgrading an existing installation.
+
 ## Limits and operational status
 
-The endpoint retains the engine's bounded journal and limit of eight attempts
-per independently initialized control state. It has no remote pruning or reset
-operation. Retention and operator recovery must be established before routine
-unattended production use; exhausting a bound blocks further preparation.
+The endpoint retains the engine's bounded journal and limit of eight uncollected
+attempts per independently initialized control state. Explicit maintenance keeps
+that storage bounded over repeated releases; exhausting the retained limit blocks
+preparation until maintenance succeeds. There is no remote reset or arbitrary
+cleanup path. Ambiguous state still requires operator recovery.
 
 Reports contain only bounded hashes, counts, commit identifiers, tickets and
 phases. They identify filesystem outcomes with `filesystem_only: true`,
@@ -142,6 +182,7 @@ proves that no write occurred.
 Run `python3 scripts/test-static-remote.py` and its `python3 -O` counterpart.
 Tests install the actual isolated command into private temporary directories,
 use the current generated artifact, exercise fixed operations and rejection
-cases, and recover across real process exits. They do not contact a provider or
+cases, run twenty consecutive bounded releases, and recover preparation and
+maintenance across real process exits. They do not contact a provider or
 install production credentials. Provider filesystem, restricted-key and HTTP
 handler evidence must be obtained separately before production activation.

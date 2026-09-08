@@ -18,8 +18,9 @@ read access; the rehearsal workflow does not receive additional permissions.
 The [fixed-command observer](release-static-observer.md) provides a read-only
 remote entry point with independently installed target configuration. Remote
 [filesystem writes](release-static-remote.md) now share the tested transition
-engine behind a separate fixed command and static policy. Production activation
-and promotion remain separate work.
+engine behind a separate fixed command and static policy. Its registered private
+material has bounded, resumable retention while preserving the current rollback
+target. Production activation and promotion remain separate work.
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing
@@ -45,6 +46,13 @@ Environment approval can gate initial adoption; routine automatic releases must
 still satisfy their configured protections.
 [GitHub environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)
 control when jobs receive environment secrets.
+
+The manually dispatched [release access audit](../.github/workflows/release-access.yml)
+reports whether the built-in `GITHUB_TOKEN` can read the actual branch-protection,
+rules and CodeQL setup endpoints. It receives no production secrets and performs
+only fixed GET requests. A completed audit is a capability report, not proof of
+successful deployment or adequate permissions: inspect its `all_readable` value
+and individual status codes before choosing a scoped release reader identity.
 
 Repository secrets serve one repository. Organization secrets need a genuine
 shared purpose and an explicit repository allowlist; they do not substitute for

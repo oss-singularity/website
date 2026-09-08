@@ -1,7 +1,7 @@
 """Fixed-target remote filesystem operations behind a restricted SSH command.
 
 Target bindings, the initial baseline, descriptor and static policy are installed
-by a separate operator. No request can initialize, rebind, prune or repair them.
+by a separate operator. No request can initialize, rebind or reset them.
 This module never imports or executes payload code or accepts a filesystem path
 from an SSH request. Publication provenance and HTTP verification remain client
 release gates; this endpoint reports filesystem outcomes only.
@@ -20,6 +20,7 @@ import static_engine as engine
 import static_plan as plan
 import static_policy as policy
 import static_posix as fs
+import static_retention as retention
 import static_remote_observer as observer
 from site_artifact import ArtifactError, MANIFEST, open_directory, require
 
@@ -31,7 +32,8 @@ PUBLIC_ERRORS = {'command_rejected', 'invalid_arguments', 'unsupported_runtime',
                  'stale_attempt', 'generation_conflict', 'baseline_mismatch',
                  'unfinished_attempt', 'attempt_limit', 'reconciliation_required',
                  'target_busy', 'request_timeout', 'invalid_policy', 'unsafe_control',
-                 'identity_changed', 'target_conflict', 'release_failed'}
+                 'identity_changed', 'target_conflict', 'release_failed',
+                 'maintenance_required', 'maintenance_conflict'}
 
 
 def json_value(raw, code):
@@ -194,6 +196,15 @@ class RemoteTransition(engine.Transition):
             'directory': {'mode': 0o755, 'uid': os.getuid(), 'gid': os.getgid()}},
             'unsafe_control')
 
+    def _allocate_material(self, attempt_id):
+        retention.allocation(self, attempt_id)
+        identity = super()._allocate_material(attempt_id)
+        self._event('allocation-created')
+        return identity
+
+    def maintain(self, expected):
+        return retention.maintain(self, expected)
+
     def _validate_target(self, forward=None, backward=None):
         entries, identities = super()._validate_target(forward, backward)
         policy.validate_parents((item['path'] for item in self.attempt['plan']['operations']), entries)
@@ -274,10 +285,11 @@ class RemoteTransition(engine.Transition):
             self._prepare_captured(candidate=candidate, candidate_descriptor=description,
                 expected_candidate_commit=request['candidate_commit'], predecessor=predecessor,
                 predecessor_descriptor=previous_description, attempt_identity=request['identity'])
-        # Descriptor objects are bounded by the engine's attempt limit and are
-        # installed only after the complete plan/predecessor checks succeeded.
+        # Descriptor objects are installed only after the complete plan and
+        # predecessor checks succeed; registered retired objects can be pruned.
         # A lost prepare response can be queried by the caller's original ID.
         self._remember_descriptor(description)
+        retention.recover_allocation(self)
         return self.report(include_ticket=True)
 
     def apply(self, expected):
@@ -290,7 +302,8 @@ class RemoteTransition(engine.Transition):
         result = {**super().report(), 'kind': 'static-remote-transition',
                   'filesystem_only': True, 'publication_verified': False,
                   'baseline_commit': self.state['baseline']['commit'],
-                  'baseline_manifest_sha256': self.state['baseline']['manifest_sha256']}
+                  'baseline_manifest_sha256': self.state['baseline']['manifest_sha256'],
+                  'maintenance_pending': retention.optional(self.fds['control'], retention.RETENTION) is not None}
         if include_ticket:
             expected = self.ticket()
             result['ticket'] = {'identity': expected.identity, 'generation': expected.generation,
@@ -304,9 +317,12 @@ def dispatch(binding, request, checkpoint=None):
             and request['schema'] == 1, 'invalid_request')
     operation = request.get('operation')
     require(type(operation) is str
-            and operation in {'status', 'prepare', 'apply', 'reconcile', 'rollback'}, 'invalid_request')
+            and operation in {'status', 'prepare', 'apply', 'reconcile', 'rollback', 'maintain'}, 'invalid_request')
     with locked(binding) as fds:
         transition = RemoteTransition(binding, fds, checkpoint)
+        retention.recover_allocation(transition)
+        require(operation in {'status', 'maintain'} or retention.optional(fds['control'], retention.RETENTION) is None,
+                'maintenance_required')
         if operation == 'prepare':
             return transition.prepare_request(request)
         if operation == 'status':

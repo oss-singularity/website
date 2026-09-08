@@ -20,6 +20,7 @@ MODULES = (
     ('static_engine', 'static_engine.py'),
     ('static_remote_observer', 'static-remote-observe.py'),
     ('static_policy', 'static_policy.py'),
+    ('static_retention', 'static_retention.py'),
     ('static_remote', 'static_remote.py'),
 )
 
