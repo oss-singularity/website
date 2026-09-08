@@ -4,8 +4,10 @@
 [static transition rehearsal](release-static-transition.md). Its `build_plan`
 function calculates a deterministic file plan entirely in memory. It does not
 read an installation, write files, acquire locks, apply a plan or deploy a site.
-The fixture backend now implements journaling and recovery separately. A
-command-line rehearsal and remote publication adapter remain future work.
+The shared transition engine implements journaling and recovery separately.
+Its [fixture](release-static-transition.md) and
+[restricted remote](release-static-remote.md) entry points independently bind
+their destinations. Routine production promotion is not enabled.
 
 ## Trusted inputs
 

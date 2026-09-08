@@ -46,3 +46,7 @@ jobs:
         run: |
           python3 scripts/test-static-remote-observe.py
           python3 -O scripts/test-static-remote-observe.py
+      - name: Validate installed static writer protocol and recovery
+        run: |
+          python3 scripts/test-static-remote.py
+          python3 -O scripts/test-static-remote.py
