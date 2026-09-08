@@ -69,7 +69,9 @@ release tools are not automatically coordinated by installing this observer.
 The installed `dist-manifest.sha256` selects at most 256 relative file paths,
 each with at most eight components. The manifest is limited to 64 KiB; individual
 files to 8 MiB and total captured content to 64 MiB. The CLI has a 20-second
-deadline. Absolute paths, traversal, duplicates, malformed lines, symlinked
+deadline. One leading `./` is accepted, matching `build-site.sh` and the artifact
+verifier; duplicate detection runs after this normalization. Absolute paths,
+traversal, repeated `./` prefixes, duplicates, malformed lines, symlinked
 ancestors, hardlinks and special files are rejected. Unlisted files are not read.
 There are no filesystem writes beyond normal OS read-atime behavior.
 
@@ -97,7 +99,8 @@ Run both normal and optimized Python suites from [CONTRIBUTING.md](../CONTRIBUTI
 Tests use private synthetic installations, real subprocesses and flock. They
 exercise rejected commands, interpreter isolation, configuration/identity errors,
 path and file attacks, size limits, concurrent changes and preservation. They
-do not install credentials or contact a provider.
+also build the current site and observe its actual generated manifest through
+the CLI. They do not install credentials or contact a provider.
 
 Remote writes remain separate work. In particular, a path allowlist alone must
 not permit uploaded files or `.htaccess` changes to enable server-side execution
