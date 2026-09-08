@@ -35,6 +35,7 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Fixed-command remote static observation | [Observer guide](docs/release-static-observer.md), [`scripts/static-remote-observe.py`](scripts/static-remote-observe.py), [`scripts/test-static-remote-observe.py`](scripts/test-static-remote-observe.py) |
 | Restricted static writes, retention and remote recovery | [Remote writer guide](docs/release-static-remote.md), [`scripts/static-remote-release.py`](scripts/static-remote-release.py), [`scripts/static_remote.py`](scripts/static_remote.py), [`scripts/static_retention.py`](scripts/static_retention.py), [`scripts/test-static-remote.py`](scripts/test-static-remote.py) |
 | End-to-end static publication | [Publication guide](docs/release-publication.md), [`scripts/static_publication.py`](scripts/static_publication.py), [`scripts/test-static-publication.py`](scripts/test-static-publication.py), [publication workflow](.github/workflows/static-publication.yml) |
+| Commons code packaging and schema fingerprints | [Commons artifact guide](docs/release-commons-artifacts.md), [`scripts/commons_artifact.py`](scripts/commons_artifact.py), [`scripts/test-commons-artifact.py`](scripts/test-commons-artifact.py) |
 
 Generated `dist/` is intentionally ignored. Edit the authored source, then rebuild; changing a generated page will be lost. Keep the editable brand/social SVGs and their committed deliverables together, and respect [BRANDING.md](BRANDING.md).
 
@@ -76,6 +77,8 @@ node --test services/commons/test/*.test.mjs
 node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs scripts/test-work-items-ui.mjs
 python3 scripts/check-agent-data.py --self-test
 python3 scripts/test-release-artifact.py
+python3 scripts/test-commons-artifact.py
+python3 -O scripts/test-commons-artifact.py
 python3 scripts/test-release-rehearsal.py
 python3 scripts/test-release-candidate.py
 python3 scripts/test-release-checks.py
@@ -100,4 +103,4 @@ Voluntary testing contributions are welcome. The [local security-testing guide](
 
 ## Production boundary
 
-Merging source does not authorize a production deployment. Deployment credentials stay outside the repository, and production changes follow the separately documented review, backup, allowlist, and rollback gates. Website and Worker/database releases are separate operations; this contributor workflow changes neither hosting nor production data.
+Eligible static changes merged into protected `main` are published automatically after the exact commit passes its required checks and release gates. Review the [publication outcome](docs/release-publication.md), including live verification and retained rollback. Deployment credentials stay outside the repository. Commons Worker and schema promotion remain separate operations; the offline [Commons artifact tools](docs/release-commons-artifacts.md) prepare and verify a code package without contacting production.

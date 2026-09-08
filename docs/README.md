@@ -117,6 +117,7 @@ publication and recovery:
 | [Remote observer](release-static-observer.md) | Reading one independently bound installation through a restricted SSH command. |
 | [Remote writer](release-static-remote.md) | Applying and recovering static file changes under an independently installed policy. |
 | [Static publication](release-publication.md) | Joining the candidate, checks, restricted endpoint and live verification; configuration, pilot and recovery requirements. |
+| [Commons artifacts](release-commons-artifacts.md) | Packaging the six production modules, pinning the existing schema profile and independently checking the captured bytes. This is the offline foundation for separate Worker promotion. |
 
 Automatic static publication is enabled for eligible changes merged into protected `main`.
 The deployed Commons source and static server policy must remain compatible;
