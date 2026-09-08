@@ -1,6 +1,6 @@
 # Release automation
 
-**Architecture agenda; deployment automation is not implemented yet.** The goal
+**Static publication is implemented; production activation is not complete.** The goal
 is that an approved contribution can reach production through a reviewed PR,
 successful checks and a reproducible release, without requiring Codex or one
 maintainer's workstation. Routine promotion should become automatic once the
@@ -20,7 +20,10 @@ remote entry point with independently installed target configuration. Remote
 [filesystem writes](release-static-remote.md) now share the tested transition
 engine behind a separate fixed command and static policy. Its registered private
 material has bounded, resumable retention while preserving the current rollback
-target. Production activation and promotion remain separate work.
+target. The [static publication client and workflow](release-publication.md)
+join these contracts with durable deployment intent, live acceptance and
+conditional rollback. Scoped production access and a successful canonical pilot
+remain required before enabling routine publication.
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing

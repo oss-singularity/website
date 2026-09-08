@@ -1,0 +1,102 @@
+name: Static publication
+
+on:
+  workflow_run:
+    workflows: [Repository checks]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Verify the complete handoff, or publish with production enabled
+        type: choice
+        options: [plan, publish]
+        default: plan
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  deployments: write
+
+concurrency:
+  group: oss-production
+  cancel-in-progress: false
+
+jobs:
+  static:
+    if: >-
+      github.server_url == 'https://github.com' &&
+      github.repository == 'oss-singularity/website' &&
+      github.repository_id == '1351274990' &&
+      github.ref == 'refs/heads/main' &&
+      github.ref_protected &&
+      github.sha == github.workflow_sha &&
+      (github.event_name == 'workflow_dispatch' ||
+       (vars.STATIC_PUBLISH_ENABLED == 'true' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_sha == github.sha &&
+        github.event.workflow_run.head_repository.id == 1351274990))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: production-static
+    steps:
+      - name: Check out only the current protected canonical source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Obtain a temporary repository-policy reader
+        id: reader
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_READER_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_READER_PRIVATE_KEY }}
+          owner: oss-singularity
+          repositories: website
+          permission-administration: read
+          skip-token-revoke: false
+      - name: Verify the handoff and run the selected publication mode
+        id: publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_POLICY_TOKEN: ${{ steps.reader.outputs.token }}
+          CF_RELEASE_TOKEN: ${{ secrets.CF_RELEASE_TOKEN }}
+          STATIC_ORIGIN_IP: ${{ secrets.STATIC_ORIGIN_IP }}
+          STATIC_SSH_USER: ${{ secrets.STATIC_SSH_USER }}
+          STATIC_SSH_PORT: ${{ secrets.STATIC_SSH_PORT }}
+          STATIC_SSH_HOST_KEY: ${{ secrets.STATIC_SSH_HOST_KEY }}
+          STATIC_SSH_KEY: ${{ secrets.STATIC_SSH_KEY }}
+          STATIC_RUNTIME_SHA256: ${{ vars.STATIC_RUNTIME_SHA256 }}
+          STATIC_API_RELEASE_SHA: ${{ vars.STATIC_API_RELEASE_SHA }}
+          STATIC_PUBLISH_ENABLED: ${{ vars.STATIC_PUBLISH_ENABLED }}
+          RELEASE_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'publish' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/static-publication.py --commit "$GITHUB_SHA" --mode "$RELEASE_MODE" \
+            > "$RUNNER_TEMP/static-publication-report.json"
+      - name: Present the sanitized outcome
+        if: always() && steps.publication.outcome != 'skipped'
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+          report = Path(os.environ["RUNNER_TEMP"]) / "static-publication-report.json"
+          if report.is_file() and 0 < report.stat().st_size <= 16384:
+              value = json.loads(report.read_bytes())
+              rendered = json.dumps(value, sort_keys=True, indent=2)
+              print(rendered)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write("Static publication result\n\n```json\n" + rendered + "\n```\n")
+      - name: Retain only the sanitized outcome
+        if: always() && steps.publication.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: static-publication-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/static-publication-report.json
+          if-no-files-found: ignore
+          retention-days: 14

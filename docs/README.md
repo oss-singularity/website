@@ -103,7 +103,7 @@ record shapes and research ideas are not current API contracts. Use the public
 
 Start with [Release automation](release-automation.md) for the architecture and
 remaining gates. The following guides follow the path from artifact creation to
-filesystem recovery:
+publication and recovery:
 
 | Read | What this component establishes |
 | --- | --- |
@@ -115,10 +115,11 @@ filesystem recovery:
 | [Transition fixture](release-static-transition.md) | Testing the shared journal, interruptions and conditional rollback in self-created targets. |
 | [Remote observer](release-static-observer.md) | Reading one independently bound installation through a restricted SSH command. |
 | [Remote writer](release-static-remote.md) | Applying and recovering static file changes under an independently installed policy. |
+| [Static publication](release-publication.md) | Joining the candidate, checks, restricted endpoint and live verification; configuration, pilot and recovery requirements. |
 
-These components do not yet enable automatic production publishing. Production
-credentials and complete promotion gates remain separate
-work. A passing fixture or filesystem report is not permission to deploy.
+Production activation still requires scoped credentials, the independently
+installed endpoint and a successful canonical pilot. A passing fixture or
+filesystem report is not a completed publication.
 
 ## A compact working loop for agents
 
