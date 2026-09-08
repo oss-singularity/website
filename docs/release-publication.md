@@ -103,6 +103,9 @@ that observed requirement. It does not receive repository write permissions.
 See [GitHub App permission selection](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/choosing-permissions-for-a-github-app).
 
 No cPanel token or ordinary operator SSH identity belongs in this environment.
+The client restores the private key's final newline when creating its temporary
+identity file. Secret uploads through the GitHub CLI can trim that newline;
+OpenSSH must still be able to read the resulting key file.
 Independently install and verify the [fixed endpoint](release-static-remote.md),
 provider mapping, root identities, static handler policy and initial predecessor
 before giving the job its restricted key. The initial pilot additionally needs
@@ -124,6 +127,12 @@ proof and exercise rollback before treating unattended promotion as established.
 The workflow's summary and artifact contain only the sanitized outcome. Private
 keys, archives, tickets and local request material are confined to temporary
 private runner storage and are not uploaded.
+
+SSH failures report only a fixed category for host identity, authentication,
+connection failure or an unconfirmed outcome. Bounded raw diagnostics remain in
+temporary private storage and are removed after the call. A category never
+proves that a mutation did not happen; the original attempt still needs the same
+reconciliation before further writes.
 
 A lost runner leaves the original identity in the deployment intent and the
 filesystem journal on the endpoint. A new workflow run refuses an unresolved
