@@ -541,13 +541,35 @@ class HTTPTests(unittest.TestCase):
 
 
 class TransportTests(unittest.TestCase):
-    def test_ssh_has_one_identity_no_agent_no_fallback_and_bounded_sanitized_responses(self):
+    def environment(self):
         # Syntactically shaped public test bytes, never usable credentials.
-        environ = {'STATIC_ORIGIN_IP': '1.1.1.1', 'STATIC_SSH_USER': 'fixture', 'STATIC_SSH_PORT': '21098',
+        return {'STATIC_ORIGIN_IP': '1.1.1.1', 'STATIC_SSH_USER': 'fixture', 'STATIC_SSH_PORT': '21098',
                    'STATIC_SSH_HOST_KEY': 'ssh-ed25519 ' + base64.b64encode(
                        b'\0\0\0\x0bssh-ed25519\0\0\0 ' + b'x' * 32).decode(),
                    'STATIC_SSH_KEY': '-----BEGIN ' + 'OPENSSH PRIVATE KEY-----\n' + 'synthetic-public-fixture' * 12
                        + '\n-----END OPENSSH PRIVATE KEY-----\n', 'STATIC_RUNTIME_SHA256': 'a' * 64}
+
+    def test_secret_without_final_newline_remains_readable_by_openssh(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            key = root / 'ephemeral'
+            subprocess.run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(key)],
+                           check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+            raw = key.read_text().rstrip('\r\n')
+            expected_public = key.with_suffix('.pub').read_bytes().split()[:2]
+            for index, ending in enumerate(['', '\n', '\r\n', '\n\n']):
+                with self.subTest(ending=repr(ending)):
+                    folder = root / str(index)
+                    folder.mkdir(mode=0o700)
+                    environ = self.environment()
+                    environ['STATIC_SSH_KEY'] = raw + ending
+                    transport.SSH(environ, folder)
+                    result = subprocess.run(['ssh-keygen', '-y', '-P', '', '-f', str(folder / 'identity')],
+                                            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+                    self.assertEqual(result.stdout.split()[:2], expected_public)
+
+    def test_ssh_has_one_identity_no_agent_no_fallback_and_bounded_sanitized_responses(self):
+        environ = self.environment()
         with tempfile.TemporaryDirectory() as directory:
             calls = []
             response = {'schema_version': 1, 'kind': 'static-remote-transition', 'target': transport.plan.TARGET,
@@ -576,6 +598,34 @@ class TransportTests(unittest.TestCase):
             response['runtime_sha256'], response['padding'] = 'a' * 64, 'x' * 17000
             with self.assertRaisesRegex(ArtifactError, 'remote_response_invalid'): remote.status()
             self.assertFalse(list(Path(directory).glob('response-*')))
+            diagnostics = [
+                (b'Host key verification failed.\n', 'remote_host_identity_failed'),
+                (b'private-user@private-origin: Permission denied (publickey).\n', 'remote_authentication_failed'),
+                (b'Load key "/private/identity": error in libcrypto\n', 'remote_authentication_failed'),
+                (b'ssh: connect to host private-origin port 12345: Connection timed out\n', 'remote_connection_failed'),
+                (b'kex_exchange_identification: read: Connection reset by peer\n', 'remote_connection_failed'),
+                (b'unknown private diagnostic\n', 'remote_outcome_unconfirmed'),
+                (b'Permission denied ' + b'x' * 17000, 'remote_outcome_unconfirmed'),
+            ]
+            for diagnostic, expected in diagnostics:
+                with self.subTest(category=expected, size=len(diagnostic)):
+                    def fail(args, **options):
+                        os.write(options['stderr'], diagnostic)
+                        return subprocess.CompletedProcess(args, 255)
+                    remote.runner = fail
+                    with self.assertRaises(transport.RemoteFailure) as raised:
+                        remote.status()
+                    self.assertEqual(raised.exception.code, expected)
+                    self.assertNotIn('private', str(raised.exception))
+                    self.assertFalse(list(Path(directory).glob('response-*')))
+                    self.assertFalse(list(Path(directory).glob('errors-*')))
+            def timeout(args, **options):
+                os.write(options['stderr'], b'Connection timed out; private diagnostic')
+                raise subprocess.TimeoutExpired(args, 80)
+            remote.runner = timeout
+            with self.assertRaisesRegex(transport.RemoteFailure, 'remote_connection_failed'):
+                remote.status()
+            self.assertFalse(list(Path(directory).glob('errors-*')))
 
 
 if __name__ == '__main__':
