@@ -53,11 +53,12 @@ artifacts or logs. See
 
 ## Implementation stages and acceptance criteria
 
-The planned [static transition rehearsal](release-static-transition.md) records
-the offline adapter's preservation, historical-baseline and recovery invariants.
-It is a design contract, not an implemented publication command.
-Its first internal [operation planner](release-static-plan.md) is implemented and
-tested offline; it performs no installation reads, writes or recovery.
+The [static transition rehearsal](release-static-transition.md) implements
+an internal filesystem backend in exclusively self-created local fixtures.
+It combines the [operation planner](release-static-plan.md) with a durable
+journal, attempt-bound recovery and conditional rollback. Current product and
+historical integrity checks run before preparation. Fresh-process crash tests
+exercise both directions. There is no publication command or remote adapter yet.
 
 1. **Portable, constrained adapter.** Extract a release interface without
    workstation paths or private historical state. Fix the permitted destinations

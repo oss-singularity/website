@@ -1,115 +1,138 @@
 # Static transition rehearsal
 
-**Planned design; not implemented.** This proposed next step in the
-[release architecture](release-automation.md) would rehearse static file updates
-and recovery entirely offline. It would not deploy a website, grant release
-authority or enable production automation. Command names, flags and schemas
-remain implementation decisions.
+**Implemented internal Python fixture backend; no deployment command.**
+This stage of the [release architecture](release-automation.md) exercises real
+file writes, process interruption and conditional rollback entirely offline.
+It grants no release authority and enables no production automation.
 
-The first internal component is the [pure operation planner](release-static-plan.md).
-It calculates and validates a plan in memory. The filesystem rehearsal, journal,
-reconciliation and rollback described below are still planned work.
+The [pure planner](release-static-plan.md) supplies the operation order and
+preservation rules. `scripts/static_fixture.py` creates the private filesystem
+and anchors its descriptors; `scripts/static_transition.py` owns preparation,
+journaling, application and recovery. `scripts/test-static-transition.py`
+contains executable examples, product integration and failure cases.
 
-## Scope and inputs
+## Fixture and trust boundary
 
-The rehearsal would accept candidate and predecessor payloads with their
-descriptors, independently expected identities, a predecessor baseline and
-bounded synthetic fixture data. It would create and exclusively own a temporary
-target for the fixed logical destination `oss-static`, a separate control
-directory and a non-target sentinel. Inputs could not select an existing target,
-backend, remote endpoint or executable operation. There would be no network,
-credential access or execution of supplied code.
+`create_fixture(installation, baseline)` exclusively creates a temporary
+container with sibling `target`, `control` and `peer` directories for the fixed
+logical destination `oss-static`. There is no argument for an existing target,
+provider, endpoint or executable operation. The target begins with synthetic
+installation bytes; a fixed peer sentinel detects unintended changes.
 
-The candidate must pass the current complete product validation, including the
-current file allowlist. The historical predecessor instead needs bounded generic
-integrity checks: safe relative paths, no links or special files, complete unique
-manifest coverage, actual file hashes, and a strictly typed descriptor matching
-its commit, manifest hash, file count and byte count. Historical files need not
-match today's allowlist. No historical checker would be downloaded or executed;
-candidate requirements remain unchanged.
+The fixture builder supplies an **independently trusted baseline**. It binds the
+predecessor commit, exact descriptor bytes, manifest, generation, managed files
+and parent-directory metadata, and separate `.htaccess` prefix/suffix hashes and
+lengths. A rejected predecessor must never be used to regenerate its own expected
+baseline. The tests establish their initial installation before submitting
+altered or forged artifact pairs. Later baselines come from successfully verified
+transitions recorded by the same fixture journal.
 
-A separate baseline must bind the predecessor to the logical target, installed
-generation, commit, descriptor byte hash, manifest hash and managed installation
-inventory. These expected values cannot come solely from the submitted
-predecessor. Fixtures would use independently fixed baseline records. A later
-remote adapter would need an independently trusted observation or completed
-release journal; a supplied hash or `trusted` flag is not proof of provenance.
+The container, control directory and journal are private to the current OS user.
+Handles and attempt tickets are trusted harness state passed between its own
+processes. Do not deserialize them from an artifact or expose the internal
+captured-input test seam to untrusted callers. This is not an in-process Python
+sandbox, a defense against root or hostile same-user writers, or proof of remote
+filesystem behavior. Locks coordinate cooperating fixture processes; POSIX
+replacement is not a compare-and-swap against an uncooperative writer.
 
-Both payloads would be captured through bounded file-descriptor reads that reject
-links and detect mutation. Writes would use those captured, validated bytes.
-A private report would identify payloads, plan, fixture and observed outcomes,
-explicitly stating that it covers a fixture and authorizes no deployment. It
-would exclude credentials, overlay contents, absolute paths and raw errors.
+## Preparation and use
 
-## Operations and recovery
+Within `session(handle)`, `prepare(...)` accepts candidate/predecessor artifact
+directories, descriptor paths and an independently expected candidate commit.
+The candidate passes today's complete product checks and allowlist through the
+trusted artifact checker shipped in this repository. The predecessor passes
+bounded generic historical integrity checks and its independent baseline;
+historical code is never executed. Both captures use bounded no-follow reads.
+Inputs must not overlap each other or the fixture container. Writes use captured
+bytes, never subsequently reread candidate paths.
 
-The core would produce a deterministic per-file plan with expected before/after
-hashes and metadata. The intended phases are observation, staging, preparation,
-application and verification; uncertain outcomes enter reconciliation. Rollback
-would have separately journaled preparation, application and completion phases.
+After preparation, retain `session.ticket()`. Pass that exact `Attempt` to
+`apply(ticket)`, `reconcile(ticket)` or `rollback(ticket)`, including after opening
+a new session in another process. A different current attempt rejects the old
+ticket before acting. Never substitute a newly observed ticket merely to make a
+stale recovery request pass.
 
-A target lock would cover forward operations, reconciliation and rollback.
-Durable control state would record the active generation, attempt identity, plan
-digest and phase. An unfinished attempt would block another attempt even after
-process loss releases the operating-system lock. Stale plans and rollbacks must
-never overwrite a newer generation.
+Preparation writes candidate staging files and verified preimage backups outside
+the target. It preserves existing modes, UID and GID; new fixture files and
+directories use explicit creation metadata for the current OS user. It does not
+model arbitrary ownership changes, ACLs or extended attributes. Payload and
+inventory bounds come from the artifact/planner contracts; journals are limited
+to 2 MiB and each fixture permits at most eight attempts. Generation capacity is
+checked before preparation, reserving room for application and rollback.
 
-Before the first target write, the adapter must verify the baseline and installed
-generation, stage candidate bytes and verify backups of every affected existing
-file. Before each mutation, it must durably record intent and check the expected
-file type, hash and metadata. Afterwards, it must observe the resulting bytes and
-durably record the outcome. A successful write call alone is insufficient.
+## Journal and interruption
 
-Assets and data would precede pages, followed by `.htaccess` and the manifest.
-Individual local file replacement may be atomic where metadata permits, but
-this is not a whole-site atomic switch: readers can temporarily encounter mixed
-generations. Remote filesystem behavior would require separate evidence.
+The normal phases are `observed`, `staged`, `prepared`, `applying`, `applied` and
+`verified`. Control state includes generation, baseline, attempt, plan digest,
+progress and any pending operation. An unfinished attempt blocks new attempts,
+even after process death releases the operating-system lock.
 
-An unknown outcome must never trigger a blind retry. Reconciliation would compare
-the journal with actual state and classify an operation as not applied, applied
-or conflicting. Unexpected bytes, metadata, missing backups or ambiguous
-generation would block continuation. Crash recovery must work in a fresh process.
+Before each target mutation, the engine durably records intent. It checks the
+expected bytes, metadata, path identities, parent directories and staged source,
+then publishes the prepared file or directory. Afterwards it observes actual
+state before recording completion. A successful write return is insufficient.
+Files and containing directories are fsynced. State replacement records the
+verified generation and its baseline together; a journal checksum detects
+corruption, not forgery by a writer who controls the private journal.
 
-## Preservation and bounded rollback
+Required new directories precede files. Assets and data precede HTML, followed
+by `.htaccess` and the unchanged artifact manifest. Individual replacements are
+atomic on the tested local filesystem. This is not a whole-site atomic switch:
+readers could see mixed generations during application.
 
-Only planned candidate paths could be written. An unowned path collision must
-fail rather than silently claim ownership. Files outside the plan, including
-unmanaged `.well-known` entries and retired assets, would remain untouched. Root
-permissions and ownership would remain unchanged. Aliased or overlapping roots,
-links and special files would be rejected. Locks, journals and backups belong
-outside the simulated webroot.
+`reconcile(ticket)` never writes target files. It compares a pending operation
+with its before and after states, recording `not_applied` or `applied`. A third
+state, changed metadata, missing backup, substituted path or ambiguous generation
+blocks continuation with `reconciliation_required`. Consistent state permits an
+explicit subsequent apply or rollback. A preparation interrupted before target
+writes is closed as `aborted` after verifying the untouched target; a new attempt
+must validate its inputs again.
 
-For `.htaccess`, the validated predecessor block must be nonempty and occur
-exactly once in the installed file. Prefix and suffix must be bound separately
-by length and hash and preserved in position. Only the managed block changes.
-Missing, repeated or changed boundaries are conflicts. The artifact manifest
-remains unchanged; the composite installed file needs its own hash, recorded
-separately from the artifact block's hash.
+Tests terminate disposable workers at staging, backup, intent, write,
+observation, verification and generation boundaries. The trusted parent retains
+the fixture and ticket while a fresh worker reads the durable state. These are
+process-crash tests, not a claim about power-loss recovery on arbitrary storage.
 
-Rollback would restore only verified preimages of files written by that attempt,
-conditional on the active generation and matching postimages. It could remove
-its own new files only while their bytes still match, and its own directories
-only while empty. It must preserve newer non-target files and never restore an
-entire backup tree. Changed managed files, overlays or backups block rollback.
-There are no database, Worker or community-data operations.
+## Preservation and rollback
 
-## Acceptance and remaining boundaries
+Only planned candidate paths are written. Unowned collisions fail; retired
+assets and unmanaged files, including `.well-known` contents, remain. Root
+metadata stays unchanged. Links, hardlinks, special files, root aliases and
+overlapping roots are rejected. Control state and backups stay outside the
+simulated webroot.
 
-Required fixtures would cover:
+The nonempty historical `.htaccess` block must occur exactly once in its installed
+file. Its bound prefix and suffix stay in position around the candidate block.
+The resulting block must also be unambiguous. The composite installed hash is
+recorded separately from the artifact block's hash; artifact bytes and their
+manifest remain unchanged.
 
-- Real predecessor/candidate builds with legitimately added and removed assets;
-  historical integrity succeeds, retired assets remain, and a forged predecessor
-  pair fails against the fixed baseline.
-- Hidden files, overlay variants, unowned collisions, changed bytes, path/FD
-  substitution, links, special files and overlapping roots.
-- Interruptions before and after staging, backup, intent, write, verification
-  and generation recording; fresh-process reconciliation without blind retry.
-- Concurrent attempts, stale plans, newer generations, interrupted rollback,
-  changed backups and preservation of newly added non-target files.
-- Bounded inputs, private exclusive reports, sanitized failures and protection
-  checks that remain active under optimized Python.
+Rollback has separate preparation and application phases with the same
+intent/observation/reconciliation protocol. It requires the original attempt
+ticket, matching generation, verified backups and unchanged postimages. It
+restores only files actually written by that attempt. New files are removed
+conditionally; created directories are removed only while empty. New non-target
+files and their containing directories survive. Rollback advances the generation
+monotonically and binds the restored baseline; it never rewinds the counter or
+restores an entire tree. No database, Worker or community-data operation exists.
 
-Remote access remains operator-only until target and credential scope, shared
-locking, durable journals, filesystem behavior and recovery are proven. Exact
-release authority, required-check policy, fresh provenance, Commons compatibility,
-TLS, origin/edge verification and cache invalidation remain separate work.
+## Reports and remaining release gates
+
+`report()` returns a bounded summary of phase, generation, candidate, plan digest
+and operation counts with `fixture_only: true` and
+`deployment_authorized: false`. `write_report(path)` creates an exclusive 0600
+file outside the target. Reports exclude absolute paths, ownership IDs, overlay
+contents and raw filesystem errors. Detailed journals and handles remain private.
+
+Run the suite with ordinary and optimized Python as documented in
+[CONTRIBUTING.md](../CONTRIBUTING.md). The product integration test builds the
+current site and uses a manifest-valid historical fixture with an added and a
+retired asset. Other tests cover stale tickets, concurrent attempts, byte and
+metadata conflicts, broken backups, incomplete transfers, false successful
+writes, preservation and fresh-process recovery.
+
+A remote adapter, scoped credentials, provider locking, durable operator recovery,
+and a publication command remain future work. Exact release authority, required
+checks, fresh provenance, Commons compatibility, TLS, origin/edge verification
+and cache invalidation remain separate gates. An offline fixture result cannot
+authorize production access.
