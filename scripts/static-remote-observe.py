@@ -146,6 +146,10 @@ def parse_manifest(raw):
         match = re.fullmatch(rb'([a-f0-9]{64})  ([A-Za-z0-9._/-]+)', line)
         need(match is not None, 'invalid_manifest')
         name = match[2].decode('ascii')
+        # GNU sha256sum output from build-site.sh prefixes paths with ./.
+        # Normalize exactly once, then apply the same traversal/duplicate rules.
+        if name.startswith('./'):
+            name = name[2:]
         parts = name.split('/')
         need(len(name) <= 512 and len(parts) <= 8 and not name.startswith('/')
              and all(part not in {'', '.', '..'} for part in parts)

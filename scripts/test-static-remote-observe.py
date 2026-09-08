@@ -108,6 +108,22 @@ class ObserverTests(unittest.TestCase):
         self.assertEqual(after['other_content_differences'], 1)
         self.assertNotEqual(before['observed_inventory_sha256'], after['observed_inventory_sha256'])
 
+    def test_current_build_manifest(self):
+        artifact = self.base / 'built-site'
+        subprocess.run([str(SOURCE.parent / 'build-site.sh'), str(artifact)],
+                       capture_output=True, check=True, timeout=30)
+        self.config['root'] = str(artifact)
+        self.config['root_identity'] = observer.identity(artifact.stat())
+        self.save_config()
+        manifest = (artifact / observer.MANIFEST).read_bytes()
+        self.assertTrue(all(b'  ./' in line for line in manifest.splitlines()))
+        status, report = self.run_cli()
+        self.assertEqual(status, 0)
+        self.assertEqual(report['files'], len(manifest.splitlines()))
+        self.assertEqual(report['manifest_sha256'], hashlib.sha256(manifest).hexdigest())
+        self.assertEqual(report['other_content_differences'], 0)
+        self.assertFalse(report['htaccess_differs'])
+
     def test_rejects_commands_before_opening_any_configuration(self):
         for command in ['', 'sh', 'sftp', 'internal-sftp', 'scp -t /tmp/x', observer.COMMAND + ' ',
                         observer.COMMAND + '; id', observer.COMMAND + '\n', '$(id)', '../../other']:
@@ -203,11 +219,13 @@ class ObserverTests(unittest.TestCase):
     def test_rejects_manifest_path_attacks_and_duplicates(self):
         valid = self.manifest.read_bytes()
         for path in ['../unrelated/sentinel', '/etc/passwd', 'assets/../index.html',
-                     'assets//style.css', '.', observer.MANIFEST, 'x\\y', 'a/' * 8 + 'file']:
+                     'assets//style.css', '.', observer.MANIFEST, 'x\\y', 'a/' * 8 + 'file',
+                     '././index.html', './../unrelated/sentinel', './' + observer.MANIFEST]:
             with self.subTest(path=path):
                 self.manifest.write_bytes(b'0' * 64 + b'  ' + path.encode() + b'\n')
                 self.rejects('invalid_manifest')
-        for raw in [valid + valid, valid.replace(b'\n', b'\r\n'), valid[:-1], b'', b'\n']:
+        normalized_duplicate = valid + valid.splitlines()[0].replace(b'  ', b'  ./') + b'\n'
+        for raw in [valid + valid, normalized_duplicate, valid.replace(b'\n', b'\r\n'), valid[:-1], b'', b'\n']:
             with self.subTest(raw=raw[:30]):
                 self.manifest.write_bytes(raw)
                 self.rejects('invalid_manifest')
