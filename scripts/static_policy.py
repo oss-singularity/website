@@ -38,7 +38,7 @@ AddType text/plain .txt .sha256
 '''
 SLUG = r'[a-z0-9]+(?:-[a-z0-9]+)*'
 ASSET = SLUG + r'(?:\.[a-f0-9]{8,64})?'
-ROOT_FILES = {'index.html', '404.html', 'robots.txt', 'sitemap.xml', 'llms.txt',
+ROOT_FILES = {'index.html', '404.html', 'favicon.ico', 'robots.txt', 'sitemap.xml', 'llms.txt',
               'site.webmanifest', MANIFEST, '.htaccess',
               '.well-known/agent-home.json', '.well-known/security.txt'}
 

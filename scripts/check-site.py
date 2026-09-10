@@ -77,7 +77,7 @@ def local_target(root: Path, document: Path, value: str) -> Path | None:
 
 def required_files(actual: set[str], read) -> set[str]:
     required = {
-        ".htaccess", ".well-known/security.txt", "404.html",
+        ".htaccess", ".well-known/security.txt", "404.html", "favicon.ico",
         "dist-manifest.sha256", "index.html",
         "robots.txt", "sitemap.xml", "site.webmanifest",
         "assets/brand/oss-singularity-mark.svg",
