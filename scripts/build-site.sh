@@ -39,6 +39,7 @@ copy_file() {
 
 copy_file index.html index.html
 copy_file 404.html 404.html
+copy_file favicon.ico favicon.ico
 copy_file .htaccess .htaccess
 copy_file robots.txt robots.txt
 copy_file sitemap.xml sitemap.xml
