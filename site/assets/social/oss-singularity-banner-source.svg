@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2172" height="724" viewBox="0 0 2172 724" role="img" aria-labelledby="title desc">
+  <title id="title">OSS Singularity — LinkedIn Banner</title>
+  <desc id="desc">Vector reconstruction of the previously provided OSS Singularity banner, using the original brand mark. This is a vector reconstruction, not the original source of the AI-generated PNG.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.22" y2="1">
+      <stop offset="0%" stop-color="#091221"/>
+      <stop offset="55%" stop-color="#050b15"/>
+      <stop offset="100%" stop-color="#03060d"/>
+    </linearGradient>
+    <radialGradient id="blueAmbient" cx="50%" cy="10%" r="80%">
+      <stop offset="0%" stop-color="#10264b" stop-opacity="0.45"/>
+      <stop offset="60%" stop-color="#0e1e39" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbShade" cx="50%" cy="48%" r="70%">
+      <stop offset="0%" stop-color="#121826" stop-opacity="0.78"/>
+      <stop offset="100%" stop-color="#050910" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="headlineGradient" x1="0" y1="0" x2="1" y2="0.1">
+      <stop offset="0%" stop-color="#ff6bd2"/>
+      <stop offset="42%" stop-color="#e7b0ff"/>
+      <stop offset="78%" stop-color="#a9dcff"/>
+      <stop offset="100%" stop-color="#47e4ff"/>
+    </linearGradient>
+    <linearGradient id="cyanText" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#25dfff"/>
+      <stop offset="100%" stop-color="#69f0ff"/>
+    </linearGradient>
+    <linearGradient id="bottomLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ff43c6"/>
+      <stop offset="26%" stop-color="#d47df0"/>
+      <stop offset="56%" stop-color="#8fd4ff"/>
+      <stop offset="100%" stop-color="#29e1ff"/>
+    </linearGradient>
+    <linearGradient id="trailMagenta" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ff5ccd" stop-opacity="0.25"/>
+      <stop offset="28%" stop-color="#ff6ad2"/>
+      <stop offset="100%" stop-color="#76e9ff"/>
+    </linearGradient>
+    <linearGradient id="trailBlue" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#59e8ff" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#d8b6ff"/>
+      <stop offset="100%" stop-color="#72eaff"/>
+    </linearGradient>
+    <linearGradient id="sharedLight" x1="510" y1="451" x2="840" y2="451" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f7fbff"/>
+      <stop offset="25%" stop-color="#ffffff"/>
+      <stop offset="48%" stop-color="#bdf3ff"/>
+      <stop offset="70%" stop-color="#57d8ff" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#b86af1" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
+    <filter id="wideGlow" x="-100%" y="-300%" width="300%" height="700%"><feGaussianBlur stdDeviation="16"/></filter>
+    <filter id="nodeGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.3"/></filter>
+    <filter id="brandGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="28" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <clipPath id="cropTop"><rect width="2172" height="616"/></clipPath>
+  </defs>
+
+  <rect width="2172" height="724" fill="url(#bg)"/>
+  <rect width="2172" height="724" fill="url(#blueAmbient)"/>
+
+  <g clip-path="url(#cropTop)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-85 25C73 174 230 409 84 616" stroke="#244775" stroke-width="2.1" stroke-opacity=".45"/>
+    <path d="M-80 329C75 357 210 455 322 633" stroke="#264572" stroke-width="1.2" stroke-opacity=".38"/>
+    <path d="M-17 306L102 264L143 442L286 585L327 655" stroke="#19314f" stroke-width="1" stroke-opacity=".27"/>
+    <path d="M1250 530C1170 420 1195 242 1315 124C1372 68 1440 23 1525 3" stroke="#254874" stroke-width="2.1" stroke-opacity=".42"/>
+    <path d="M1308 585C1450 722 1738 704 1878 575C1978 482 2070 295 1985 165" stroke="#23436e" stroke-width="2.1" stroke-opacity=".44"/>
+    <path d="M1348 289L1306 242L1360 141L1410 173" stroke="#223a5d" stroke-width="1.1" stroke-opacity=".32"/>
+    <path d="M1980 180L2125 60L2140-22" stroke="#244875" stroke-width="2.1" stroke-opacity=".38"/>
+    <path d="M2125 60C2128 104 2150 143 2198 178" stroke="#264777" stroke-width="2.1" stroke-opacity=".44"/>
+    <path d="M1835 545C1988 520 2086 468 2165 355" stroke="#234a7d" stroke-width="2.1" stroke-opacity=".42"/>
+  </g>
+
+  <g clip-path="url(#cropTop)">
+    <circle cx="1610" cy="302" r="305" fill="url(#orbShade)"/>
+    <circle cx="1610" cy="302" r="245" fill="none" stroke="#182d50" stroke-width="2" stroke-opacity=".45"/>
+  </g>
+
+  <g>
+    <circle cx="102" cy="264" r="9" fill="#07101b" stroke="#ce4cac" stroke-width="2.3"/>
+    <circle cx="102" cy="264" r="9" fill="none" stroke="#ce4cac" stroke-width=".9" stroke-opacity=".48" filter="url(#nodeGlow)"/>
+    <circle cx="142" cy="442" r="9" fill="#07101b" stroke="#38dff7" stroke-width="2.3"/>
+    <circle cx="142" cy="442" r="9" fill="none" stroke="#38dff7" stroke-width=".9" stroke-opacity=".48" filter="url(#nodeGlow)"/>
+    <circle cx="286" cy="585" r="6.5" fill="#07101b" stroke="#6c7892" stroke-width="2.3"/>
+    <circle cx="286" cy="585" r="6.5" fill="none" stroke="#6c7892" stroke-width=".9" stroke-opacity=".48" filter="url(#nodeGlow)"/>
+    <circle cx="1360" cy="141" r="8" fill="#07101b" stroke="#39e2f5" stroke-width="2.3"/>
+    <circle cx="1360" cy="141" r="8" fill="none" stroke="#39e2f5" stroke-width=".9" stroke-opacity=".48" filter="url(#nodeGlow)"/>
+    <circle cx="1306" cy="242" r="7.5" fill="#07101b" stroke="#38e3f9" stroke-width="2.3"/>
+    <circle cx="1306" cy="242" r="7.5" fill="none" stroke="#38e3f9" stroke-width=".9" stroke-opacity=".48" filter="url(#nodeGlow)"/>
+    <circle cx="1275" cy="286" r="9" fill="#07101b" stroke="#34e5ff" stroke-width="2.3"/>
+    <circle cx="1275" cy="286" r="9" fill="none" stroke="#34e5ff" stroke-width=".9" stroke-opacity=".48" filter="url(#nodeGlow)"/>
+    <circle cx="2098" cy="58" r="10" fill="#07101b" stroke="#34e3f5" stroke-width="2.3"/>
+    <circle cx="2098" cy="58" r="10" fill="none" stroke="#34e3f5" stroke-width=".9" stroke-opacity=".48" filter="url(#nodeGlow)"/>
+    <circle cx="2015" cy="221" r="9" fill="#07101b" stroke="#ce42bc" stroke-width="2.3"/>
+    <circle cx="2015" cy="221" r="9" fill="none" stroke="#ce42bc" stroke-width=".9" stroke-opacity=".48" filter="url(#nodeGlow)"/>
+    <circle cx="1846" cy="558" r="10" fill="#07101b" stroke="#34e3f5" stroke-width="2.3"/>
+    <circle cx="1846" cy="558" r="10" fill="none" stroke="#34e3f5" stroke-width=".9" stroke-opacity=".48" filter="url(#nodeGlow)"/>
+  </g>
+
+  <g id="brand-mark" transform="translate(1265 3) scale(0.295)">
+    <g fill="none" stroke-linecap="round" filter="url(#brandGlow)">
+      <path d="M 1605 812 A 604 604 0 0 1 600 604" stroke="#ff46be" stroke-width="48"/>
+      <path d="M 443 1236 A 604 604 0 0 1 1448 1444" stroke="#ff46be" stroke-width="48"/>
+      <path d="M 612 581 A 604 604 0 0 1 443 812" stroke="#50e1ff" stroke-width="48"/>
+      <path d="M 1436 1467 A 604 604 0 0 1 1605 1236" stroke="#50e1ff" stroke-width="48"/>
+    </g>
+    <circle cx="1024" cy="1024" r="207" fill="#020308" stroke="#ff50c3" stroke-width="26"/>
+    <circle cx="1024" cy="1024" r="192" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="10"/>
+    <g stroke="#ffffff" stroke-opacity=".4" stroke-width="14">
+      <path d="M1024 804V629"/>
+      <path d="M1244 1024H1419"/>
+      <path d="M1024 1244V1419"/>
+      <path d="M804 1024H629"/>
+    </g>
+    <g fill="#50e1ff">
+      <circle cx="1024" cy="568" r="32"/>
+      <circle cx="1480" cy="1024" r="32"/>
+      <circle cx="1024" cy="1480" r="32"/>
+      <circle cx="568" cy="1024" r="32"/>
+    </g>
+    <g fill="#080a10">
+      <circle cx="1024" cy="568" r="14"/>
+      <circle cx="1480" cy="1024" r="14"/>
+      <circle cx="1024" cy="1480" r="14"/>
+      <circle cx="568" cy="1024" r="14"/>
+    </g>
+    <g fill="none" stroke="#f5f5fa" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M935 965L890 1024L935 1083"/>
+      <path d="M1113 965L1158 1024L1113 1083"/>
+    </g>
+    <circle cx="1024" cy="1024" r="20" fill="#ff4abe"/>
+  </g>
+
+  <g id="type" font-family="DejaVu Sans, Arial, sans-serif">
+    <text x="430" y="142" font-size="26" letter-spacing="18" font-weight="500" fill="url(#cyanText)">OSS SINGULARITY</text>
+    <text x="430" y="310" font-size="104" font-weight="800" fill="#ffffff">Many minds.</text>
+    <text x="430" y="415" font-size="104" font-weight="800" fill="url(#headlineGradient)">One open horizon.</text>
+    <text x="442" y="512" font-size="39" letter-spacing="1.6" fill="#c6ccd8">An open home for every entity.</text>
+  </g>
+
+  <g fill="none" stroke-linecap="round">
+    <path d="M376 386C423 425 455 448 512 451" stroke="url(#trailMagenta)" stroke-width="2.1"/>
+    <path d="M372 415C419 452 462 461 512 451" stroke="url(#trailBlue)" stroke-width="2.1"/>
+    <path d="M382 450C430 470 476 463 512 451" stroke="url(#trailBlue)" stroke-width="2.2"/>
+    <path d="M512 451C550 442 579 452 612 452C676 452 736 447 836 454" stroke="url(#sharedLight)" stroke-width="8" stroke-opacity=".68" filter="url(#softGlow)"/>
+    <path d="M512 451C550 442 579 452 612 452C676 452 736 447 836 454" stroke="url(#sharedLight)" stroke-width="2.5" stroke-opacity="1"/>
+    <circle cx="512" cy="451" r="7" fill="#c8f6ff" opacity=".72" filter="url(#softGlow)"/>
+    <circle cx="512" cy="451" r="4.7" fill="#f7fcff"/>
+  </g>
+
+  <path d="M0 616H2172" fill="none" stroke="url(#bottomLine)" stroke-width="18" stroke-opacity=".14" filter="url(#wideGlow)"/>
+  <path d="M0 616H2172" fill="none" stroke="url(#bottomLine)" stroke-width="7" stroke-opacity=".35" filter="url(#softGlow)"/>
+  <path d="M0 616H2172" fill="none" stroke="url(#bottomLine)" stroke-width="1.65"/>
+</svg>

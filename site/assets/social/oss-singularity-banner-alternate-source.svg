@@ -1,0 +1,105 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="2172" height="724" viewBox="0 0 2172 724" version="1.1" role="img" aria-labelledby="banner-title banner-description">
+  <title id="banner-title">OSS Singularity — Many minds. One open horizon.</title>
+  <desc id="banner-description">Editable vector reconstruction of the generated OSS Singularity banner. Dark navy background, cyan and magenta network orbits, shared light, and the supplied original OSS Singularity brand mark. No embedded raster image. All text remains editable. Fonts: DejaVu Sans for headlines; Inter for the brand name and tagline. This is a reconstruction, not the original source of the AI-generated PNG.</desc>
+  <!-- SOURCE: editable vector reconstruction. The original PNG is not embedded. -->
+  <defs><linearGradient id="background" x1="0" y1="0" x2="0.23" y2="1"><stop offset="0" stop-color="#0a1223" stop-opacity="1"/><stop offset=".52" stop-color="#060b15" stop-opacity="1"/><stop offset="1" stop-color="#03060d" stop-opacity="1"/></linearGradient><radialGradient id="ambient-blue" cx="51%" cy="-12%" r="88%"><stop offset="0" stop-color="#102244" stop-opacity="0.25"/><stop offset=".53" stop-color="#101a33" stop-opacity="0.07"/><stop offset="1" stop-color="#070a12" stop-opacity="0"/></radialGradient><radialGradient id="bottom-bloom" cx="72%" cy="88%" r="67%" gradientTransform="translate(0 .65) scale(1 .3)"><stop offset="0" stop-color="#092849" stop-opacity="0.2"/><stop offset="1" stop-color="#03060d" stop-opacity="0"/></radialGradient><linearGradient id="headline-horizon" x1="0" y1="0" x2="1" y2=".06"><stop offset="0" stop-color="#ff68ca" stop-opacity="1"/><stop offset=".46" stop-color="#eab2fa" stop-opacity="1"/><stop offset="1" stop-color="#70e8ff" stop-opacity="1"/></linearGradient><linearGradient id="headline-horizon-bright" x1="0" y1="0" x2="1" y2=".06"><stop offset="0" stop-color="#ff62ce" stop-opacity="1"/><stop offset=".4" stop-color="#dca6fa" stop-opacity="1"/><stop offset=".72" stop-color="#8adefa" stop-opacity="1"/><stop offset="1" stop-color="#26e3f4" stop-opacity="1"/></linearGradient><linearGradient id="one-union" x1="0" y1="0" x2=".87" y2="1"><stop offset="0" stop-color="#ff75d6" stop-opacity="1"/><stop offset=".29" stop-color="#e3b4ff" stop-opacity="1"/><stop offset=".55" stop-color="#f5faff" stop-opacity="1"/><stop offset="1" stop-color="#70e8ff" stop-opacity="1"/></linearGradient><linearGradient id="shared-light" gradientUnits="userSpaceOnUse" x1="506" y1="451" x2="836" y2="451"><stop offset="0" stop-color="#f6fbff" stop-opacity="1"/><stop offset=".23" stop-color="#ffffff" stop-opacity="1"/><stop offset=".46" stop-color="#b9f4ff" stop-opacity="1"/><stop offset=".67" stop-color="#59d5ff" stop-opacity="0.42"/><stop offset="1" stop-color="#b761e1" stop-opacity="0"/></linearGradient><linearGradient id="shared-magenta" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff56ca" stop-opacity="0.25"/><stop offset=".25" stop-color="#ff64cf" stop-opacity="1"/><stop offset="1" stop-color="#75e8ff" stop-opacity="1"/></linearGradient><linearGradient id="shared-violet" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#cd84ee" stop-opacity="0"/><stop offset=".25" stop-color="#d8b0ff" stop-opacity="1"/><stop offset="1" stop-color="#70e8ff" stop-opacity="1"/></linearGradient><linearGradient id="shared-cyan" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#64dfff" stop-opacity="0"/><stop offset=".28" stop-color="#dab0ff" stop-opacity="1"/><stop offset="1" stop-color="#70e8ff" stop-opacity="1"/></linearGradient><linearGradient id="horizon-line" gradientUnits="userSpaceOnUse" x1="0" y1="616" x2="2172" y2="616"><stop offset="0" stop-color="#fa4ccd" stop-opacity="1"/><stop offset=".27" stop-color="#d87ae9" stop-opacity="1"/><stop offset=".54" stop-color="#a6d5fa" stop-opacity="1"/><stop offset=".75" stop-color="#30dcfb" stop-opacity="1"/><stop offset="1" stop-color="#2bd9ff" stop-opacity="1"/></linearGradient><radialGradient id="orb-shading" cx="48%" cy="47%" r="69%"><stop offset="0" stop-color="#151721" stop-opacity="0.72"/><stop offset=".65" stop-color="#080d17" stop-opacity="0.9"/><stop offset="1" stop-color="#050910" stop-opacity="1"/></radialGradient><filter id="light-soft" x="-50%" y="-400%" width="200%" height="900%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="5"/></filter><filter id="light-wide" x="-50%" y="-400%" width="200%" height="900%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="15"/></filter><filter id="node-glow" x="-50%" y="-400%" width="200%" height="900%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="2.2"/></filter><filter id="horizon-soft" filterUnits="userSpaceOnUse" x="-60" y="550" width="2292" height="132" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="4"/></filter><filter id="horizon-wide" filterUnits="userSpaceOnUse" x="-60" y="550" width="2292" height="132" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="13"/></filter><radialGradient id="brand-bg" cx="50%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#151721"/>
+      <stop offset="100%" stop-color="#08090f"/>
+    </radialGradient>
+    <filter id="brand-glow" x="-25%" y="-35%" width="150%" height="170%"><feGaussianBlur stdDeviation="28" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <clipPath id="canvas-clip"><rect width="2172" height="616"/></clipPath></defs>
+  <g id="background-layer" inkscape:groupmode="layer" inkscape:label="01 · Background">
+    <rect width="2172" height="724" fill="url(#background)"/>
+    <rect width="2172" height="724" fill="url(#ambient-blue)"/>
+    <rect width="2172" height="724" fill="url(#bottom-bloom)"/>
+  </g>
+  <g id="network-layer" inkscape:groupmode="layer" inkscape:label="02 · Open network" clip-path="url(#canvas-clip)">
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-85 25C73 174 230 409 84 616" stroke="#234575" stroke-width="2.1" stroke-opacity=".48"/>
+      <path d="M-80 329C75 357 210 455 322 633" stroke="#264572" stroke-width="1.2" stroke-opacity=".38"/>
+      <path d="M-17 306L102 264L143 442L286 585L327 655" stroke="#19314f" stroke-width="1" stroke-opacity=".27"/>
+      <path d="M1314 536C1193 420 1241 234 1367 108C1415 52 1486-12 1553-28" stroke="#254874" stroke-width="2.1" stroke-opacity=".47"/>
+      <path d="M1269 586C1399 724 1704 702 1845 568C1946 472 2045 288 1945 162" stroke="#23436e" stroke-width="2.2" stroke-opacity=".47"/>
+      <path d="M1334 309L1283 276L1367 108L1419 140" stroke="#223a5d" stroke-width="1.1" stroke-opacity=".4"/>
+      <path d="M1945 174L2117 60L2131-26" stroke="#244875" stroke-width="2.1" stroke-opacity=".4"/>
+      <path d="M2117 60C2119 104 2144 143 2198 178" stroke="#264777" stroke-width="2.1" stroke-opacity=".48"/>
+      <path d="M1914 525C2004 512 2071 480 2121 438C2160 390 2184 352 2210 306" stroke="#234a7d" stroke-width="2.1" stroke-opacity=".48"/>
+      <path d="M1718 659L1975 624L2121 438L2201 391" stroke="#162b48" stroke-width="1.1" stroke-opacity=".25"/>
+      <path d="M1162 261C1205 265 1243 270 1283 276" stroke="#182c4a" stroke-width="1" stroke-opacity=".2"/>
+    </g>
+  </g>
+  <g id="orb-layer" inkscape:groupmode="layer" inkscape:label="03 · Orbital field" clip-path="url(#canvas-clip)">
+    <circle cx="1672" cy="306" r="325" fill="url(#orb-shading)"/>
+    <path d="M1989 379A325 325 0 0 1 1845 580" fill="none" stroke="#182d50" stroke-width="2" stroke-opacity=".6"/>
+  </g>
+  <g id="network-nodes" inkscape:groupmode="layer" inkscape:label="04 · Network nodes">
+    <circle cx="102" cy="264" r="9" fill="#07101b" stroke="#ce4cac" stroke-width="2.3"/>
+    <circle cx="102" cy="264" r="9" fill="none" stroke="#ce4cac" stroke-width=".9" stroke-opacity=".48" filter="url(#node-glow)"/>
+    <circle cx="142" cy="442" r="9" fill="#07101b" stroke="#38dff7" stroke-width="2.3"/>
+    <circle cx="142" cy="442" r="9" fill="none" stroke="#38dff7" stroke-width=".9" stroke-opacity=".48" filter="url(#node-glow)"/>
+    <circle cx="286" cy="585" r="6.5" fill="#07101b" stroke="#6c7892" stroke-width="2.3"/>
+    <circle cx="286" cy="585" r="6.5" fill="none" stroke="#6c7892" stroke-width=".9" stroke-opacity=".48" filter="url(#node-glow)"/>
+    <circle cx="1367" cy="108" r="8" fill="#07101b" stroke="#39e2f5" stroke-width="2.3"/>
+    <circle cx="1367" cy="108" r="8" fill="none" stroke="#39e2f5" stroke-width=".9" stroke-opacity=".48" filter="url(#node-glow)"/>
+    <circle cx="1283" cy="276" r="6.6" fill="#07101b" stroke="#4de8fc" stroke-width="2.3"/>
+    <circle cx="1283" cy="276" r="6.6" fill="none" stroke="#4de8fc" stroke-width=".9" stroke-opacity=".48" filter="url(#node-glow)"/>
+    <circle cx="1379" cy="534" r="8" fill="#07101b" stroke="#d34bc4" stroke-width="2.3"/>
+    <circle cx="1379" cy="534" r="8" fill="none" stroke="#d34bc4" stroke-width=".9" stroke-opacity=".48" filter="url(#node-glow)"/>
+    <circle cx="1957" cy="174" r="7.6" fill="#07101b" stroke="#ce42bc" stroke-width="2.3"/>
+    <circle cx="1957" cy="174" r="7.6" fill="none" stroke="#ce42bc" stroke-width=".9" stroke-opacity=".48" filter="url(#node-glow)"/>
+    <circle cx="2117" cy="60" r="9" fill="#07101b" stroke="#34e3f5" stroke-width="2.3"/>
+    <circle cx="2117" cy="60" r="9" fill="none" stroke="#34e3f5" stroke-width=".9" stroke-opacity=".48" filter="url(#node-glow)"/>
+    <circle cx="2123" cy="438" r="9" fill="#07101b" stroke="#cd4aaa" stroke-width="2.3"/>
+    <circle cx="2123" cy="438" r="9" fill="none" stroke="#cd4aaa" stroke-width=".9" stroke-opacity=".48" filter="url(#node-glow)"/>
+  </g>
+  <g id="original-brand-mark" inkscape:groupmode="layer" inkscape:label="05 · Original OSS Singularity mark">
+    <g id="brand-artwork" transform="translate(1326.912 -33.088) scale(0.337)"><!-- Original oss-singularity-mark.svg artwork, unchanged; only the backdrop is omitted. --><g fill="none" stroke-linecap="round" filter="url(#brand-glow)">
+    <path d="M 1605 812 A 604 604 0 0 1 600 604" stroke="#ff46be" stroke-width="48"/>
+    <path d="M 443 1236 A 604 604 0 0 1 1448 1444" stroke="#ff46be" stroke-width="48"/>
+    <path d="M 612 581 A 604 604 0 0 1 443 812" stroke="#50e1ff" stroke-width="48"/>
+    <path d="M 1436 1467 A 604 604 0 0 1 1605 1236" stroke="#50e1ff" stroke-width="48"/>
+  </g>
+  <circle cx="1024" cy="1024" r="207" fill="#020308" stroke="#ff50c3" stroke-width="26"/>
+  <circle cx="1024" cy="1024" r="192" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="10"/>
+  <g stroke="#ffffff" stroke-opacity=".4" stroke-width="14">
+    <path d="M1024 804V629"/><path d="M1244 1024H1419"/><path d="M1024 1244V1419"/><path d="M804 1024H629"/>
+  </g>
+  <g fill="#50e1ff">
+    <circle cx="1024" cy="568" r="32"/><circle cx="1480" cy="1024" r="32"/><circle cx="1024" cy="1480" r="32"/><circle cx="568" cy="1024" r="32"/>
+  </g>
+  <g fill="#080a10">
+    <circle cx="1024" cy="568" r="14"/><circle cx="1480" cy="1024" r="14"/><circle cx="1024" cy="1480" r="14"/><circle cx="568" cy="1024" r="14"/>
+  </g>
+  <g fill="none" stroke="#f5f5fa" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M935 965L890 1024L935 1083"/><path d="M1113 965L1158 1024L1113 1083"/>
+  </g>
+  <circle cx="1024" cy="1024" r="20" fill="#ff4abe"/>
+</g>
+  </g>
+  <g id="typography-layer" inkscape:groupmode="layer" inkscape:label="06 · Typography — editable text" font-family="Inter, DejaVu Sans, sans-serif">
+    <text id="brand-name" x="440" y="212" font-size="26" font-weight="500" letter-spacing="19.7" fill="#4be7f9">OSS SINGULARITY</text>
+    <text id="many-minds" x="0" y="0" font-size="116" font-weight="700" letter-spacing="-.3" fill="#f7f7fc" font-family="DejaVu Sans, sans-serif" transform="translate(434 324) scale(0.85 1)">Many minds.</text>
+    <text id="one-o" x="0" y="0" font-size="116" font-weight="700" letter-spacing="-1.4" fill="url(#one-union)" font-family="DejaVu Sans, sans-serif" transform="translate(434 435) scale(0.91 1)">O</text>
+    <text id="one-ne" x="0" y="0" font-size="116" font-weight="700" letter-spacing="-2" fill="#f7f7fc" font-family="DejaVu Sans, sans-serif" transform="translate(525 435) scale(0.91 1)">ne</text>
+    <text id="open" x="0" y="0" font-size="112" font-weight="700" letter-spacing="-2" fill="url(#headline-horizon)" font-family="DejaVu Sans, sans-serif" transform="translate(698 435) scale(0.87 1)">open</text>
+    <text id="horizon" x="0" y="0" font-size="112" font-weight="700" letter-spacing="-2" fill="url(#headline-horizon-bright)" font-family="DejaVu Sans, sans-serif" transform="translate(1000 435) scale(0.83 1)">horizon.</text>
+    <text id="tagline" x="441" y="517" font-size="36" font-weight="400" letter-spacing="1.8" fill="#c3c8d5">An open home for every entity.</text>
+  </g>
+  <g id="shared-light-layer" inkscape:groupmode="layer" inkscape:label="07 · Many streams, one light">
+    <g fill="none" stroke-linecap="round">
+      <path d="M376 386C423 425 455 448 512 451" stroke="url(#shared-magenta)" stroke-width="2.1"/>
+      <path d="M372 415C419 452 462 461 512 451" stroke="url(#shared-violet)" stroke-width="2.1"/>
+      <path d="M382 450C430 470 476 463 512 451" stroke="url(#shared-cyan)" stroke-width="2.2"/>
+      <path d="M512 451C550 442 579 452 612 452C676 452 736 447 836 454" stroke="url(#shared-light)" stroke-width="8" stroke-opacity=".68" filter="url(#light-soft)"/>
+      <path d="M512 451C550 442 579 452 612 452C676 452 736 447 836 454" stroke="url(#shared-light)" stroke-width="2.5" stroke-opacity="1"/>
+    </g>
+    <circle cx="512" cy="451" r="7" fill="#c8f6ff" opacity=".72" filter="url(#light-soft)"/>
+    <circle cx="512" cy="451" r="4.7" fill="#f7fcff"/>
+  </g>
+  <g id="bottom-horizon-layer" inkscape:groupmode="layer" inkscape:label="08 · Open horizon">
+    <path d="M0 616H2172" fill="none" stroke="url(#horizon-line)" stroke-width="18" stroke-opacity=".14" filter="url(#horizon-wide)"/>
+    <path d="M0 616H2172" fill="none" stroke="url(#horizon-line)" stroke-width="7" stroke-opacity=".35" filter="url(#horizon-soft)"/>
+    <path d="M0 616H2172" fill="none" stroke="url(#horizon-line)" stroke-width="1.65" stroke-opacity="1"/>
+  </g>
+</svg>
