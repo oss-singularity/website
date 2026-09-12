@@ -39,13 +39,18 @@ def cli(argv=None):
             print(buffer.getvalue(), end='')
             return 0
         result = {'error': 'invalid_arguments', 'publication_verified': False}
+    except publication.PublicationFailure as error:
+        result = {'error': error.code, 'publication_verified': False, 'failure': error.failure}
+        if error.recovery_failure is not None:
+            result['recovery_failure'] = error.recovery_failure
     except ArtifactError as error:
         result = {'error': error.code if error.code in {
             'publication_disabled', 'untrusted_workflow', 'untrusted_checkout', 'unfinished_publication',
             'api_compatibility_unverified', 'stale_main', 'publication_rolled_back',
             'publication_requires_reconciliation', 'deployment_record_unconfirmed',
             'http_bytes_mismatch', 'http_mime_mismatch', 'http_cache_mismatch',
-            'http_security_mismatch', 'api_unverified', 'http_transport_failed',
+            'http_security_mismatch', 'api_unverified', 'http_transport_failed', 'http_compression_missing',
+            'cache_transition_failed', 'redirect_mismatch', 'tls_unverified',
             'remote_outcome_unconfirmed', 'missing_credential', 'source_wait_expired', 'edge_policy_mismatch',
             'remote_host_identity_failed', 'remote_authentication_failed', 'remote_connection_failed',
             'provider_configuration_changed', 'github_read_failed', 'ambiguous_workflow_runs',

@@ -151,6 +151,14 @@ unresolved record or reset the server journal merely to unblock another run.
 The ordinary automatic path and exceptional operator recovery have different
 acceptance requirements.
 
+Failed transitions report a fixed `failure.stage` and `failure.code`, such as
+`http_acceptance` and `http_compression_missing`. If recovery also fails,
+`recovery_failure` identifies its separate stage and code. Unexpected exceptions
+become `unconfirmed`; exception messages, headers, paths and credentials are never
+included. These categories help diagnose a failure, but do not establish its
+filesystem outcome or permit a retry. The original intent and live verification
+remain required.
+
 ## Verify changes
 
 Run `python3 scripts/test-static-publication.py` and its `python3 -O` counterpart,
