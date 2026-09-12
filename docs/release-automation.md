@@ -30,7 +30,7 @@ rollback and republication pilot are verified; see the
 | Constrained static adapter | Installed and verified with a separate restricted identity. |
 | Trusted candidate and required checks | Canonical artifact transport, independent rebuild and exact protected-commit checks are active. |
 | Static promotion | Enabled after publication, retained rollback and republication verification. |
-| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md), a separate [canonical artifact rehearsal](release-commons-rehearsal.md) and an [independent completed-run consumer](release-commons-candidates.md) are implemented. Automated Commons orchestration, constrained remote promotion and schema migration remain separate work. Static jobs cannot update either. |
+| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md), a separate [canonical artifact rehearsal](release-commons-rehearsal.md), an [independent completed-run consumer](release-commons-candidates.md) and a [version-bound code planner](release-commons-plan.md) are implemented. A journaled transition fixture, constrained remote promotion and schema migration remain separate work. Static jobs cannot update either. |
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing
@@ -101,7 +101,11 @@ publication workflow adds the source, live-verification and deployment-record ga
    deployed hashes; retain a verified rollback target. Interrupted transfers,
    concurrent runs and recovery must pass before enabling routine automatic
    promotion. Static-only releases receive no database-write authority.
-4. **Separate Worker and schema promotion.** Add Worker releases only after
+4. **Separate Worker and schema promotion.** The pure Commons planner now binds
+   captured code to its known predecessor version, exact settings and schema,
+   preserving resources while recording conditional rollback requirements.
+   A structural match is not proof of application or data compatibility.
+   Add Worker releases only after
    scoped permissions and durable recovery are proven. Code-only changes must
    demonstrate compatibility with the installed schema. Schema changes require
    their own rehearsal, private backup, exact DDL inventory and preservation
