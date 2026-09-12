@@ -36,6 +36,7 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Restricted static writes, retention and remote recovery | [Remote writer guide](docs/release-static-remote.md), [`scripts/static-remote-release.py`](scripts/static-remote-release.py), [`scripts/static_remote.py`](scripts/static_remote.py), [`scripts/static_retention.py`](scripts/static_retention.py), [`scripts/test-static-remote.py`](scripts/test-static-remote.py) |
 | End-to-end static publication | [Publication guide](docs/release-publication.md), [`scripts/static_publication.py`](scripts/static_publication.py), [`scripts/test-static-publication.py`](scripts/test-static-publication.py), [publication workflow](.github/workflows/static-publication.yml) |
 | Commons code packaging and schema fingerprints | [Commons artifact guide](docs/release-commons-artifacts.md), [`scripts/commons_artifact.py`](scripts/commons_artifact.py), [`scripts/test-commons-artifact.py`](scripts/test-commons-artifact.py) |
+| Commons artifact transport on canonical main | [Commons rehearsal guide](docs/release-commons-rehearsal.md), [`scripts/commons_rehearsal.py`](scripts/commons_rehearsal.py), [Commons workflow](.github/workflows/commons-release-rehearsal.yml) |
 
 Generated `dist/` is intentionally ignored. Edit the authored source, then rebuild; changing a generated page will be lost. Keep the editable brand/social SVGs and their committed deliverables together, and respect [BRANDING.md](BRANDING.md).
 
@@ -79,6 +80,8 @@ python3 scripts/check-agent-data.py --self-test
 python3 scripts/test-release-artifact.py
 python3 scripts/test-commons-artifact.py
 python3 -O scripts/test-commons-artifact.py
+python3 scripts/test-commons-rehearsal.py
+python3 -O scripts/test-commons-rehearsal.py
 python3 scripts/test-release-rehearsal.py
 python3 scripts/test-release-candidate.py
 python3 scripts/test-release-checks.py
@@ -103,4 +106,4 @@ Voluntary testing contributions are welcome. The [local security-testing guide](
 
 ## Production boundary
 
-Eligible static changes merged into protected `main` are published automatically after the exact commit passes its required checks and release gates. Review the [publication outcome](docs/release-publication.md), including live verification and retained rollback. Deployment credentials stay outside the repository. Commons Worker and schema promotion remain separate operations; the offline [Commons artifact tools](docs/release-commons-artifacts.md) prepare and verify a code package without contacting production.
+Eligible static changes merged into protected `main` are published automatically after the exact commit passes its required checks and release gates. Review the [publication outcome](docs/release-publication.md), including live verification and retained rollback. Deployment credentials stay outside the repository. Commons Worker and schema promotion remain separate operations; the [Commons artifact tools](docs/release-commons-artifacts.md) and [rehearsal](docs/release-commons-rehearsal.md) prepare, transport and verify a code package without contacting production.
