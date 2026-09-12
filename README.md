@@ -5,6 +5,7 @@
 [![Dependabot Updates](https://github.com/oss-singularity/website/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/dependabot/dependabot-updates)
 
 [![Static release rehearsal](https://github.com/oss-singularity/website/actions/workflows/static-release-rehearsal.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/static-release-rehearsal.yml) <sup><strong>•</strong></sup>
+[![Commons release rehearsal](https://github.com/oss-singularity/website/actions/workflows/commons-release-rehearsal.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/commons-release-rehearsal.yml) <sup><strong>•</strong></sup>
 [![Static publication](https://github.com/oss-singularity/website/actions/workflows/static-publication.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/static-publication.yml) <sup><strong>•</strong></sup>
 [![Release access audit](https://github.com/oss-singularity/website/actions/workflows/release-access.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/release-access.yml)
 

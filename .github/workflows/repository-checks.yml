@@ -34,6 +34,10 @@ jobs:
         run: |
           python3 scripts/test-commons-artifact.py
           python3 -O scripts/test-commons-artifact.py
+      - name: Validate Commons rehearsal source and artifact identity
+        run: |
+          python3 scripts/test-commons-rehearsal.py
+          python3 -O scripts/test-commons-rehearsal.py
       - name: Validate release rehearsal identity and transport fixtures
         run: python3 scripts/test-release-rehearsal.py
       - name: Validate completed candidate identity and archive boundaries

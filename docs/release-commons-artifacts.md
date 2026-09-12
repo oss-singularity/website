@@ -107,7 +107,12 @@ fields, unsafe filesystem references and private error-output boundaries.
 The [complete contributor checks](../CONTRIBUTING.md#before-opening-a-pull-request)
 also exercise Commons behavior with real SQLite transactions.
 
-The remaining Worker stage needs authenticated candidate provenance, an
+The separate [Commons rehearsal](release-commons-rehearsal.md) now creates and
+transports this packet through canonical GitHub Actions, then records its
+observed artifact identity and source comparison in a receipt. It has no
+production access and leaves completed-run and required-check consumption pending.
+
+The remaining Worker stage needs independently authenticated candidate provenance, an
 independently bound destination and schema, constrained provider access,
 serialization, a durable deployment journal, uncertain-outcome reconciliation
 and live acceptance with conditional recovery. Neither the existing static
