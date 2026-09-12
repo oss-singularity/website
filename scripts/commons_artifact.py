@@ -139,7 +139,7 @@ def validate_code(files):
     return {name: {'sha256': digest(files[name]), 'size': len(files[name])} for name in sorted(files)}
 
 
-def source_files(root):
+def source_inputs(root):
     """Capture only the declared production files; detect unknown root modules/migrations."""
     reader = TreeReader(root)
     try:
@@ -158,9 +158,14 @@ def source_files(root):
             require(fingerprint(os.fstat(current)) == reader.root_identity, 'tree_changed')
         finally:
             os.close(current)
-        return files, expected_schema(migrations)
+        return files, migrations
     finally:
         reader.close()
+
+
+def source_files(root):
+    files, migrations = source_inputs(root)
+    return files, expected_schema(migrations)
 
 
 def metadata(files, sha, schema):

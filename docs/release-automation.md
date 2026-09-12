@@ -30,7 +30,7 @@ rollback and republication pilot are verified; see the
 | Constrained static adapter | Installed and verified with a separate restricted identity. |
 | Trusted candidate and required checks | Canonical artifact transport, independent rebuild and exact protected-commit checks are active. |
 | Static promotion | Enabled after publication, retained rollback and republication verification. |
-| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md) and a separate [canonical artifact rehearsal](release-commons-rehearsal.md) are implemented. Independent completed-run consumption, constrained remote promotion and schema migration remain separate work. Static jobs cannot update either. |
+| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md), a separate [canonical artifact rehearsal](release-commons-rehearsal.md) and an [independent completed-run consumer](release-commons-candidates.md) are implemented. Automated Commons orchestration, constrained remote promotion and schema migration remain separate work. Static jobs cannot update either. |
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing

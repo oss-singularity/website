@@ -37,6 +37,7 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | End-to-end static publication | [Publication guide](docs/release-publication.md), [`scripts/static_publication.py`](scripts/static_publication.py), [`scripts/test-static-publication.py`](scripts/test-static-publication.py), [publication workflow](.github/workflows/static-publication.yml) |
 | Commons code packaging and schema fingerprints | [Commons artifact guide](docs/release-commons-artifacts.md), [`scripts/commons_artifact.py`](scripts/commons_artifact.py), [`scripts/test-commons-artifact.py`](scripts/test-commons-artifact.py) |
 | Commons artifact transport on canonical main | [Commons rehearsal guide](docs/release-commons-rehearsal.md), [`scripts/commons_rehearsal.py`](scripts/commons_rehearsal.py), [Commons workflow](.github/workflows/commons-release-rehearsal.yml) |
+| Completed Commons candidates, source and checks | [Commons consumer guide](docs/release-commons-candidates.md), [`scripts/commons_candidate.py`](scripts/commons_candidate.py), [`scripts/test-commons-candidate.py`](scripts/test-commons-candidate.py) |
 
 Generated `dist/` is intentionally ignored. Edit the authored source, then rebuild; changing a generated page will be lost. Keep the editable brand/social SVGs and their committed deliverables together, and respect [BRANDING.md](BRANDING.md).
 
@@ -82,6 +83,8 @@ python3 scripts/test-commons-artifact.py
 python3 -O scripts/test-commons-artifact.py
 python3 scripts/test-commons-rehearsal.py
 python3 -O scripts/test-commons-rehearsal.py
+python3 scripts/test-commons-candidate.py
+python3 -O scripts/test-commons-candidate.py
 python3 scripts/test-release-rehearsal.py
 python3 scripts/test-release-candidate.py
 python3 scripts/test-release-checks.py
