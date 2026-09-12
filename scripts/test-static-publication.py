@@ -1,6 +1,6 @@
 """Release orchestration against installed processes and offline external services."""
 from copy import deepcopy
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stdout
 import base64
 import io
 import json
@@ -163,12 +163,48 @@ class PublicationTests(unittest.TestCase):
 
     def test_failed_live_verification_restores_original_bytes_and_reports_failure(self):
         with prepared_case(fail=True) as (installed, execute, recorded, _remote, trace):
-            with self.assertRaisesRegex(ArtifactError, 'publication_rolled_back'):
+            with self.assertRaisesRegex(publication.PublicationFailure, 'publication_rolled_back') as caught:
                 execute()
+            self.assertEqual(caught.exception.failure, {'stage': 'http_acceptance', 'code': 'http_bytes_mismatch'})
+            self.assertIsNone(caught.exception.recovery_failure)
             self.assertEqual(fixture.file_contents(installed.target), installed.original)
             self.assertEqual(recorded.outcome, 'rolled_back')
             self.assertEqual(trace.count('purge'), 2)
             self.assertNotIn('success', trace)
+
+    def test_failed_rollback_acceptance_retains_both_causes_and_original_intent(self):
+        with prepared_case() as (installed, execute, recorded, remote, trace):
+            with patch.object(ObservedHTTP, 'verify', side_effect=[ArtifactError('http_compression_missing'),
+                                                                  ArtifactError('http_transport_failed')]):
+                with self.assertRaises(publication.PublicationFailure) as caught:
+                    execute()
+            self.assertEqual(caught.exception.code, 'publication_requires_reconciliation')
+            self.assertEqual(caught.exception.failure,
+                             {'stage': 'http_acceptance', 'code': 'http_compression_missing'})
+            self.assertEqual(caught.exception.recovery_failure,
+                             {'stage': 'rollback_http', 'code': 'http_transport_failed'})
+            self.assertEqual(recorded.outcome, 'unresolved')
+            self.assertEqual(trace.count('prepare'), 1)
+            self.assertEqual(trace.count('rollback'), 1)
+            self.assertEqual(fixture.file_contents(installed.target), installed.original)
+            report = remote.status(recorded.intent['identity'], recorded.intent['descriptor_sha256'])
+            self.assertEqual(report['phase'], 'rolled_back')
+
+    def test_public_failure_output_excludes_unknown_exception_text_and_codes(self):
+        cli = source.module('publication_cli_fixture', 'static-publication.py')
+        private = 'private fixture path and credential contents'
+        for error in [RuntimeError(private), ArtifactError(private)]:
+            failure = publication.PublicationFailure(False, 'http_acceptance', error,
+                                                     'rollback_http', ArtifactError('http_transport_failed'))
+            output = io.StringIO()
+            with patch.object(cli, 'main', side_effect=failure), redirect_stdout(output):
+                self.assertEqual(cli.cli([]), 1)
+            result = json.loads(output.getvalue())
+            self.assertNotIn(private, output.getvalue())
+            self.assertEqual(result, {'error': 'publication_requires_reconciliation',
+                                     'publication_verified': False,
+                                     'failure': {'stage': 'http_acceptance', 'code': 'unconfirmed'},
+                                     'recovery_failure': {'stage': 'rollback_http', 'code': 'http_transport_failed'}})
 
     def test_lost_rollback_response_is_observed_without_repeating_rollback(self):
         with prepared_case(fail=True, lost='rollback') as (installed, execute, recorded, _remote, trace):

@@ -1,6 +1,12 @@
 # OSS Singularity Website
 
-[![Repository checks](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml/badge.svg)](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml)
+[![Repository checks](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml) <sup><strong>•</strong></sup>
+[![CodeQL](https://github.com/oss-singularity/website/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/github-code-scanning/codeql) <sup><strong>•</strong></sup>
+[![Dependabot Updates](https://github.com/oss-singularity/website/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/dependabot/dependabot-updates)
+
+[![Static release rehearsal](https://github.com/oss-singularity/website/actions/workflows/static-release-rehearsal.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/static-release-rehearsal.yml) <sup><strong>•</strong></sup>
+[![Static publication](https://github.com/oss-singularity/website/actions/workflows/static-publication.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/static-publication.yml) <sup><strong>•</strong></sup>
+[![Release access audit](https://github.com/oss-singularity/website/actions/workflows/release-access.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/release-access.yml)
 
 [![OSS Singularity — Many minds. One open horizon.](site/assets/social/oss-singularity-social-preview.png)](https://oss-singularity.io/)
 
@@ -46,6 +52,8 @@ The [ideas register](docs/ideas.md) keeps emerging directions, their purpose and
 The [Motion Lab](design/motion-lab/README.md) compares the Observatory hero with the core alone, thin energy streams or a wider wormhole. Run `python3 scripts/serve-motion-lab.py` to experiment against a fresh temporary build without changing the production choice.
 
 The social preview is authored as SVG. When updating it, run `python3 scripts/render-social-preview.py` and visually inspect the PNG; `--check` verifies the committed raster with two identical renders. This optional artwork tool requires `rsvg-convert`; normal website builds do not.
+
+Profile banners for LinkedIn and similar services are archived in [design/social-banners/](design/social-banners/README.md), with editable SVGs, outlined SVGs, PNG exports and ZIP bundles. They are separate from the website's social preview and excluded from `dist/`.
 
 ## Find your starting point
 

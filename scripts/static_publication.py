@@ -17,6 +17,32 @@ from site_artifact import ArtifactError, require
 
 WORKFLOW = '.github/workflows/static-publication.yml'
 CLOSED = {'empty', 'verified', 'rolled_back', 'aborted'}
+FAILURE_STAGES = {'prepare', 'apply', 'purge', 'http_acceptance', 'provider_check', 'reconcile',
+                  'recovery_status', 'recovery_reconcile', 'rollback', 'rollback_purge',
+                  'rollback_http', 'rollback_provider_check', 'maintenance'}
+FAILURE_CODES = {'stale_main', 'http_bytes_mismatch', 'http_mime_mismatch', 'http_cache_mismatch',
+                 'http_security_mismatch', 'http_compression_missing', 'http_transport_failed',
+                 'cache_transition_failed', 'redirect_mismatch', 'tls_unverified', 'api_unverified',
+                 'unexpected_http_cookie', 'edge_unverified', 'security_text_mismatch',
+                 'provider_request_failed', 'provider_configuration_changed', 'cache_purge_unconfirmed',
+                 'remote_outcome_unconfirmed', 'remote_host_identity_failed', 'remote_authentication_failed',
+                 'remote_connection_failed', 'remote_identity_mismatch', 'filesystem_preparation_unconfirmed',
+                 'filesystem_promotion_unconfirmed', 'rollback_unconfirmed', 'maintenance_unconfirmed'}
+
+
+def failure_detail(stage, error):
+    """Keep useful failure categories without disclosing exception text or paths."""
+    code = error.code if isinstance(error, ArtifactError) else None
+    return {'stage': stage if stage in FAILURE_STAGES else 'unconfirmed',
+            'code': code if type(code) is str and code in FAILURE_CODES else 'unconfirmed'}
+
+
+class PublicationFailure(ArtifactError):
+    def __init__(self, restored, stage, error, recovery_stage=None, recovery_error=None):
+        super().__init__('publication_rolled_back' if restored else 'publication_requires_reconciliation')
+        self.failure = failure_detail(stage, error)
+        self.recovery_failure = (failure_detail(recovery_stage, recovery_error)
+                                 if recovery_error is not None else None)
 
 
 def context(sha, mode, environ):
@@ -82,6 +108,7 @@ def transition(product, baseline, previous_files, edge_before, api_sha, run, fol
             require(result['ticket'] == ticket, 'remote_identity_mismatch')
         return result
 
+    stage = 'prepare'
     try:
         fresh('before_prepare')
         prepare_sent = True
@@ -96,6 +123,7 @@ def transition(product, baseline, previous_files, edge_before, api_sha, run, fol
         require(ticket['generation'] == baseline['generation'] and prepared['phase'] == 'prepared',
                 'filesystem_preparation_unconfirmed')
         write_private(folder / 'ticket.json', encode(ticket))
+        stage = 'apply'
         fresh('before_apply')
         try:
             result = remote.operation('apply', ticket)
@@ -108,13 +136,18 @@ def transition(product, baseline, previous_files, edge_before, api_sha, run, fol
                 result = remote.operation('apply', ticket)
         applied(result, product, baseline)
         # Purge immediately after application, before warming or public reads.
+        stage = 'purge'
         edge.purge()
+        stage = 'http_acceptance'
         live = http.verify(product.files, edge_before, api_sha)
+        stage = 'provider_check'
         require(edge.observe(product.files['.well-known/security.txt']) == edge_before,
                 'provider_configuration_changed')
+        stage = 'reconcile'
         applied(remote.operation('reconcile', ticket), product, baseline)
-    except Exception:
+    except Exception as failure:
         restored = False
+        recovery_stage, recovery_error = 'recovery_status', None
         try:
             if prepare_sent:
                 report = status()
@@ -122,8 +155,10 @@ def transition(product, baseline, previous_files, edge_before, api_sha, run, fol
                     ticket = report['ticket']
                     require(ticket['generation'] == baseline['generation'], 'remote_identity_mismatch')
                 if report['phase'] not in {'rolled_back', 'aborted'}:
+                    recovery_stage = 'recovery_reconcile'
                     report = remote.operation('reconcile', ticket)
                     if report['phase'] != 'aborted':
+                        recovery_stage = 'rollback'
                         try:
                             report = remote.operation('rollback', ticket)
                         except RemoteFailure:
@@ -134,15 +169,18 @@ def transition(product, baseline, previous_files, edge_before, api_sha, run, fol
                 report = remote.status()
                 require(report['phase'] in CLOSED and baseline_matches(report, baseline)
                         and report['generation'] == baseline['generation'], 'rollback_unconfirmed')
+            recovery_stage = 'rollback_purge'
             edge.purge()
+            recovery_stage = 'rollback_http'
             http.verify(previous_files, edge_before, api_sha)
+            recovery_stage = 'rollback_provider_check'
             require(edge.observe(previous_files['.well-known/security.txt']) == edge_before,
                     'provider_configuration_changed')
             restored = True
-        except Exception:
-            pass
+        except Exception as error:
+            recovery_error = error
         deployments.finish(number, 'rolled_back' if restored else 'unresolved')
-        raise ArtifactError('publication_rolled_back' if restored else 'publication_requires_reconciliation') from None
+        raise PublicationFailure(restored, stage, failure, recovery_stage, recovery_error) from None
 
     # A maintenance/bookkeeping failure does not undo a healthy verified site.
     # Keep the durable intent unresolved until this housekeeping is reconciled.
@@ -156,9 +194,9 @@ def transition(product, baseline, previous_files, edge_before, api_sha, run, fol
         require(maintained.get('maintenance_pending') is False and type(maintained.get('retained_attempts')) is int
                 and maintained['retained_attempts'] == 1,
                 'maintenance_unconfirmed')
-    except Exception:
+    except Exception as failure:
         deployments.finish(number, 'unresolved')
-        raise ArtifactError('publication_requires_reconciliation') from None
+        raise PublicationFailure(False, 'maintenance', failure) from None
     deployments.finish(number, 'success')
     return {'deployment_id': number, 'plan_sha256': ticket['plan_sha256'], 'live': live,
             'rollback_retained': True, 'publication_verified': True}
