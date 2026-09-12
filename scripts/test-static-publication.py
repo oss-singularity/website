@@ -655,6 +655,36 @@ class HTTPTests(unittest.TestCase):
             with self.subTest(mutation=number), self.assertRaisesRegex(ArtifactError, 'redirect_mismatch'):
                 client.redirects()
 
+    def test_origin_http_provider_hop_is_checked_even_when_edge_and_https_are_correct(self):
+        class Client(http.HTTP):
+            def get(self, path, surface, host, scheme, retry=False, method='GET'):
+                target = http.WWW if scheme == 'http' and host == http.WWW else http.HOST
+                route, separator, query = path.partition('?')
+                if (surface, host, scheme, method) == ('origin', self.bad_host, 'http', self.bad_method):
+                    if self.encoded in route:
+                        self.bad_calls.append((host, method, route))
+                        route = route.replace(self.encoded, self.replacement)
+                return {'status': 301, 'headers': {'location': 'https://' + target + route + separator + query}}
+
+        # Observed first-hop defects: a later canonical rule cannot repair them.
+        cases = [('%23', '#'), ('%3F', '%3f'), ('%2F', '/'), ('%2f', '/'),
+                 ('%C3%A4', '\u00c3\u00a4')]
+        for host in (http.HOST, http.WWW):
+            for method in ('GET', 'HEAD'):
+                for encoded, replacement in cases:
+                    with self.subTest(host=host, method=method, encoded=encoded):
+                        client = Client('1.1.1.1')
+                        client.bad_host, client.bad_method = host, method
+                        client.encoded, client.replacement = encoded, replacement
+                        client.bad_calls = []
+                        path = '/oss-redirect-check/a' + encoded + 'b' + http.REDIRECT_QUERY
+                        for surface in ('origin', 'edge'):
+                            response = client.get(path, surface, http.WWW, 'https', method=method)
+                            self.assertEqual(response['headers']['location'], 'https://' + http.HOST + path)
+                        with self.assertRaisesRegex(ArtifactError, 'redirect_mismatch'):
+                            client.redirects()
+                        self.assertEqual(client.bad_calls, [(host, method, path.partition('?')[0])])
+
     def test_public_api_rejects_cached_or_unpublished_results(self):
         state, published = ['DYNAMIC'], ['published']
         class Client(http.HTTP):

@@ -75,6 +75,14 @@ query bytes must survive every hop from HTTP or `www` to HTTPS apex. The origin
 rule reads the original `THE_REQUEST` because Apache-compatible `REQUEST_URI`
 is already decoded; see the [rewrite variable documentation](https://httpd.apache.org/docs/2.4/mod/mod_rewrite.html#rewritecond).
 
+Inspect the complete installed rule order, including provider-managed redirects.
+A provider HTTP-to-HTTPS rule can terminate a request before the authored
+canonical rule runs. Correct HTTPS and edge responses do not prove that this
+first origin hop preserves the URL. Provider probes must cover HTTP and HTTPS,
+apex and `www`, GET and HEAD, and each raw `Location` along the chain; an isolated
+HTTPS-only subdirectory probe is insufficient. Do not add forwarding headers
+that bypass provider rules to a publication acceptance request.
+
 Before a transition, the client reads only `site/.htaccess` from the exact
 predecessor commit and validates it against the independently bound live
 manifest. It never executes historical code or substitutes the new server block

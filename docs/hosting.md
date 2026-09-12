@@ -59,6 +59,18 @@ Automatic [static publication](release-publication.md) is enabled through the `p
 
 The authenticated provider mapping, root identities, handler policy and preserved overlays were independently verified during installation and the canonical pilot. Routine publication checks those pinned target bindings together with the complete source payload, origin/edge responses, TLS, cache behavior and zone/DNS configuration. Provider layout or handler-policy changes require operator verification and an updated binding before routine publication resumes.
 
+The authored canonical redirect must run before any provider rule that changes
+encoded paths. Preserve the complete certificate-manager block and static handler
+guard, and independently verify that the installed manager preserves the reviewed
+order. Keep certificate renewal active. Moving an overlay requires a separate
+reviewed operator transition; ordinary publication cannot change its policy or
+adopt a different layout. Preserve the original completed attempt and its full
+rollback evidence outside routine retention, pause publication with the queue
+idle, and bind the exact before/after bytes under the existing target lock. The
+transition must remain recoverable after process exit, preserve target identities
+and advance its generation. Never reset the journal or loosen redirect acceptance
+to recover a failed publication.
+
 The remaining infrastructure stages are specified in [release automation](release-automation.md). Worker and database promotion have separate credentials, compatibility and recovery requirements; the static workflow cannot update them.
 
 ## Available platform capabilities
