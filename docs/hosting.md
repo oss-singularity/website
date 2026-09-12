@@ -1,6 +1,6 @@
 # Hosting baseline
 
-Current topology, TLS and redirect behavior verified on 2026-09-05. The Cloudflare cache-safety addendum below was verified on 2026-09-04. This document contains no credentials, account username, private paths, API tokens, keys, cookies, or cPanel session URLs.
+Canonical origin/edge and redirect acceptance were reverified on 2026-09-12. The [domain guide](domains.md) records the same day's additional-domain audit and its remaining encoding limits. The Cloudflare cache-safety addendum below was verified on 2026-09-04. This document contains no credentials, account username, private paths, API tokens, keys, cookies, or cPanel session URLs.
 
 ## Cloudflare edge-cache safety (2026-09-04)
 
@@ -25,13 +25,13 @@ For matching origin responses it sets Cloudflare-only `no-store`. This prevents 
 | Mail | Microsoft 365 MX and SPF; separate from website deployment |
 | TLS | Cloudflare Full (strict); valid edge and origin coverage for apex and `www` |
 | Commons API | Separate Cloudflare Worker and D1 database on `oss-singularity.io/api/*` |
-| Additional redirect hosts | `oss-singularity.com`, `oss-singularity.de` and `www.oss-singularity.de` on Netcup |
+| Additional redirect hosts | Six OSS domains, each with apex and `www`, on Netcup; [inventory and limits](domains.md) |
 
 The canonical origin is always `https://oss-singularity.io/`. Canonical, Open Graph, social-preview, sitemap, robots, and internal links all use the apex URL; `www` is never published as a content URL. Its only intended function is to redirect a manually entered `www` URL permanently to the equivalent apex path.
 
 The earlier `www` certificate-issuance blocker is resolved. Both the Cloudflare edge and the Namecheap origin have valid TLS coverage for the apex and `www`. HTTP and HTTPS requests to `www.oss-singularity.io` redirect permanently to the equivalent HTTPS apex path and query.
 
-The separate Netcup hosts `oss-singularity.com`, `oss-singularity.de` and `www.oss-singularity.de` return HTTP 301 redirects to the same canonical HTTPS destination, preserving the path and query on both HTTP and HTTPS requests. The `.de` hosts were verified over IPv4 and IPv6, with Let's Encrypt automatic renewal enabled. Their certificate-validation paths remain local for renewal, and PHP, CGI, FastCGI and SSI are disabled. Static and API releases do not deploy to these redirect hosts.
+The separate Netcup domains return HTTP 301 redirects to the canonical HTTPS destination, with valid Let's Encrypt coverage for apex and `www`. Normal paths and queries are preserved; encoded slashes currently return 404 before redirection. The [domain guide](domains.md#observed-redirect-behavior) records the exact verified behavior, minimized hosting settings and renewal boundary. Static and API releases do not deploy to these redirect hosts.
 
 The live response emits the intended HSTS, Content Security Policy, browser security, cache, and compression headers. Microsoft 365 mail routing was separately configured and validated by the owner. DMARC is an email-policy concern rather than a website-development gate; this repository makes no mail-policy decision. Preserve all working Microsoft 365 records including any DKIM or DMARC records.
 
@@ -96,7 +96,7 @@ The access bootstrap is complete, but cPanel API tokens remain full-access withi
 
 ## DNS and mail boundary
 
-The authoritative `oss-singularity.io` DNS zone is managed at Cloudflare. Netcup manages the separate `.com` and `.de` redirect-host configuration. A website release does not imply permission to alter DNS or mail. Any authorized DNS change must begin with a complete snapshot of the affected zone and preserve Microsoft 365 MX, SPF, verification, autodiscover, DKIM and DMARC records, together with all unrelated records.
+Cloudflare manages authoritative DNS for the canonical domain and all six additional OSS domains. The additional domains are DNS-only and their redirects run at Netcup; see the [domain guide](domains.md). A website release does not imply permission to alter DNS or mail. Any authorized DNS change must begin with a complete snapshot of the affected zone and preserve Microsoft 365 MX, SPF, verification, autodiscover, DKIM and DMARC records, together with all unrelated records.
 
 ## Hosting decision
 
