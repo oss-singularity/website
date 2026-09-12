@@ -42,6 +42,10 @@ jobs:
         run: |
           python3 scripts/test-commons-candidate.py
           python3 -O scripts/test-commons-candidate.py
+      - name: Validate version-bound Commons plans and preservation
+        run: |
+          python3 scripts/test-commons-plan.py
+          python3 -O scripts/test-commons-plan.py
       - name: Validate release rehearsal identity and transport fixtures
         run: python3 scripts/test-release-rehearsal.py
       - name: Validate completed candidate identity and archive boundaries

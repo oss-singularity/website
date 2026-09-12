@@ -108,6 +108,9 @@ Fresh promotion identity, installed schema compatibility, constrained provider
 access, shared serialization, durable recovery and live acceptance remain
 separate [release gates](release-automation.md). This result grants none of those
 permissions and does not change the static publisher's artifact contract.
+The [pure code planner](release-commons-plan.md) uses an independently verified
+candidate digest with a known predecessor and fresh target capture; it describes
+the proposed version transition without performing provider operations.
 
 ## Validate changes
 

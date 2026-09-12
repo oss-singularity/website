@@ -120,6 +120,7 @@ publication and recovery:
 | [Commons artifacts](release-commons-artifacts.md) | Packaging the six production modules, pinning the existing schema profile and independently checking the captured bytes. This is the offline foundation for separate Worker promotion. |
 | [Commons rehearsal](release-commons-rehearsal.md) | Transporting a code packet through a separate canonical GitHub workflow and recording its observed identity without deployment authority. |
 | [Commons candidate verification](release-commons-candidates.md) | Binding a completed attempt, both archives, independently rebuilt source and required-check provenance. |
+| [Commons code planner](release-commons-plan.md) | Computing version-bound code changes, resource preservation and conditional rollback requirements from captured inputs. |
 
 Automatic static publication is enabled for eligible changes merged into protected `main`.
 The deployed Commons source and static server policy must remain compatible;
