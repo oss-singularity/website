@@ -26,6 +26,7 @@ fixture = source.module('publication_remote_fixture', 'test-static-remote.py')
 fixtures = source.module('publication_candidate_fixture', 'test-release-candidate.py')
 OLD, NEW = fixture.OLD, fixture.NEW
 ACCESS = (ROOT.parent / 'site/.htaccess').read_bytes()
+LEGACY_ACCESS = (ROOT / 'fixtures/legacy-server-block.txt').read_bytes()
 SECURITY = b'Contact: https://example.invalid/security\n'
 
 
@@ -69,7 +70,7 @@ class FixedEdge:
 class ObservedHTTP:
     def __init__(self, installed, trace, fail=False, interfere=False):
         self.installed, self.trace, self.fail, self.interfere = installed, trace, fail, interfere
-    def verify(self, files, _edge, _sha):
+    def verify(self, files, _edge, _sha, historical=False):
         self.trace.append('http')
         actual = fixture.file_contents(self.installed.target)
         for name, raw in files.items():
@@ -316,6 +317,33 @@ class SourceTests(unittest.TestCase):
         for route in ['/user', '/repos/other/repo/branches/main', source.BASE + '/actions/artifacts/1/zip']:
             self.assertFalse(api.read_route(route))
 
+    def test_historical_server_block_is_read_only_at_an_immutable_commit(self):
+        value = {'type': 'file', 'path': 'site/.htaccess', 'size': len(ACCESS),
+                 'encoding': 'base64', 'content': base64.encodebytes(ACCESS).decode()}
+        calls = []
+        class Client:
+            def get(self, route):
+                calls.append(route)
+                return deepcopy(value)
+        self.assertEqual(source.historical_access(Client(), OLD), ACCESS)
+        route = source.BASE + '/contents/site/.htaccess?ref=' + OLD
+        self.assertEqual(calls, [route])
+        api = source.GitHub({'GH_TOKEN': 'public-fixture-standard'})
+        self.assertTrue(api.read_route(route))
+        self.assertEqual(api.request(route).get_header('Authorization'), 'Bearer public-fixture-standard')
+        for invalid in [route.replace(OLD, 'main'), route.replace('site/.htaccess', '.htaccess'),
+                        route + '&extra=1', route.replace('oss-singularity/website', 'other/repo')]:
+            self.assertFalse(api.read_route(invalid))
+        for key, invalid in [('type', 'symlink'), ('path', 'other/.htaccess'), ('encoding', 'none'),
+                             ('size', True), ('size', 8193), ('size', len(ACCESS) + 1),
+                             ('content', '%%%'), ('content', []), ('content', 'A' * 12289)]:
+            with self.subTest(field=key, invalid=type(invalid).__name__):
+                original = value[key]
+                value[key] = invalid
+                with self.assertRaisesRegex(ArtifactError, 'baseline_mismatch'):
+                    source.historical_access(Client(), OLD)
+                value[key] = original
+
     def test_storage_redirect_receives_no_github_credential_and_is_bounded(self):
         signed = 'https://example.blob.core.windows.net/artifact?signature=public-fixture'
         calls = []
@@ -493,6 +521,49 @@ class HTTPTests(unittest.TestCase):
         return {'status': 200, 'body': raw, 'tls_verified': True, 'url': 'https://' + http.HOST + '/' + name,
                 'headers': values}, contract
 
+    def test_predecessor_access_must_match_the_independently_bound_manifest(self):
+        files = fixture.payload({'.htaccess': LEGACY_ACCESS, 'index.html': b'old page'})
+        class Client(http.HTTP):
+            def get(self, path, **options):
+                return {'status': 200, 'body': files[path[1:]]}
+        baseline = {'baseline_manifest_sha256': source.digest(files[MANIFEST])}
+        client = Client('1.1.1.1')
+        self.assertEqual(client.predecessor(baseline, LEGACY_ACCESS), files)
+        with self.assertRaises(ArtifactError):
+            client.predecessor(baseline, ACCESS)
+        with self.assertRaisesRegex(ArtifactError, 'baseline_mismatch'):
+            client.predecessor({'baseline_manifest_sha256': '0' * 64}, LEGACY_ACCESS)
+
+    def test_only_the_pinned_historical_payload_uses_legacy_redirect_acceptance(self):
+        self.assertEqual(source.digest(LEGACY_ACCESS), http.LEGACY_ACCESS_SHA256)
+        self.assertNotEqual(ACCESS, LEGACY_ACCESS)
+        class Client(http.HTTP):
+            def get(self, path, surface='edge', **options):
+                name = path[1:] or 'index.html'
+                if name.startswith('oss-release-missing-'):
+                    name = '404.html'
+                suffix = Path(name).suffix
+                headers = {**http.security_headers(self.files),
+                           'content-type': sorted(http.MIMES[suffix])[0], 'content-encoding': 'gzip',
+                           'cache-control': 'no-store' if surface == 'edge' else 'no-cache',
+                           'cf-ray': 'public-fixture', 'server': 'cloudflare'}
+                return {'status': 404 if name == '404.html' else 200, 'body': self.files[name],
+                        'url': 'https://' + http.HOST + '/' + name, 'headers': headers, 'tls_verified': True}
+            def redirects(self, legacy=False): self.legacy = legacy
+            def tls(self): return []
+            def api(self, expected): return expected
+            def public_api(self): return []
+        client = Client('1.1.1.1')
+        for access, historical, legacy in [(LEGACY_ACCESS, False, False), (LEGACY_ACCESS, True, True),
+                                           (ACCESS, False, False), (ACCESS, True, False)]:
+            with self.subTest(historical=historical, legacy=legacy):
+                client.files = fixture.payload({'.htaccess': access, 'index.html': b'page',
+                                                '404.html': b'missing', '.well-known/security.txt': SECURITY})
+                result = client.verify(client.files, {'security_sha256': source.digest(SECURITY)}, OLD,
+                                       cache_probe=False, historical=historical)
+                self.assertEqual(client.legacy, legacy)
+                self.assertEqual(result['redirect_contract'], 'historical-plain-path' if legacy else 'encoded-path-v1')
+
     def test_byte_security_cache_cookie_mime_and_tls_regressions_are_rejected(self):
         original, contract = self.response()
         http.exact(original, b'hello', 'index.html', 'edge', contract, None)
@@ -546,17 +617,43 @@ class HTTPTests(unittest.TestCase):
         for path in ['//example.invalid/', '/test#fragment', '/test\nheader', '/back\\slash']:
             with self.assertRaisesRegex(ArtifactError, 'invalid_http_target'): client.get(path)
 
-    def test_canonical_redirects_preserve_encoded_path_query_and_cannot_escape(self):
+    def test_canonical_redirects_preserve_raw_path_query_across_hosts_methods_and_hops(self):
         class Client(http.HTTP):
-            destination = 'https://' + http.HOST + '/guide/?oss_redirect_probe=1&literal=a%2Fb'
-            def get(self, *args, **kwargs): return {'status': 301, 'headers': {'location': self.destination}}
+            def get(self, path, surface, host, scheme, retry=False, method='GET'):
+                self.calls.append((path, surface, host, scheme, method))
+                target = http.WWW if scheme == 'http' and host == http.WWW else http.HOST
+                return {'status': 301, 'headers': {'location': 'https://' + target + path}}
         client = Client('1.1.1.1')
+        client.calls = []
         client.redirects()
-        for destination in ['https://example.invalid/guide/?oss_redirect_probe=1&literal=a%2Fb',
-                            'https://' + http.HOST + '/guide/', 'http://' + http.HOST + '/guide/',
-                            'https://user@' + http.HOST + '/guide/?oss_redirect_probe=1&literal=a%2Fb']:
-            client.destination = destination
-            with self.assertRaisesRegex(ArtifactError, 'redirect_mismatch'): client.redirects()
+        for path in http.REDIRECT_PATHS:
+            for surface in ['origin', 'edge']:
+                for host, scheme in [(http.HOST, 'http'), (http.WWW, 'http'), (http.WWW, 'https')]:
+                    for method in ['GET', 'HEAD']:
+                        self.assertIn((path, surface, host, scheme, method), client.calls)
+        self.assertNotIn('/guide/?', [call[0] for call in client.calls])
+
+    def test_redirect_decoder_delimiter_and_header_regressions_are_rejected(self):
+        class Client(http.HTTP):
+            change = staticmethod(lambda value: value)
+            def get(self, path, *args, **kwargs):
+                return {'status': 301, 'headers': {'location': self.change('https://' + http.HOST + path)}}
+        client = Client('1.1.1.1')
+        # The percent-encoded reserved characters are resource identity, not decoration.
+        mutations = [(lambda text, a=a, b=b: text.replace(a, b)) for a, b in
+                     [('%20', ' '), ('%23', '#'), ('%3F', '?'), ('%2520', '%20'),
+                      ('%2Fb', '/b'), ('%2fb', '%2Fb'), ('%C3%A4', 'ä'),
+                      ('plus=a+b', 'plus=a%20b'), ('&repeat=2', ''), ('&empty=', '')]]
+        mutations += [lambda text: text.replace(http.HOST, 'example.invalid'),
+                      lambda text: text.replace('https:', 'http:'),
+                      lambda text: text.replace(http.HOST, 'user@' + http.HOST),
+                      lambda text: text.replace(http.HOST, http.HOST + ':bogus'),
+                      lambda text: text + '#fragment', lambda text: text + '\r\nInjected: yes',
+                      lambda text: text.split('?', 1)[0], lambda _text: '']
+        for number, change in enumerate(mutations):
+            client.change = change
+            with self.subTest(mutation=number), self.assertRaisesRegex(ArtifactError, 'redirect_mismatch'):
+                client.redirects()
 
     def test_public_api_rejects_cached_or_unpublished_results(self):
         state, published = ['DYNAMIC'], ['published']

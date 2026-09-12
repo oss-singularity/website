@@ -235,7 +235,8 @@ class RemoteTransition(engine.Transition):
                 files[name] = fs.read_file(parent, name.split('/')[-1])[0]
             finally:
                 os.close(parent)
-        files['.htaccess'] = policy.decode(self.handle.policy['htaccess'], 8192)
+        installed, _record, _ = fs.read_file(self.fds['target'], '.htaccess')
+        files['.htaccess'] = policy.validate_installed_access(installed, self.handle.policy)
         policy.validate_candidate(files, self.handle.policy)
         return files, self._descriptor(self.state['baseline']['descriptor_sha256'])
 
@@ -269,7 +270,8 @@ class RemoteTransition(engine.Transition):
                     'unfinished_attempt')
             require(self.state['attempt_count'] < 8, 'attempt_limit')
             predecessor, previous_description = self.predecessor()
-            _root, entries, _contents, _identities = fs.snapshot(self.fds['target'])
+            _root, entries, contents, _identities = fs.snapshot(self.fds['target'])
+            policy.validate_replacement(contents['.htaccess'], candidate['.htaccess'], self.handle.policy)
             policy.validate_parents(candidate, entries)
             for name in candidate:
                 if name in entries:

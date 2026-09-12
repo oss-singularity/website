@@ -172,7 +172,7 @@ def transition(product, baseline, previous_files, edge_before, api_sha, run, fol
             recovery_stage = 'rollback_purge'
             edge.purge()
             recovery_stage = 'rollback_http'
-            http.verify(previous_files, edge_before, api_sha)
+            http.verify(previous_files, edge_before, api_sha, historical=True)
             recovery_stage = 'rollback_provider_check'
             require(edge.observe(previous_files['.well-known/security.txt']) == edge_before,
                     'provider_configuration_changed')
@@ -224,8 +224,9 @@ def run(sha, mode, root, folder, environ):
     api_sha = http.api(expected_api)
     compatible = source.compatibility(github, api_sha, expected_tree)
     edge_before = edge.observe(product.files['.well-known/security.txt'])
-    previous_files = http.predecessor(baseline, product.files['.htaccess'])
-    http.verify(previous_files, edge_before, api_sha, cache_probe=False)
+    previous_access = source.historical_access(github, baseline['baseline_commit'])
+    previous_files = http.predecessor(baseline, previous_access)
+    http.verify(previous_files, edge_before, api_sha, cache_probe=False, historical=True)
     require(edge.observe(product.files['.well-known/security.txt']) == edge_before,
             'provider_configuration_changed')
     result = {'schema_version': 1, 'kind': 'static-publication', 'mode': mode, 'commit': sha,
