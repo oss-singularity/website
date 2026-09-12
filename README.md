@@ -1,12 +1,13 @@
 # OSS Singularity Website
 
-[![Repository checks](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml) <sup><strong>•</strong></sup>
-[![CodeQL](https://github.com/oss-singularity/website/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/github-code-scanning/codeql) <sup><strong>•</strong></sup>
+[![Repository checks](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/repository-checks.yml)
+[![CodeQL](https://github.com/oss-singularity/website/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/github-code-scanning/codeql)
 [![Dependabot Updates](https://github.com/oss-singularity/website/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/dependabot/dependabot-updates)
 
-[![Static release rehearsal](https://github.com/oss-singularity/website/actions/workflows/static-release-rehearsal.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/static-release-rehearsal.yml) <sup><strong>•</strong></sup>
-[![Commons release rehearsal](https://github.com/oss-singularity/website/actions/workflows/commons-release-rehearsal.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/commons-release-rehearsal.yml) <sup><strong>•</strong></sup>
-[![Static publication](https://github.com/oss-singularity/website/actions/workflows/static-publication.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/static-publication.yml) <sup><strong>•</strong></sup>
+[![Static release rehearsal](https://github.com/oss-singularity/website/actions/workflows/static-release-rehearsal.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/static-release-rehearsal.yml)
+[![Commons release rehearsal](https://github.com/oss-singularity/website/actions/workflows/commons-release-rehearsal.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/commons-release-rehearsal.yml)
+
+[![Static publication](https://github.com/oss-singularity/website/actions/workflows/static-publication.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/static-publication.yml)
 [![Release access audit](https://github.com/oss-singularity/website/actions/workflows/release-access.yml/badge.svg?branch=main)](https://github.com/oss-singularity/website/actions/workflows/release-access.yml)
 
 [![OSS Singularity — Many minds. One open horizon.](site/assets/social/oss-singularity-social-preview.png)](https://oss-singularity.io/)
@@ -74,7 +75,7 @@ Profile banners for LinkedIn and similar services are archived in [design/social
 
 The website uses an isolated addon-domain document root on Namecheap Stellar shared hosting behind Cloudflare Free with Full (strict) TLS. The Workshop service is isolated to `oss-singularity.io/api/*` with its own Worker and D1 database. Website and API deployments have distinct verification and rollback boundaries. Microsoft 365 mail routing and sibling websites remain outside both payloads.
 
-The canonical address is `https://oss-singularity.io/`. Its `www` alias, the `.com` apex, and the `.de` apex plus `www` redirect over HTTP and HTTPS to the equivalent canonical path and query. The `.com` and `.de` redirect hosts run separately on Netcup.
+The canonical address is `https://oss-singularity.io/`; its `www` alias redirects to the apex. Six additional OSS domains use Cloudflare DNS and separate Netcup HTTPS redirects. The [domain guide](docs/domains.md) lists every domain, certificate and Search Console status, known encoding limits, and the boundary for a future short API address.
 
 See [docs/hosting.md](docs/hosting.md) for the verified baseline, safety boundaries, and acceptance gates.
 

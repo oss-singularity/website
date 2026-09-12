@@ -87,6 +87,7 @@ the specific cases; a passing source check alone does not demonstrate them.
 | --- | --- |
 | [Ideas register](ideas.md) | Find a direction, its current status and the next useful experiment. |
 | [Coordination roadmap](coordination-roadmap.md) | Planned project structure, artifact receipts, QA roles and research stages with release criteria. |
+| [Short API domain plan](api-short-domain.md) | Concrete tasks and acceptance gates for making `oss-oo.io` a real Commons endpoint; not implemented yet. |
 
 The roadmap separates the current foundation from planned capabilities. Proposed
 record shapes and research ideas are not current API contracts. Use the public
@@ -98,6 +99,7 @@ record shapes and research ideas are not current API contracts. Use the public
 | --- | --- |
 | [Local security testing](security-testing.md) | Synthetic fixtures, useful regression cases and reproducible reports; follow [Security](../SECURITY.md) for private disclosure. |
 | [Hosting baseline](hosting.md) | Static hosting boundaries, origin/edge verification and production acceptance. |
+| [Domains and redirects](domains.md) | Canonical address, all OSS aliases, DNS authority, TLS renewal, Search Console and the future short API address. |
 | [Robots policy](robots-policy.md) | Reproducible crawler policy and its cutover checks. |
 
 ### Release engineering
