@@ -18,6 +18,13 @@ from site_artifact import ArtifactError, require
 
 WWW = 'www.' + HOST
 MAX_BODY = 4 * 1024 * 1024
+# Only this previously deployed block may use the historical redirect contract.
+# New candidates must preserve encoded paths, including after a failed rollout.
+LEGACY_ACCESS_SHA256 = '311c2a2d372f048622612d734a27bcac082a3ca45b4b9fe91ccd88fe45a6b77f'
+REDIRECT_QUERY = '?oss_redirect_probe=1&literal=a%2Fb&plus=a+b&escaped=a%26b%3Dc&empty=&repeat=1&repeat=2'
+REDIRECT_PATHS = ('/guide/' + REDIRECT_QUERY, '/guide/',
+                  *(f'/oss-redirect-check/{segment}' + REDIRECT_QUERY for segment in
+                    ('a%20b', 'a%23b', 'a%3Fb', 'a%2520b', 'a%2Fb', 'a%2fb', 'a%C3%A4b')))
 MIMES = {'.html': {'text/html'}, '.css': {'text/css'}, '.js': {'text/javascript', 'application/javascript'},
          '.json': {'application/json'}, '.txt': {'text/plain'}, '.sha256': {'text/plain', 'application/octet-stream'},
          '.xml': {'application/xml', 'text/xml'}, '.svg': {'image/svg+xml'}, '.webp': {'image/webp'},
@@ -91,8 +98,9 @@ class HTTP:
         require(ipaddress.ip_address(self.origin).is_global, 'invalid_origin')
         self.runner = runner
 
-    def get(self, path, surface='edge', host=HOST, scheme='https', user_agent=None, retry=False):
+    def get(self, path, surface='edge', host=HOST, scheme='https', user_agent=None, retry=False, method='GET'):
         require(surface in {'origin', 'edge'} and host in {HOST, WWW} and scheme in {'http', 'https'}, 'invalid_http_target')
+        require(method in {'GET', 'HEAD'}, 'invalid_http_target')
         require(type(path) is str and path.startswith('/') and not path.startswith('//')
                 and len(path) <= 2048 and not re.search(r'[\x00-\x20\x7f\\#]', path), 'invalid_http_target')
         url = scheme + '://' + host + path
@@ -109,6 +117,8 @@ class HTTP:
             if user_agent is not None:
                 require(user_agent == 'TelegramBot', 'invalid_http_target')
                 args += ['--user-agent', user_agent]
+            if method == 'HEAD':
+                args += ['--head']
             args += ['--url', url]
             for attempt in range(3 if retry else 1):
                 try:
@@ -206,27 +216,44 @@ class HTTP:
                         'cache_transition_failed')
         return {'html': ['MISS', 'HIT'], 'stylesheet': ['MISS', 'HIT'], 'http3_advertised': True}
 
-    def redirects(self):
-        path = '/guide/?oss_redirect_probe=1&literal=a%2Fb'
-        for surface in ['origin', 'edge']:
-            for host, scheme in [(HOST, 'http'), (WWW, 'http'), (WWW, 'https')]:
-                current = scheme + '://' + host + path
-                for _ in range(3):
-                    parsed = urllib.parse.urlsplit(current)
-                    result = self.get(parsed.path + '?' + parsed.query, surface, parsed.hostname, parsed.scheme, retry=True)
-                    require(result['status'] in {301, 308}, 'redirect_mismatch')
-                    target = urllib.parse.urljoin(current, result['headers'].get('location', ''))
+    def redirects(self, legacy=False):
+        paths = ('/guide/?oss_redirect_probe=1&literal=a%2Fb',) if legacy else REDIRECT_PATHS
+        tasks = [(path, surface, host, scheme, method) for path in paths
+                 for surface in ['origin', 'edge']
+                 for host, scheme in [(HOST, 'http'), (WWW, 'http'), (WWW, 'https')]
+                 for method in ['GET', 'HEAD']]
+        def inspect(task):
+            path, surface, host, scheme, method = task
+            expected = urllib.parse.urlsplit(path)
+            current = scheme + '://' + host + path
+            for _ in range(3):
+                parsed = urllib.parse.urlsplit(current)
+                request = parsed.path + ('?' + parsed.query if parsed.query else '')
+                result = self.get(request, surface, parsed.hostname, parsed.scheme, retry=True, method=method)
+                require(result['status'] in {301, 308}, 'redirect_mismatch')
+                location = result['headers'].get('location', '')
+                require(type(location) is str and 0 < len(location) <= 4096
+                        and re.fullmatch(r'[\x21-\x7e]+', location) is not None,
+                        'redirect_mismatch')
+                try:
+                    target = urllib.parse.urljoin(current, location)
                     changed = urllib.parse.urlsplit(target)
-                    require(changed.hostname in {HOST, WWW} and changed.port is None
-                            and changed.username is None and changed.password is None
-                            and changed.path == '/guide/' and changed.query == path.split('?', 1)[1]
-                            and not changed.fragment and changed.scheme == 'https', 'redirect_mismatch')
-                    if target == 'https://' + HOST + path:
-                        break
-                    require(target != current, 'redirect_mismatch')
-                    current = target
-                else:
-                    raise ArtifactError('redirect_mismatch')
+                    port = changed.port
+                except ValueError:
+                    raise ArtifactError('redirect_mismatch') from None
+                require(changed.hostname in {HOST, WWW} and port is None
+                        and changed.username is None and changed.password is None
+                        and changed.path == expected.path and changed.query == expected.query
+                        and not changed.fragment and changed.scheme == 'https', 'redirect_mismatch')
+                if target == 'https://' + HOST + path:
+                    break
+                require(target != current, 'redirect_mismatch')
+                current = target
+            else:
+                raise ArtifactError('redirect_mismatch')
+        # Bound origin concurrency; also inspect raw Location on HEAD responses.
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            list(executor.map(inspect, tasks))
 
     def tls(self):
         context = ssl.create_default_context()
@@ -244,7 +271,7 @@ class HTTP:
                     raise ArtifactError('tls_unverified') from None
         return results
 
-    def verify(self, files, edge, api_sha, cache_probe=True):
+    def verify(self, files, edge, api_sha, cache_probe=True, historical=False):
         plan.payload(files)
         contract = security_headers(files)
         security_digest = edge['security_sha256']
@@ -268,11 +295,13 @@ class HTTP:
             exact(missing, files['404.html'], '404.html', surface, contract, security_digest, (404,))
         bot = self.get('/', user_agent='TelegramBot', retry=True)
         exact(bot, files['index.html'], 'index.html', 'edge', contract, security_digest)
-        self.redirects()
+        legacy = historical and digest(files['.htaccess']) == LEGACY_ACCESS_SHA256
+        self.redirects(legacy=legacy)
         tls = self.tls()
         self.api(api_sha)
         public_api = self.public_api()
         return {'exact_files': len(files) - 1, 'surfaces': ['origin', 'edge'],
                 'cache_probe': probe, 'tls': tls, 'redirects_verified': True,
+                'redirect_contract': 'historical-plain-path' if legacy else 'encoded-path-v1',
                 'custom_404_verified': True, 'telegram_bytes_verified': True, 'api_release_sha': api_sha,
                 'public_api': public_api}

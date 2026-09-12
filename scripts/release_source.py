@@ -4,6 +4,8 @@ This module does not write to GitHub, a provider, or a public document root.
 The additional policy credential is sent only to the two administration reads.
 """
 from dataclasses import dataclass
+import base64
+import binascii
 import hashlib
 import importlib.util
 import json
@@ -77,7 +79,8 @@ class GitHub:
                  r'/actions/runs/' + NUMBER + r'(?:/attempts/' + NUMBER + r')?',
                  r'/actions/runs/' + NUMBER + r'/artifacts\?per_page=100&page=1',
                  r'/actions/artifacts/' + NUMBER,
-                 r'/git/trees/' + SHA + r'\?recursive=1']
+                 r'/git/trees/' + SHA + r'\?recursive=1',
+                 r'/contents/site/\.htaccess\?ref=' + SHA]
         return any(re.fullmatch(re.escape(BASE) + suffix, route) for suffix in extra)
 
     def request(self, route):
@@ -136,6 +139,27 @@ class Candidate:
     descriptor: bytes
     files: dict
     report: dict
+
+
+def historical_access(github, sha):
+    """Read one immutable historical server block; never execute old source.
+
+    The HTTP predecessor capture must also bind these bytes to the independently
+    observed manifest before using them for acceptance or rollback.
+    """
+    artifact.commit(sha)
+    value = github.get(BASE + '/contents/site/.htaccess?ref=' + sha)
+    require(type(value) is dict and value.get('type') == 'file'
+            and value.get('path') == 'site/.htaccess' and value.get('encoding') == 'base64'
+            and type(value.get('size')) is int and 0 < value['size'] <= 8192
+            and type(value.get('content')) is str and len(value['content']) <= 12288,
+            'baseline_mismatch')
+    try:
+        raw = base64.b64decode(value['content'].replace('\n', ''), validate=True)
+    except (ValueError, binascii.Error):
+        raise ArtifactError('baseline_mismatch') from None
+    require(len(raw) == value['size'], 'baseline_mismatch')
+    return raw
 
 
 def selected_run(github, sha):

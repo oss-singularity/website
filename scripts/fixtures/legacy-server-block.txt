@@ -9,9 +9,7 @@ AddType text/plain .sha256
   RewriteEngine On
   RewriteCond %{HTTPS} !=on [OR]
   RewriteCond %{HTTP_HOST} !^oss-singularity\.io$ [NC]
-  # THE_REQUEST retains percent encoding; REQUEST_URI is already decoded.
-  RewriteCond %{THE_REQUEST} ^[^\s]+\s+(?:https?://[^/\s]+)?(/[^?\s]*)
-  RewriteRule ^ https://oss-singularity.io%1 [R=301,L,NE]
+  RewriteRule ^ https://oss-singularity.io%{REQUEST_URI} [R=301,L,NE]
 </IfModule>
 
 <IfModule mod_headers.c>

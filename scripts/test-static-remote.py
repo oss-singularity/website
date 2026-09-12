@@ -35,6 +35,7 @@ from site_artifact import ArtifactError, MANIFEST, open_directory
 
 OLD, NEW = '1' * 40, '2' * 40
 ACCESS = b'Options -Indexes\nDirectoryIndex index.html\n'
+ROTATED_ACCESS = b'Options -Indexes\nDirectoryIndex index.html\n# reviewed redirect change\n'
 PREFIX, SUFFIX = b'# preserved provider prefix\n', b'# preserved provider suffix\n'
 
 
@@ -66,16 +67,24 @@ def file_contents(path):
         os.close(fd)
 
 
+def journal(fixture):
+    fd = open_directory(fixture.control)
+    try:
+        return fs.read_json(fd, 'state.json')
+    finally:
+        os.close(fd)
+
+
 @contextmanager
-def installation(candidate=None, *, predecessor=None):
-    access = candidate['.htaccess'] if candidate is not None else ACCESS
-    old = predecessor if predecessor is not None else payload({'.htaccess': access, 'index.html': b'old page',
+def installation(candidate=None, *, predecessor=None, rotation=False):
+    access = candidate['.htaccess'] if candidate is not None else ROTATED_ACCESS if rotation else ACCESS
+    old = predecessor if predecessor is not None else payload({'.htaccess': ACCESS if rotation else access, 'index.html': b'old page',
                    'assets/scripts/retired.js': b'retained old asset',
                    'assets/styles/same.css': b'unchanged'})
     new = candidate if candidate is not None else payload({'.htaccess': access,
         'index.html': b'new page', 'assets/scripts/new.js': b'new asset',
         'assets/styles/same.css': b'unchanged', 'data/new.json': b'{}'})
-    installed_access = PREFIX + access + SUFFIX + policy.STATIC_GUARD
+    installed_access = PREFIX + old['.htaccess'] + SUFFIX + policy.STATIC_GUARD
     original = {**old, '.htaccess': installed_access, '.well-known/provider-marker': b'preserve'}
     with tempfile.TemporaryDirectory(prefix='oss-remote-test-') as name:
         base = Path(name)
@@ -133,6 +142,12 @@ def installation(candidate=None, *, predecessor=None):
         installed_policy = {'schema': 1, 'htaccess': encode(access),
             'installed_htaccess_sha256': plan.digest(installed_access),
             'ancestor_htaccess': {str(parent): None for parent in target.parents}}
+        if rotation:
+            installed_policy = {'schema': 2, 'htaccess_versions': [
+                {'htaccess': encode(block),
+                 'installed_htaccess_sha256': plan.digest(PREFIX + block + SUFFIX + policy.STATIC_GUARD)}
+                for block in (old['.htaccess'], access)],
+                'ancestor_htaccess': installed_policy['ancestor_htaccess']}
         put(config_dir / 'policy.json', plan.canonical(installed_policy))
         request = {'schema': 1, 'operation': 'prepare', 'identity': uuid.uuid4().hex,
             'expected_generation': 7, 'expected_predecessor_commit': OLD,
@@ -225,6 +240,111 @@ class RemoteTests(unittest.TestCase):
             self.assertEqual((root_before.st_dev, root_before.st_ino, root_before.st_mode, root_before.st_uid, root_before.st_gid),
                              (after.st_dev, after.st_ino, after.st_mode, after.st_uid, after.st_gid))
             self.assertEqual((fixture.peer / 'sentinel').read_bytes(), b'unrelated data\n')
+
+    def test_preapproved_configuration_rotation_retains_the_exact_predecessor_and_rollback(self):
+        with installation(rotation=True) as fixture:
+            original_state = journal(fixture)
+            previous = fixture.control / ('descriptor-' + original_state['baseline']['descriptor_sha256'])
+            original_descriptor = previous.read_bytes()
+            expected = self.prepare(fixture)
+            prepared = journal(fixture)
+            self.assertEqual(prepared['baseline'], original_state['baseline'])
+            self.assertEqual(prepared['attempt']['start_baseline'], original_state['baseline'])
+            self.assertEqual(file_contents(fixture.target), fixture.original)
+            index = next(index for index, step in enumerate(prepared['attempt']['steps'])
+                         if step['path'] == '.htaccess')
+            retained = fixture.control / expected['identity'] / f'before-{index}'
+            self.assertEqual(retained.read_bytes(), fixture.original['.htaccess'])
+            result = self.success(fixture, self.action('apply', expected))
+            self.assertEqual((result['generation'], result['baseline_commit']), (8, NEW))
+            installed = PREFIX + ROTATED_ACCESS + SUFFIX + policy.STATIC_GUARD
+            self.assertEqual(file_contents(fixture.target),
+                             {**fixture.original, **fixture.candidate, '.htaccess': installed})
+            self.success(fixture, self.action('maintain', expected))
+            self.assertEqual(previous.read_bytes(), original_descriptor)
+            self.assertEqual(retained.read_bytes(), fixture.original['.htaccess'])
+            result = self.success(fixture, self.action('rollback', expected))
+            self.assertEqual((result['generation'], result['baseline_commit']), (9, OLD))
+            self.assertEqual(file_contents(fixture.target), fixture.original)
+
+    def test_next_release_reconstructs_the_new_configuration_from_its_installed_pair(self):
+        with installation(rotation=True) as fixture:
+            first = self.prepare(fixture)
+            self.success(fixture, self.action('apply', first))
+            first_files = file_contents(fixture.target)
+            second = self.success(fixture, self.next_request(fixture, 2))['ticket']
+            self.success(fixture, self.action('apply', second))
+            self.success(fixture, self.action('maintain', second))
+            self.success(fixture, self.action('rollback', second))
+            self.assertEqual(file_contents(fixture.target), first_files)
+
+    def test_configuration_rotation_rejects_a_third_source_before_staging(self):
+        with installation(rotation=True) as fixture:
+            before = file_contents(fixture.control)
+            files = payload({**{name: raw for name, raw in fixture.candidate.items() if name != MANIFEST},
+                             '.htaccess': b'Options +ExecCGI\n'})
+            changed = {**fixture.request, 'files': {name: encode(raw) for name, raw in files.items()},
+                       'candidate_descriptor': encode(descriptor(files, NEW))}
+            self.rejected(fixture, changed, 'server_configuration_changed')
+            self.rejected(fixture, {**fixture.request, 'htaccess_versions': []}, 'invalid_request')
+            self.assertEqual(file_contents(fixture.control), before)
+
+    def test_configuration_pairs_cannot_be_duplicated_mixed_or_change_the_overlays(self):
+        for kind in ('one', 'three', 'duplicate_source', 'duplicate_hash', 'swapped_hashes',
+                     'wrong_candidate_hash', 'changed_prefix'):
+            with self.subTest(kind=kind), installation(rotation=True) as fixture:
+                source = fixture.config.with_name('policy.json')
+                value = json.loads(source.read_bytes())
+                versions = value['htaccess_versions']
+                if kind == 'one':
+                    versions.pop()
+                elif kind == 'three':
+                    versions.append(copy.deepcopy(versions[0]))
+                elif kind == 'duplicate_source':
+                    versions[1]['htaccess'] = versions[0]['htaccess']
+                elif kind == 'duplicate_hash':
+                    versions[1]['installed_htaccess_sha256'] = versions[0]['installed_htaccess_sha256']
+                elif kind == 'swapped_hashes':
+                    versions[0]['installed_htaccess_sha256'], versions[1]['installed_htaccess_sha256'] = (
+                        versions[1]['installed_htaccess_sha256'], versions[0]['installed_htaccess_sha256'])
+                elif kind == 'wrong_candidate_hash':
+                    versions[1]['installed_htaccess_sha256'] = '0' * 64
+                else:
+                    versions[1]['installed_htaccess_sha256'] = plan.digest(
+                        b'# different provider prefix\n' + ROTATED_ACCESS + SUFFIX + policy.STATIC_GUARD)
+                source.write_bytes(plan.canonical(value))
+                before = file_contents(fixture.control)
+                self.rejected(fixture, fixture.request,
+                              'invalid_policy' if kind in {'one', 'three', 'duplicate_source', 'duplicate_hash'}
+                              else 'server_configuration_changed')
+                self.assertEqual(file_contents(fixture.control), before)
+
+    def test_preapproved_configuration_does_not_authorize_an_unjournaled_operator_write(self):
+        with installation(rotation=True) as fixture:
+            expected = self.prepare(fixture)
+            replacement = PREFIX + ROTATED_ACCESS + SUFFIX + policy.STATIC_GUARD
+            (fixture.target / '.htaccess').write_bytes(replacement)
+            self.rejected(fixture, self.action('apply', expected), 'target_conflict')
+
+    def test_configuration_rotation_recovers_crashes_across_forward_and_rollback_hashes(self):
+        for event in ('forward-intent', 'forward-written', 'forward-recorded', 'committed'):
+            with self.subTest(event=event), installation(rotation=True) as fixture:
+                expected = self.prepare(fixture)
+                state = journal(fixture)
+                index = next(index for index, step in enumerate(state['attempt']['steps'])
+                             if step['path'] == '.htaccess')
+                checkpoint = event if event == 'committed' else f'{event}-{index}'
+                self.stop(fixture, self.action('apply', expected), checkpoint)
+                result = self.success(fixture, self.action('reconcile', expected))
+                if result['phase'] != 'verified':
+                    self.success(fixture, self.action('apply', expected))
+                self.assertEqual((fixture.target / '.htaccess').read_bytes(),
+                                 PREFIX + ROTATED_ACCESS + SUFFIX + policy.STATIC_GUARD)
+                self.stop(fixture, self.action('rollback', expected), f'rollback-written-{index}')
+                self.success(fixture, self.action('reconcile', expected))
+                result = self.success(fixture, self.action('rollback', expected))
+                self.assertEqual((result['generation'], result['baseline_commit']), (9, OLD))
+                self.assertEqual(file_contents(fixture.target), fixture.original)
 
     def test_lost_prepare_response_is_queried_and_replayed_by_original_identity(self):
         with installation() as fixture:

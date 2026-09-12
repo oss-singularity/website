@@ -39,6 +39,26 @@ schema and identities. A sibling private `policy.json` fixes:
 | `installed_htaccess_sha256` | Hash of the complete installed configuration, including provider additions and the static handler guard |
 | `ancestor_htaccess` | Every absolute parent of the target, mapped to its independently reviewed `.htaccess` hash or `null` for verified absence |
 
+For an independently approved server-configuration change, policy schema `2`
+replaces the two top-level configuration fields with `htaccess_versions`: a list
+of exactly two objects, each containing `htaccess` and
+`installed_htaccess_sha256` with the meanings above. Both source blocks and both
+complete installed hashes must differ. `ancestor_htaccess` is unchanged. This
+privately installed pair permits the reviewed predecessor and candidate; no
+request can add a version or change the policy.
+
+The installed hash selects its associated source block, which must occur exactly
+once in the complete file. Before staging, replacing that block with the candidate
+must produce the candidate's approved complete hash while preserving the actual
+prefix and suffix. The existing journal, baseline, generation, descriptors and
+conditional rollback remain authoritative. The configuration change is an ordinary
+journaled file operation within these independently approved pairs. Do not replace
+the live file or reinitialize the journal to bypass predecessor checks. Keep the
+old pair until every retained rollback that needs it has been retired; a return
+to schema `1` is a separate operator change after that verification. Installing a
+changed runtime also requires independently verifying its digest and updating
+the client's `STATIC_RUNTIME_SHA256` binding before publication resumes.
+
 Both configuration files must be 0600 inside a separate 0700 directory. Resolve
 the actual target through authenticated provider mapping and establish all
 public-root boundaries before installation. The endpoint cannot perform that
@@ -62,9 +82,9 @@ JavaScript, JSON, XML, text, manifests, SVG, WebP, PNG and ICO. New file types
 require a reviewed endpoint update. New files use 0644 and directories 0755;
 existing managed-file ownership must be representable without changing groups.
 
-Candidate `.htaccess` bytes must exactly match the separately approved block.
-The installed complete file must match its pinned hash and end with the exact
-`STATIC_GUARD` from `static_policy.py`. That guard disables CGI, SSI and content
+Candidate `.htaccess` bytes must exactly match a separately approved block.
+The installed complete file must match that block's pinned hash and end with the
+exact `STATIC_GUARD` from `static_policy.py`. That guard disables CGI, SSI and content
 negotiation, clears inherited extension handlers and filters, assigns explicit
 static MIME types and selects `default-handler` for permitted extensions.
 [Apache documents the static handler](https://httpd.apache.org/docs/2.4/handler.html)
@@ -101,8 +121,9 @@ The server independently validates its static policy, artifact integrity and
 the existing baseline; it never trusts the request to redefine that baseline.
 
 The predecessor is reconstructed from the managed installed bytes and the
-separately pinned configuration block. Its exact stored descriptor and the
-journal's independent baseline must still match. Historical code is not run.
+configuration block selected by the actual installed hash. Its exact stored
+descriptor and the journal's independent baseline must still match. Historical
+code is not run.
 Descriptor objects are retained only after successful plan preparation. They are
 bounded by the retained-attempt limit and the maintenance rules below.
 

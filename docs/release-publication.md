@@ -24,7 +24,11 @@ conservative static-only gate, not a claim of general backwards compatibility.
 Backend changes, including migrations, require the separate Commons release
 procedure and an updated independently verified API binding before dependent
 static publication. Changes to the pinned `.htaccess` contract require an
-operator update to the installed static policy.
+operator update to the installed static policy. The bounded two-version policy
+described in [the remote endpoint contract](release-static-remote.md#static-content-and-server-configuration)
+allows a reviewed server-block change through the same journal and retained
+rollback as content. The operator preauthorizes both exact source blocks and
+their complete installed hashes; CI cannot add or modify those permissions.
 
 ## Durable intent and acceptance
 
@@ -64,6 +68,21 @@ The managed edge `security.txt` has a separate explicit header contract. Its
 fresh zone configuration must render to the exact source bytes, and its HTTPS
 response must contain those bytes with Cloudflare provenance and `text/plain`.
 This exception does not change other files' header requirements.
+
+Redirect acceptance checks the raw `Location` for GET and HEAD, with encoded
+spaces, fragments, question marks, slashes, UTF-8 and double encoding. Path and
+query bytes must survive every hop from HTTP or `www` to HTTPS apex. The origin
+rule reads the original `THE_REQUEST` because Apache-compatible `REQUEST_URI`
+is already decoded; see the [rewrite variable documentation](https://httpd.apache.org/docs/2.4/mod/mod_rewrite.html#rewritecond).
+
+Before a transition, the client reads only `site/.htaccess` from the exact
+predecessor commit and validates it against the independently bound live
+manifest. It never executes historical code or substitutes the new server block
+into an old rollback payload. Only the explicitly pinned historical block with
+the known encoded-path defect uses its previous plain-path redirect contract
+during predecessor and rollback verification. Candidate acceptance always uses
+the encoded-path checks, and every other historical block does too. The public
+report identifies the contract used.
 
 On failed acceptance, rollback restores only the attempt's verified preimages.
 The cache is purged again and the previous captured payload receives full HTTP
