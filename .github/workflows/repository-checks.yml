@@ -38,6 +38,10 @@ jobs:
         run: |
           python3 scripts/test-commons-rehearsal.py
           python3 -O scripts/test-commons-rehearsal.py
+      - name: Validate completed Commons candidates, source and required checks
+        run: |
+          python3 scripts/test-commons-candidate.py
+          python3 -O scripts/test-commons-candidate.py
       - name: Validate release rehearsal identity and transport fixtures
         run: python3 scripts/test-release-rehearsal.py
       - name: Validate completed candidate identity and archive boundaries

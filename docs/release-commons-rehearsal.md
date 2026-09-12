@@ -68,10 +68,11 @@ The receipt is produced before its workflow can finish, so it explicitly leaves
 always `false`. A green rehearsal or a self-consistent downloaded receipt is
 not release authorization.
 
-The next consumer must independently observe the completed successful canonical
-attempt and required checks, authenticate both artifact identities and archive
-bytes, validate their exact layouts and compare the packet with trusted source.
-It must not copy the expected identity or schema from an untrusted receipt.
+The [independent consumer](release-commons-candidates.md) observes the completed
+successful canonical attempt and required checks, authenticates both artifact
+identities and archive bytes, validates their exact layouts and compares the
+packet with independently bound source. It does not copy the expected identity
+or schema from an untrusted receipt.
 Fresh protected-head and installed-schema checks, constrained provider access,
 serialization, durable recovery and live acceptance remain required before
 Worker promotion. This rehearsal has no production database access and cannot

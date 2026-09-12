@@ -48,10 +48,11 @@ def gate(checkout_commit, environ, fetch=shared.github_get):
             'deployment_authorized': False}
 
 
-def uploaded(value, number, checksum, observed):
+def uploaded(value, number, checksum, observed, role='candidate'):
+    require(role in {'candidate', 'rehearsal-receipt'}, 'artifact_identity_mismatch')
     require(type(value) is dict and type(value.get('id')) is int and value['id'] == number,
             'artifact_identity_mismatch')
-    expected_name = f"commons-candidate-{observed['commit']}-{observed['run_id']}-{observed['run_attempt']}"
+    expected_name = f"commons-{role}-{observed['commit']}-{observed['run_id']}-{observed['run_attempt']}"
     require(value.get('name') == expected_name, 'artifact_identity_mismatch')
     require(value.get('digest') == 'sha256:' + checksum and value.get('expired') is False,
             'artifact_unavailable_or_changed')
