@@ -46,6 +46,10 @@ jobs:
         run: |
           python3 scripts/test-commons-plan.py
           python3 -O scripts/test-commons-plan.py
+      - name: Validate Commons transition fixture and crash recovery
+        run: |
+          python3 scripts/test-commons-transition.py
+          python3 -O scripts/test-commons-transition.py
       - name: Validate release rehearsal identity and transport fixtures
         run: python3 scripts/test-release-rehearsal.py
       - name: Validate completed candidate identity and archive boundaries
