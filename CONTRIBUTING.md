@@ -88,6 +88,8 @@ python3 scripts/test-commons-candidate.py
 python3 -O scripts/test-commons-candidate.py
 python3 scripts/test-commons-plan.py
 python3 -O scripts/test-commons-plan.py
+python3 scripts/test-commons-transition.py
+python3 -O scripts/test-commons-transition.py
 python3 scripts/test-release-rehearsal.py
 python3 scripts/test-release-candidate.py
 python3 scripts/test-release-checks.py

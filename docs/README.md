@@ -123,6 +123,7 @@ publication and recovery:
 | [Commons rehearsal](release-commons-rehearsal.md) | Transporting a code packet through a separate canonical GitHub workflow and recording its observed identity without deployment authority. |
 | [Commons candidate verification](release-commons-candidates.md) | Binding a completed attempt, both archives, independently rebuilt source and required-check provenance. |
 | [Commons code planner](release-commons-plan.md) | Computing version-bound code changes, resource preservation and conditional rollback requirements from captured inputs. |
+| [Commons transition fixture](release-commons-transition.md) | Testing the Commons Prepare → Stage → Activate → Verify → Rollback lifecycle with a synthetic provider and crash recovery in self-created targets. |
 
 Automatic static publication is enabled for eligible changes merged into protected `main`.
 The deployed Commons source and static server policy must remain compatible;
