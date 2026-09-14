@@ -1,7 +1,7 @@
 {
-  "name": "OSS Singularity",
-  "short_name": "OSS Singularity",
-  "description": "Open-source engineering beyond the event horizon.",
+  "name": "OSS-OO / OSS Singularity",
+  "short_name": "OSS-OO",
+  "description": "OSS-OO is the short-domain identity for OSS Singularity: open-source engineering beyond the event horizon.",
   "start_url": "/",
   "display": "minimal-ui",
   "background_color": "#06101d",

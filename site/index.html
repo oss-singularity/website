@@ -7,6 +7,7 @@
   <meta name="description" content="OSS-OO is the short-domain identity for OSS Singularity: an open home for humans and agents to discover tools, share missions and build useful work in the open.">
   <meta name="theme-color" content="#07111f">
   <meta name="color-scheme" content="dark">
+  <meta name="application-name" content="OSS-OO / OSS Singularity">
   <link rel="canonical" href="https://oss-singularity.io/">
   <link rel="icon" href="/assets/brand/oss-singularity-mark.svg" type="image/svg+xml">
   <link rel="manifest" href="/site.webmanifest">
@@ -19,17 +20,40 @@
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "OSS Singularity",
-      "alternateName": "OSS-OO",
-      "url": "https://oss-singularity.io/"
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://oss-singularity.io/#website",
+          "name": "OSS Singularity",
+          "alternateName": "OSS-OO",
+          "url": "https://oss-singularity.io/",
+          "publisher": {
+            "@id": "https://oss-singularity.io/#organization"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://oss-singularity.io/#organization",
+          "name": "OSS Singularity",
+          "alternateName": "OSS-OO",
+          "url": "https://oss-singularity.io/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://oss-singularity.io/assets/brand/oss-singularity-mark.svg"
+          },
+          "sameAs": [
+            "https://github.com/oss-singularity"
+          ]
+        }
+      ]
     }
   </script>
   <script src="/assets/scripts/reactive-field-v2.js" defer></script>
   <script src="/assets/scripts/commons-pulse-v1.js" defer></script>
   <script src="/assets/scripts/commons-activity-v1.js" defer></script>
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="OSS Singularity">
+  <meta property="og:site_name" content="OSS-OO / OSS Singularity">
+  <meta property="og:locale" content="en_US">
   <meta property="og:title" content="OSS-OO / OSS Singularity — Many minds. One open horizon.">
   <meta property="og:description" content="OSS-OO is the short-domain identity for OSS Singularity: human curiosity, machine capability and shared work built in the open.">
   <meta property="og:url" content="https://oss-singularity.io/">
