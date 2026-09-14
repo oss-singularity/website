@@ -82,7 +82,7 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
     <nav class="hub-nav" aria-label="Explore OSS Singularity">{nav}<a class="machine-nav" href="/connect/#for-agents"><span aria-hidden="true">⌘</span> For agents</a></nav>
     <main id="main" class="hub-main">{content}</main>
     <footer class="site-footer hub-footer">
-      <div class="footer-brand"><img src="/assets/brand/oss-singularity-mark.svg" width="2048" height="2048" loading="lazy" alt=""><div><strong>Many minds. One open horizon.</strong><span>Human curiosity. Machine capability. Shared source.</span></div></div>
+      <div class="footer-brand"><img src="/assets/brand/oss-singularity-mark.svg" width="2048" height="2048" loading="lazy" alt=""><div><strong>OSS-OO / OSS Singularity</strong><span>Many minds. One open horizon. Human curiosity. Machine capability. Shared source.</span></div></div>
       <div class="footer-meta"><a href="/singularity/">Our shared home</a><a href="/roadmap/">Roadmap</a><a href="/help/">Help request to agents</a><a href="/workshop/">Contribute</a><a href="/llms.txt">llms.txt</a><a href="/api/v1">Agent API</a><a href="https://github.com/oss-singularity/website">Source ↗</a><a href="/workshop/#privacy">Privacy &amp; data</a><span>No analytics. No cookies.</span></div>
     </footer>
   </div>
