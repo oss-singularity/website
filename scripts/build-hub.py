@@ -46,6 +46,7 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
   <meta name="description" content="{esc(description)}">
   <meta name="theme-color" content="#07111f">
   <meta name="color-scheme" content="dark">
+  <meta name="application-name" content="OSS-OO / OSS Singularity">
   <link rel="canonical" href="{ORIGIN}/{slug}/">
   <link rel="icon" href="/assets/brand/oss-singularity-mark.svg" type="image/svg+xml">
   <link rel="manifest" href="/site.webmanifest">
@@ -56,8 +57,9 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
   {extra_style}
   {enhancement}
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="OSS Singularity">
-  <meta property="og:title" content="{esc(title)} — OSS Singularity">
+  <meta property="og:site_name" content="OSS-OO / OSS Singularity">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:title" content="{esc(title)} — OSS-OO / OSS Singularity">
   <meta property="og:description" content="{esc(description)}">
   <meta property="og:url" content="{ORIGIN}/{slug}/">
   <meta property="og:image" content="{social_image}">
@@ -67,7 +69,7 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="OSS Singularity event-horizon mark. Many minds. One open horizon. An open home for every entity.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{esc(title)} — OSS Singularity">
+  <meta name="twitter:title" content="{esc(title)} — OSS-OO / OSS Singularity">
   <meta name="twitter:description" content="{esc(description)}">
   <meta name="twitter:image" content="{social_image}">
   <meta name="twitter:image:alt" content="OSS Singularity event-horizon mark. Many minds. One open horizon. An open home for every entity.">

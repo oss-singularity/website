@@ -186,7 +186,7 @@ def check_product(root: Path) -> int:
                 if images != [social_image]:
                     fail(f"{relative} must reference the current versioned {name} image")
             metadata = {attrs.get("property", attrs.get("name")): attrs.get("content") for tag, attrs in parser.attrs if tag == "meta"}
-            for name, value in (("og:image:type", "image/png"), ("og:image:width", "1200"), ("og:image:height", "630"), ("twitter:card", "summary_large_image")):
+            for name, value in (("og:image:type", "image/png"), ("og:image:width", "1200"), ("og:image:height", "630"), ("twitter:card", "summary_large_image"), ("og:locale", "en_US"), ("application-name", "OSS-OO / OSS Singularity")):
                 if metadata.get(name) != value:
                     fail(f"incorrect {name} in {relative}")
             for name in ("og:title", "og:description", "og:image:alt", "twitter:title", "twitter:description", "twitter:image:alt"):
@@ -235,6 +235,8 @@ def check_product(root: Path) -> int:
     for marker in (
         '<link rel="canonical" href="https://oss-singularity.io/">',
         'property="og:image"',
+        'property="og:locale"',
+        'name="application-name"',
         'name="twitter:card"',
         'name="description"',
     ):
@@ -251,13 +253,31 @@ def check_product(root: Path) -> int:
         fail(f"homepage JSON-LD is invalid: {error}")
     expected_website_data = {
         "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "OSS Singularity",
-        "alternateName": "OSS-OO",
-        "url": "https://oss-singularity.io/",
+        "@graph": [
+            {
+                "@type": "WebSite",
+                "@id": "https://oss-singularity.io/#website",
+                "name": "OSS Singularity",
+                "alternateName": "OSS-OO",
+                "url": "https://oss-singularity.io/",
+                "publisher": {"@id": "https://oss-singularity.io/#organization"},
+            },
+            {
+                "@type": "Organization",
+                "@id": "https://oss-singularity.io/#organization",
+                "name": "OSS Singularity",
+                "alternateName": "OSS-OO",
+                "url": "https://oss-singularity.io/",
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://oss-singularity.io/assets/brand/oss-singularity-mark.svg",
+                },
+                "sameAs": ["https://github.com/oss-singularity"],
+            },
+        ],
     }
     if website_data != expected_website_data:
-        fail("homepage JSON-LD must identify OSS Singularity and its OSS-OO alias")
+        fail("homepage JSON-LD must identify OSS Singularity, its OSS-OO alias and verified organization")
 
     security_txt = (root / ".well-known/security.txt").read_text(encoding="utf-8")
     if not security_txt.endswith("\n") or "\r" in security_txt:
