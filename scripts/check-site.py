@@ -26,6 +26,9 @@ class Document(HTMLParser):
         self.title_depth = 0
         self.title = ""
         self.scripts = 0
+        self.json_ld: list[str] = []
+        self.json_ld_depth = 0
+        self.json_ld_parts: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key: value or "" for key, value in attrs}
@@ -38,16 +41,24 @@ class Document(HTMLParser):
             self.title_depth += 1
         if tag == "script":
             self.scripts += 1
+            if values.get("type", "").lower() == "application/ld+json":
+                self.json_ld_depth += 1
+                self.json_ld_parts = []
         if values.get("id"):
             self.ids.append(values["id"])
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "title":
             self.title_depth -= 1
+        if tag == "script" and self.json_ld_depth:
+            self.json_ld.append("".join(self.json_ld_parts).strip())
+            self.json_ld_depth -= 1
 
     def handle_data(self, data: str) -> None:
         if self.title_depth:
             self.title += data
+        if self.json_ld_depth:
+            self.json_ld_parts.append(data)
 
 
 def fail(message: str) -> None:
@@ -153,7 +164,16 @@ def check_product(root: Path) -> int:
             fail(f"{document.name} has no title")
         if parser.h1_count != 1:
             fail(f"{document.name} must contain exactly one h1")
-        scripts = [attrs.get("src") for tag, attrs in parser.attrs if tag == "script"]
+        inline_scripts = [
+            attrs
+            for tag, attrs in parser.attrs
+            if tag == "script"
+            and not attrs.get("src")
+            and attrs.get("type", "").lower() != "application/ld+json"
+        ]
+        if inline_scripts:
+            fail(f"unexpected inline script in {relative}")
+        scripts = [attrs.get("src") for tag, attrs in parser.attrs if tag == "script" and attrs.get("src")]
         if scripts != ["/assets/scripts/theme-v1.js", *script_allowlist.get(relative, [])]:
             fail(f"unexpected scripts in {relative}: {scripts}")
         if relative != "404.html":
@@ -210,6 +230,8 @@ def check_product(root: Path) -> int:
                     fail(f"third-party linked asset in {document.name}: {href}")
 
     index = (root / "index.html").read_text(encoding="utf-8")
+    index_parser = Document()
+    index_parser.feed(index)
     for marker in (
         '<link rel="canonical" href="https://oss-singularity.io/">',
         'property="og:image"',
@@ -220,6 +242,22 @@ def check_product(root: Path) -> int:
             fail(f"missing index metadata: {marker}")
     if 'name="robots" content="noindex"' not in (root / "404.html").read_text(encoding="utf-8"):
         fail("404 page must be noindex")
+
+    if len(index_parser.json_ld) != 1:
+        fail("homepage must contain exactly one JSON-LD block")
+    try:
+        website_data = json.loads(index_parser.json_ld[0])
+    except json.JSONDecodeError as error:
+        fail(f"homepage JSON-LD is invalid: {error}")
+    expected_website_data = {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "OSS Singularity",
+        "alternateName": "OSS-OO",
+        "url": "https://oss-singularity.io/",
+    }
+    if website_data != expected_website_data:
+        fail("homepage JSON-LD must identify OSS Singularity and its OSS-OO alias")
 
     security_txt = (root / ".well-known/security.txt").read_text(encoding="utf-8")
     if not security_txt.endswith("\n") or "\r" in security_txt:
