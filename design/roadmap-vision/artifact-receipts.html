@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>03 · Artifact receipts · Design vision</title>
+  <link rel="stylesheet" href="vision.css">
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">OSS SINGULARITY · DESIGN VISION · SYNTHETIC DATA</p>
+    <h1>03 · Artifact receipts</h1>
+    <p class="lede">One delivery manifest, two deliberately separate verification paths: a content
+      identifier addresses content; a raw-file digest checks the delivered bytes. Verification states
+      are shown exactly as participants will meet them — matched, mismatched, absent, stale.</p>
+    <p class="candidate-note"><b>Design candidate.</b> Illustrates the planned receipts stage's release
+      criteria with synthetic content. Not a live API or storage commitment — see the
+      <a href="index.html">vision index</a> for scope.</p>
+    <nav class="topline" aria-label="Vision screens">
+      <a href="project-coordination.html">02 · Coordination</a>
+      <a href="artifact-receipts.html" aria-current="page">03 · Receipts</a>
+      <a href="acceptance-qa.html">04 · Acceptance</a>
+      <a href="index.html">Overview</a>
+    </nav>
+
+    <section>
+      <span class="stage-tag">Journey view · one delivery manifest</span>
+      <h2>The manifest card</h2>
+      <p class="hint">Everything the receipts stage requires from a delivery manifest, readable in one
+        view. Submission time and established creation time render as two distinct facts; retention and
+        access conditions are part of the receipt, not footnotes.</p>
+      <article class="card">
+        <div class="node-head">
+          <span class="name">Delivery manifest · Digest verifier</span>
+          <span class="badge cyan">delivery rev 2</span>
+          <span class="badge dim">scope v1</span>
+          <span class="badge dim">milestone m-digest-01</span>
+        </div>
+        <dl class="fields">
+          <dt>Author</dt><dd>@kofi — attributed contributor of this revision</dd>
+          <dt>Project · milestone</dt><dd>Verification toolkit · Digest verifier (m-digest-01)</dd>
+          <dt>Scope version</dt><dd>v1 — the version the commitment binds</dd>
+          <dt>Submitted</dt><dd>2026-09-15 14:02 UTC — submission timestamp</dd>
+          <dt>Created</dt><dd>2026-09-14 09:20 UTC — independently established creation time</dd>
+          <dt>Artifact location</dt><dd><code>ipfs://bafy…synthetic</code> · retained by @kofi and @aria until acceptance + 90 days</dd>
+          <dt>Media type · size</dt><dd>application/zstd · 4.1 KiB</dd>
+          <dt>Evidence references</dt><dd>Two verification runs, each with its own manifest</dd>
+          <dt>Access conditions</dt><dd>Public read · no credentials required · nothing private included</dd>
+        </dl>
+        <p class="criteria"><b>Criteria addressed</b><br>
+          Manifest fields: project and milestone identifiers, scope version, delivery revision, author
+          attribution, artifact locations, content identifiers, declared media types, sizes, integrity
+          algorithm and digest, evidence references, publication/access conditions · submission timestamp
+          distinguished from established creation time · retention agreed and named.</p>
+      </article>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · two verification paths</span>
+      <h2>CID and digest answer different questions</h2>
+      <p class="hint">A CID includes information about the represented content and its encoding — it is
+        not always the ordinary checksum of the original file. The UI keeps the two paths apart and names
+        what each one actually establishes.</p>
+      <div class="grid">
+        <article class="card">
+          <div class="node-head"><span class="name">Content address</span><span class="badge cyan">CID</span></div>
+          <dl class="fields">
+            <dt>Representation</dt><dd>CIDv1, raw codec — names content <em>and</em> encoding</dd>
+            <dt>Value</dt><dd><code>bafk…synthetic-cid</code></dd>
+            <dt>Establishes</dt><dd>Which bytes this manifest <em>refers to</em>, addressable by content</dd>
+            <dt>Does not establish</dt><dd>Quality, authorship, rights or acceptance</dd>
+          </dl>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Distinguish a CID from a raw-file digest · content addressing supports integrity checking, not
+            acceptance.</p>
+        </article>
+        <article class="card">
+          <div class="node-head"><span class="name">Byte check</span><span class="badge pink">raw digest</span></div>
+          <dl class="fields">
+            <dt>Algorithm</dt><dd>SHA-256 over the retrieved bytes</dd>
+            <dt>Expected</dt><dd><code>9f2c…synthetic</code></dd>
+            <dt>How</dt><dd>Independent verification instructions, executable by anyone with retrieval access</dd>
+            <dt>Establishes</dt><dd>That retrieved bytes match this manifest's digest</dd>
+          </dl>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Integrity algorithm and digest declared · validate artifact retrieval without letting supplied
+            URLs become unrestricted server requests.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · verification states</span>
+      <h2>Every state reads as evidence, never as decoration</h2>
+      <p class="hint">Color is paired with words; each row says what was compared and what that means.
+        A stale revision never renders like a success, and an absent provider is a different state from
+        a hash mismatch.</p>
+      <div class="grid">
+        <article class="card">
+          <div class="verify-row"><span class="badge green">matched</span><strong>rev 2</strong></div>
+          <p class="node-body">Retrieved bytes hash to the expected digest. Compared: 4.1 KiB retrieved
+            2026-09-15 14:05 UTC → <code>9f2c…synthetic</code>.</p>
+        </article>
+        <article class="card">
+          <div class="verify-row"><span class="badge danger">mismatch</span><strong>rev 1</strong></div>
+          <p class="node-body">Retrieved bytes differ from the declared digest. This is a delivery defect,
+            not an acceptance decision.</p>
+        </article>
+        <article class="card">
+          <div class="verify-row"><span class="badge caution">absent</span><strong>rev 2</strong></div>
+          <p class="node-body">No provider served the content at check time. A CID alone does not provide
+            storage; retention is a named commitment.</p>
+        </article>
+        <article class="card">
+          <div class="verify-row"><span class="badge caution">stale revision</span><strong>rev 1</strong></div>
+          <p class="node-body">Bytes match — but rev 2 exists and supersedes this delivery. Matching bytes
+            of a stale revision are not a current delivery.</p>
+        </article>
+      </div>
+      <p class="criteria" style="max-width:68ch"><b>Criteria addressed</b><br>
+        Release criteria: detect mismatched bytes, unsafe references, absent content and stale revisions ·
+        preserve the agreed access policy · test missing providers and restore paths.</p>
+    </section>
+
+    <footer class="site-note">
+      Synthetic identifiers and digests exist only in this mockup. Next useful test per the roadmap:
+      a downloadable delivery manifest plus independent verification instructions for one synthetic artifact —
+      the receipts stage's stated first slice.
+    </footer>
+  </div>
+</body>
+</html>

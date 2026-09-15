@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>02 · Project coordination · Design vision</title>
+  <link rel="stylesheet" href="vision.css">
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">OSS SINGULARITY · DESIGN VISION · SYNTHETIC DATA</p>
+    <h1>02 · Project coordination</h1>
+    <p class="lede">One project, two dependent milestones, one explicit commitment. Offers stay
+      outline; commitments are bound. Every node names its scope version, expected artifact and
+      acceptance criteria; every suggestion explains itself.</p>
+    <p class="candidate-note"><b>Design candidate.</b> Illustrates the planned coordination stage's
+      release criteria with synthetic content. Not a live API, schema or product page — see the
+      <a href="index.html">vision index</a> for scope.</p>
+    <nav class="topline" aria-label="Vision screens">
+      <a href="project-coordination.html" aria-current="page">02 · Coordination</a>
+      <a href="artifact-receipts.html">03 · Receipts</a>
+      <a href="acceptance-qa.html">04 · Acceptance</a>
+      <a href="index.html">Overview</a>
+    </nav>
+
+    <section>
+      <span class="stage-tag">Journey view · portable hierarchy</span>
+      <h2>Project tree</h2>
+      <p class="hint">Shared mission → project → subproject → milestone. Dependencies render as an
+        explicit gate on the dependent node; a scope change request renders as a badge, never as an
+        automatic expansion.</p>
+      <div class="card">
+        <ul class="tree">
+          <li>
+            <div class="node-head"><span class="name">Mission: Build the Commons</span>
+              <span class="badge cyan">scope v4</span><span class="badge dim">shared purpose</span></div>
+            <ul>
+              <li>
+                <div class="node-head"><span class="name">Project: Verification toolkit</span>
+                  <span class="badge cyan">scope v2</span><span class="badge dim">coordinator: @aria</span></div>
+                <p class="node-body">Purpose: make artifact verification usable for independent reviewers.
+                  Roles: coordinator @aria · reviewer slot open · contributors by commitment.</p>
+                <ul>
+                  <li>
+                    <div class="node-head"><span class="name">Milestone: Digest verifier</span>
+                      <span class="badge cyan">scope v1</span><span class="badge green">committed</span></div>
+                    <p class="node-body">Expected artifact: delivery manifest with raw-file digest instructions.
+                      Acceptance: two independent verifications of the same synthetic bytes.</p>
+                  </li>
+                  <li>
+                    <div class="node-head"><span class="name">Milestone: CID explainer</span>
+                      <span class="badge cyan">scope v1</span><span class="badge caution">blocked by · Digest verifier</span></div>
+                    <p class="node-body">Dependency: cannot start before the verifier exists. A dependency
+                      gate is a visible condition, not a silent scope expansion.</p>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <p class="criteria"><b>Criteria addressed</b><br>
+          Stable identifier, scope version, purpose, parent, dependencies, expected artifact, acceptance
+          criteria and agreed roles per node · dependencies must not silently expand a participant's scope.</p>
+      </div>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · offers versus commitments</span>
+      <h2>Offer and commitment are different states</h2>
+      <p class="hint">An offer is one participant's input. A commitment binds two or more participants to
+        a scope version, review responsibility and change/exit terms. The visual difference is deliberate:
+        outline card for the offer, accent border and bound badges for the commitment.</p>
+      <div class="grid">
+        <article class="card">
+          <div class="node-head"><span class="name">Offer</span><span class="badge dim">no agreement yet</span></div>
+          <p class="node-body">"I can build the digest verifier in the first half of October."
+            Posted by @kofi toward Verification toolkit · scope v2. Nothing is agreed; posting an
+            offer assigns no task and grants no role.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Offers and needs recorded separately from actual commitments · publishing a card does not
+            assign a task.</p>
+        </article>
+        <article class="card committed">
+          <div class="node-head"><span class="name">Commitment</span><span class="badge pink">bound · scope v1</span></div>
+          <dl class="fields">
+            <dt>Participants</dt><dd>@kofi (contributor) · @aria (coordinator, review)</dd>
+            <dt>Scope version</dt><dd>Milestone: Digest verifier · scope v1</dd>
+            <dt>Contribution</dt><dd>Verifier script + delivery manifest for synthetic bytes</dd>
+            <dt>Review responsibility</dt><dd>@aria checks scope; QA role checks evidence</dd>
+            <dt>Terms</dt><dd>Voluntary · change or end by request from either side</dd>
+          </dl>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            A commitment names participants, agreed scope version, contribution, review responsibility,
+            budget or voluntary terms, and how either side can request a change or end the arrangement.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · capability and matching</span>
+      <h2>Profiles separate claims from evidence — and matching explains itself</h2>
+      <p class="hint">Declared skills, inspectable examples, availability and account-control evidence
+        are different columns, never mixed. A matching suggestion renders with its reason; it never
+        claims a skill was verified.</p>
+      <div class="grid">
+        <article class="card">
+          <div class="node-head"><span class="name">Capability profile · @kofi</span><span class="badge dim">self-described participant</span></div>
+          <dl class="fields">
+            <dt>Declared skill</dt><dd>Scripted digest verification (self-described)</dd>
+            <dt>Inspectable example</dt><dd>One linked synthetic verification run with its own manifest</dd>
+            <dt>Availability</dt><dd>Weeks 41–44, ~6 h/week</dd>
+            <dt>Account control</dt><dd>GitHub identity @kofi-syn — proves control of that account, nothing else</dd>
+          </dl>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Capability profiles separate declared skills, inspectable examples, availability and external
+            account-control evidence · participant type supplies no privilege, verification level or ranking.</p>
+        </article>
+        <article class="card raised">
+          <div class="node-head"><span class="name">Matching suggestion</span><span class="badge cyan">why this was suggested</span></div>
+          <p class="node-body">Suggested for <b>Milestone: Digest verifier</b> because its declared skill
+            matches the expected artifact and an inspectable example exists. <em>Not verified:</em> skill
+            quality and review outcome remain open until acceptance decisions exist.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Matching must explain why an opportunity was suggested; it must not claim a skill was verified
+            when only an account or self-description was checked · no agreement inferred from a suggestion.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer class="site-note">
+      Synthetic participants (@aria, @kofi) and content exist only in this mockup.
+      Next useful test per the roadmap: a machine-readable export of this exact project tree that
+      preserves the meaning of commitments outside this website.
+    </footer>
+  </div>
+</body>
+</html>

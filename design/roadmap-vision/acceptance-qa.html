@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>04 · Acceptance &amp; QA · Design vision</title>
+  <link rel="stylesheet" href="vision.css">
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">OSS SINGULARITY · DESIGN VISION · SYNTHETIC DATA</p>
+    <h1>04 · Acceptance &amp; QA</h1>
+    <p class="lede">The proposed flow — delivery, revision request, new delivery, acceptance — as one
+      portable decision trail. Every decision names its actor, role and the exact delivery and criteria
+      versions it binds; a stale approval is shown refused, not silently superseded.</p>
+    <p class="candidate-note"><b>Design candidate.</b> Illustrates the planned acceptance stage's release
+      criteria with synthetic content. Not a live API, dispute process or settlement arrangement — see the
+      <a href="index.html">vision index</a> for scope.</p>
+    <nav class="topline" aria-label="Vision screens">
+      <a href="project-coordination.html">02 · Coordination</a>
+      <a href="artifact-receipts.html">03 · Receipts</a>
+      <a href="acceptance-qa.html" aria-current="page">04 · Acceptance</a>
+      <a href="index.html">Overview</a>
+    </nav>
+
+    <section>
+      <span class="stage-tag">Journey view · policy before work</span>
+      <h2>The acceptance policy, visible from the start</h2>
+      <p class="hint">Agreed before work begins, rendered where every participant can point at it:
+        who decides what, which evidence is required, and what independence concretely means here.</p>
+      <article class="card">
+        <dl class="fields">
+          <dt>Coordinator</dt><dd>@aria — checks scope against the bound criteria version</dd>
+          <dt>QA role</dt><dd>@sana — checks evidence; assigned by @aria, never self-granted</dd>
+          <dt>Required evidence</dt><dd>Delivery manifest rev N + two independent byte verifications</dd>
+          <dt>Independence</dt><dd>QA is a distinct person with no delivery authorship in this milestone —
+            a second account alone would not satisfy this</dd>
+          <dt>Approval threshold</dt><dd>Scope check + QA check, both on the same delivery revision</dd>
+          <dt>Escalation</dt><dd>Revision request unanswered after 10 days → named dispute path</dd>
+        </dl>
+        <p class="criteria"><b>Criteria addressed</b><br>
+          Acceptance policy agreed before work begins · coordinator, reviewer roles, evidence, approval
+          threshold, revision process and escalation deadline named · independence requirements concrete,
+          not a second account.</p>
+      </article>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · the decision trail</span>
+      <h2>Delivery → revision → new delivery → acceptance</h2>
+      <p class="hint">One trail, newest last. Each decision binds the exact delivery revision and criteria
+        version; revisions produce a new version and cannot inherit a stale approval.</p>
+      <div class="card">
+        <ul class="timeline">
+          <li>
+            <span class="dot" aria-hidden="true"></span>
+            <span class="step-label">Step 1 · 12 Sep</span>
+            <h3>Delivery rev 1 submitted</h3>
+            <p>@kofi delivers manifest rev 1 with synthetic artifact and evidence references.</p>
+          </li>
+          <li>
+            <span class="dot caution" aria-hidden="true"></span>
+            <span class="step-label">Step 2 · 13 Sep</span>
+            <h3>Revision requested</h3>
+            <p>@sana (QA): evidence missing one independent byte verification. Decision binds
+              <strong>rev 1</strong> × <strong>criteria v3</strong> · result: <strong>revision</strong> ·
+              reason recorded. Scope untouched; nothing inherited by a future delivery.</p>
+          </li>
+          <li>
+            <span class="dot" aria-hidden="true"></span>
+            <span class="step-label">Step 3 · 15 Sep</span>
+            <h3>Delivery rev 2 submitted</h3>
+            <p>@kofi delivers rev 2 with a second verification run. A new version — the revision
+              request's approval does not carry over.</p>
+          </li>
+          <li>
+            <span class="dot green" aria-hidden="true"></span>
+            <span class="step-label">Step 4 · 15 Sep</span>
+            <h3>Accepted</h3>
+            <p>@aria (coordinator, scope) and @sana (QA, evidence) both bind <strong>rev 2</strong> ×
+              <strong>criteria v3</strong> · result: <strong>accept</strong> · reasons recorded.
+              Settlement, if separately enabled, would consume its own authorization — a delivery is
+              never permission to pay.</p>
+            <div class="threshold">
+              <span class="badge green">threshold met</span>
+              <div class="bar" aria-label="Two of two required decisions recorded">
+                <span class="unit"></span><span class="unit"></span><span class="unit off"></span>
+              </div>
+              <span class="badge dim">2 of 2 required roles</span>
+            </div>
+          </li>
+        </ul>
+        <p class="criteria"><b>Criteria addressed</b><br>
+          Proposed flow: delivery → revision requested → new delivery → acceptance, with a portable
+          decision trail · each decision binds the exact delivery and criteria version, result and
+          reasons · delivery alone does not change the milestone to accepted · settlement consumes its
+          own authorization.</p>
+      </div>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · refused states</span>
+      <h2>What refusal looks like</h2>
+      <p class="hint">The failure paths are drawn states, so they can be reviewed before they exist in
+        code. Color is paired with words; every refusal names the rule it enforces.</p>
+      <div class="grid">
+        <article class="card decision-card stale">
+          <div class="node-head"><span class="name"><s>Approval for rev 1</s></span><span class="badge danger">refused · stale version</span></div>
+          <p class="node-body">Rev 2 exists; this approval bound rev 1. Stale-version rejection: a
+            superseded delivery cannot hold a live approval.</p>
+        </article>
+        <article class="card decision-card stale">
+          <div class="node-head"><span class="name"><s>Approval by @kofi</s></span><span class="badge danger">refused · role</span></div>
+          <p class="node-body">@kofi authored the delivery and holds no QA role in this milestone.
+            No self-granted reviewer authority.</p>
+        </article>
+        <article class="card decision-card revision">
+          <div class="node-head"><span class="name">Duplicate decision</span><span class="badge caution">rejected</span></div>
+          <p class="node-body">@sana's scope+evidence decision on rev 2 is already recorded; a second,
+            identical decision adds no threshold unit.</p>
+        </article>
+        <article class="card decision-card revision">
+          <div class="node-head"><span class="name">Absent reviewer</span><span class="badge caution">waiting</span></div>
+          <p class="node-body">QA slot empty past the escalation deadline → the named dispute path is
+            opened automatically. Unavailable decision-makers are a designed state, not an exception.</p>
+        </article>
+      </div>
+      <p class="criteria" style="max-width:68ch"><b>Criteria addressed</b><br>
+        Release criteria: stale-version and duplicate decision rejection · authorization checked at the
+        decision point · conflicting approvals, absent reviewers, role revocation and disputed evidence
+        exercised · no self-granted reviewer authority.</p>
+    </section>
+
+    <footer class="site-note">
+      Synthetic participants (@aria, @kofi, @sana), decisions and versions exist only in this mockup.
+      Next useful test per the roadmap: delivery → revision requested → new delivery → acceptance as a
+      portable decision trail — the acceptance stage's stated first slice.
+    </footer>
+  </div>
+</body>
+</html>
