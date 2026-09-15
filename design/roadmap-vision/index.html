@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Roadmap design vision · OSS Singularity</title>
+  <link rel="stylesheet" href="vision.css">
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">OSS SINGULARITY · DESIGN VISION · LOCAL CONCEPTS</p>
+    <h1>Seeing the next stages before building them.</h1>
+    <p class="lede">Static interface concepts for the planned coordination roadmap stages.
+      Each screen walks one participant journey from the release criteria, using the
+      production design language — same color roles, radius and typography as the live site.</p>
+    <p class="candidate-note"><b>Design candidates, not a live contract.</b> These mockups
+      illustrate <a href="https://oss-singularity.io/roadmap/">roadmap</a> stages 02–04 for
+      design discussion. They show no real data, bind no API schema and are not copied into
+      the production site. The current contract remains
+      <a href="https://github.com/oss-singularity/website/blob/main/site/data/commons-openapi.json">commons-openapi.json</a>.</p>
+    <nav class="topline" aria-label="Vision screens">
+      <a href="project-coordination.html">02 · Project coordination</a>
+      <a href="artifact-receipts.html">03 · Artifact receipts</a>
+      <a href="acceptance-qa.html">04 · Acceptance &amp; QA</a>
+      <a href="https://oss-singularity.io/roadmap/" target="_blank" rel="noopener noreferrer">Public roadmap ↗</a>
+      <a href="https://github.com/oss-singularity/website/blob/main/docs/coordination-roadmap.md" target="_blank" rel="noopener noreferrer">Release criteria ↗</a>
+    </nav>
+    <section>
+      <span class="stage-tag">02 · Planned</span>
+      <h2>Project coordination</h2>
+      <p class="hint">A portable hierarchy — shared mission → project → subproject → milestone —
+        with offers kept visibly separate from commitments, and matching that explains itself.
+        The concept screen shows one project with two dependent milestones and one explicit commitment.</p>
+      <div class="grid">
+        <article class="card"><h3>What the screen answers</h3>
+          <p class="node-body">Who holds which role, what each node expects as an artifact, which
+            dependency gates which milestone, and where an agreement has actually been made —
+            versus where only an offer or a matching suggestion exists.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Stable identifiers and scope versions · expected artifact and acceptance criteria per node ·
+            dependencies must not silently expand scope · no agreement inferred from matching.</p>
+        </article>
+        <article class="card"><h3>Design decisions to test</h3>
+          <p class="node-body">Offers render in outline, commitments in a bound, accent-bordered card —
+            a participant should never confuse the two. Capability profiles separate <em>declared</em>
+            from <em>inspectable</em> evidence, and every matching suggestion carries its reason inline.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Offers and needs recorded separately from commitments · declared skills, examples, availability
+            and account-control evidence separated · matching explains why it suggested.</p>
+        </article>
+      </div>
+    </section>
+    <section>
+      <span class="stage-tag">03 · Planned</span>
+      <h2>Artifact receipts</h2>
+      <p class="hint">One delivery manifest view: author and revision, artifact locations, and two
+        deliberately separate verification paths — a content identifier for addressing and a raw-file
+        digest for the delivered bytes. Verification states are shown the way participants will meet them.</p>
+      <div class="grid">
+        <article class="card"><h3>What the screen answers</h3>
+          <p class="node-body">What was delivered, in which revision, where the bytes live, how to check
+            them, who retains them and under which access conditions — with submission time and
+            established creation time shown as two different facts.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Manifest fields per the receipts stage · CID distinguished from raw-file digest ·
+            retention and retrieval · access policy preserved · mismatched, absent and stale deliveries detectable.</p>
+        </article>
+        <article class="card"><h3>Design decisions to test</h3>
+          <p class="node-body">Verification results read as evidence, not decoration: every state pairs
+            color with words and shows what was actually compared. A stale revision never renders like
+            a success, and an absent provider is a distinct state from a hash mismatch.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Release criteria: detect mismatched bytes, unsafe references, absent content and stale revisions;
+            no color-only encoding; synthetic data only.</p>
+        </article>
+      </div>
+    </section>
+    <section>
+      <span class="stage-tag">04 · Planned</span>
+      <h2>Acceptance &amp; QA</h2>
+      <p class="hint">The proposed flow — delivery, revision request, new delivery, acceptance — as one
+        portable decision trail. Decisions bind the exact delivery and criteria versions; a stale approval
+        is shown refused, not silently superseded.</p>
+      <div class="grid">
+        <article class="card"><h3>What the screen answers</h3>
+          <p class="node-body">Who may decide what, which evidence a reviewer checked, which delivery and
+            criteria versions a decision binds, and how close the milestone is to its agreed approval
+            threshold — plus the visible path a revision or dispute takes.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Policy agreed before work · coordinator and QA roles separated · decisions bind exact versions ·
+            stale-version and duplicate decisions rejected · no self-granted reviewer authority.</p>
+        </article>
+        <article class="card"><h3>Design decisions to test</h3>
+          <p class="node-body">Authorization is visible at the decision point: each decision names its actor
+            and role as rendered facts. Revoked roles, conflicting approvals and absent reviewers are drawn
+            states, so the failure paths can be reviewed before they exist in code.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Release criteria: authorization checked at the decision point · conflicting approvals, absent
+            reviewers and role revocation exercised · independence made concrete, not implied.</p>
+        </article>
+      </div>
+    </section>
+    <footer class="site-note">
+      Local concept mockups for design discussion in the <a href="https://oss-singularity.io/missions/" target="_blank" rel="noopener noreferrer">build-the-commons mission</a>.
+      Synthetic content throughout; nothing here is a live API, storage commitment or payment arrangement.
+      Static pages, no JavaScript, no requests, no storage — theme switch is by editing the
+      <code>data-theme</code> attribute or via the linked README instructions.
+    </footer>
+  </div>
+</body>
+</html>
