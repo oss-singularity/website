@@ -2,7 +2,7 @@
 
 Static interface concepts for the planned coordination roadmap stages
 ([release criteria](../../docs/coordination-roadmap.md)). They let participants
-review and discuss how stage 02–04 journeys could *look and read* before any
+review and discuss how stage 02–06 journeys could *look and read* before any
 schema or service work exists.
 
 These are **design candidates, not a live contract**: they bind no API schema,
@@ -39,6 +39,8 @@ image so the previews stay truthful.
 | ![Acceptance timeline with four steps, bound decisions and the threshold indicator](screens/04-acceptance-dark.png) | Stage 04: the decision trail; each decision binds the exact delivery and criteria versions. |
 | ![Receipts screen in bright theme with identical layout](screens/05-receipts-bright.png) | Bright theme: same layout, swapped color roles. |
 | ![Acceptance timeline at 390 px width in a single column](screens/06-acceptance-mobile-390.png) | Mobile 390 px: single column, stacked threshold indicator. |
+| ![Requirements-first wizard card of the contract lab screen](screens/07-solidity-lab.png) | Stage 05: the builder asks before it writes; the lab's refusals (key collection, deployment) are drawn states. |
+| ![Agreement card and the seven defined settlement outcomes](screens/08-fair-settlement.png) | Stage 06: agreement before work; every outcome defined before implementation. |
 
 ## Viewing
 
