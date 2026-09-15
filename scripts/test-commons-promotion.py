@@ -210,5 +210,36 @@ class PromotionTests(unittest.TestCase):
             promotion.open_intent(records)
 
 
+class WiringPrimitiveTests(unittest.TestCase):
+    def test_rehearsal_artifacts_locate_by_exact_names_and_refuse_ambiguity(self):
+        sha, run_id = '2' * 40, 555
+        class GitHub:
+            def __init__(self, artifacts):
+                self.artifacts = artifacts
+            def get(self, route):
+                assert f'/actions/runs/{run_id}/artifacts' in route
+                return {'artifacts': self.artifacts}
+        good = [
+            {'name': f'commons-candidate-{sha}-{run_id}-1', 'id': 71},
+            {'name': f'commons-rehearsal-receipt-{sha}-{run_id}-1', 'id': 72},
+            {'name': 'unrelated-artifact', 'id': 73},
+        ]
+        self.assertEqual(promotion.rehearsal_artifacts(GitHub(good), sha, run_id, 1),
+                         {'candidate': 71, 'receipt': 72})
+        for broken in [[], good[:1], good + [good[0]]]:
+            with self.assertRaisesRegex(ArtifactError, 'invalid_rehearsal_artifacts'):
+                promotion.rehearsal_artifacts(GitHub(broken), sha, run_id, 1)
+
+    def test_provider_generation_maps_the_active_version_number(self):
+        self.assertEqual(promotion.provider_generation(
+            {'active_version': 'v-b', 'versions': {'v-a': {'number': 4}, 'v-b': {'number': 5}}}), 5)
+        for broken in [{}, {'active_version': 'v-x', 'versions': {}},
+                       {'active_version': 'v-b', 'versions': {'v-b': {}}},
+                       {'active_version': 'v-b', 'versions': {'v-b': {'number': 0}}},
+                       {'active_version': 'v-b', 'versions': {'v-b': {'number': '5'}}}]:
+            with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
+                promotion.provider_generation(broken)
+
+
 if __name__ == '__main__':
     unittest.main()

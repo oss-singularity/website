@@ -125,6 +125,49 @@ def verify_staged(detail, candidate_modules, installed_bindings, compatibility_d
     return True
 
 
+def rehearsal_artifacts(github, sha, run_id, run_attempt):
+    """Locate the canonical rehearsal's packet and receipt by their exact names.
+
+    The rehearsal publishes `commons-candidate-{sha}-{run_id}-{run_attempt}`
+    and `commons-rehearsal-receipt-{sha}-{run_id}-{run_attempt}`; anything
+    else on the run is ignored, and anything missing or duplicated refuses.
+    """
+    checks.positive(run_id)
+    checks.positive(run_attempt)
+    route = BASE + '/actions/runs/' + str(run_id) + '/artifacts?per_page=100&page=1'
+    uploaded = github.get(route)
+    require(type(uploaded) is dict and type(uploaded.get('artifacts')) is list,
+            'invalid_rehearsal_artifacts')
+    wanted = {'candidate': f'commons-candidate-{sha}-{run_id}-{run_attempt}',
+              'receipt': f'commons-rehearsal-receipt-{sha}-{run_id}-{run_attempt}'}
+    found = {}
+    for role, name in wanted.items():
+        matches = [item for item in uploaded['artifacts']
+                   if type(item) is dict and item.get('name') == name]
+        require(len(matches) == 1, 'invalid_rehearsal_artifacts')
+        found[role] = checks.positive(matches[0].get('id'))
+    return found
+
+
+def provider_generation(observation):
+    """Map the provider's own monotonic version number to the plan generation.
+
+    The live target has no journal; the version `number` the API assigns to
+    every upload is the equivalent counter. Reading it from the same snapshot
+    that produced the observation digest binds the generation into the
+    baseline, so a concurrent upload changes the next observation and is
+    refused like a changed predecessor.
+    """
+    require(type(observation) is dict, 'provider_state_unverified')
+    active = observation.get('active_version')
+    versions = observation.get('versions')
+    require(type(active) is str and type(versions) is dict and active in versions,
+            'provider_state_unverified')
+    number = versions[active].get('number')
+    require(type(number) is int and 1 <= number <= 2**63 - 1, 'provider_state_unverified')
+    return number
+
+
 def find_staged(adapter, message, tag):
     """Observe the provider's version listing for this call's annotated upload."""
     versions = adapter.observe().get('versions', {})
