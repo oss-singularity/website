@@ -88,7 +88,51 @@ target is not a fixed filesystem but a versioned Worker whose bindings
 | CI automation | Not started. Worker promotion must not run from PR code; it follows the same protected-canonical discipline as static publication. |
 | Schema migration | Separate procedure; remains gated by its own backup, DDL inventory and preservation evidence. |
 
-The first implementation slice is the fixed operator command that executes
-steps 2–7 against one intent record, with offline tests mirroring the
-[transition fixture](release-commons-transition.md) and a synthetic provider —
-before any routine automation is considered.
+The first implementation slices — the durable intent record, the promotion
+engine and the fixed operator command for steps 3–7 — are implemented with
+offline tests. What remains is wiring steps 1–2 and, afterwards, automation.
+
+## Wiring specification for steps 1–2
+
+The command currently expects the already-verified results of steps 1–2. The
+following wiring makes it self-contained; it is specified here so the
+implementation can be reviewed against a written contract.
+
+- **Inputs to accept:** the canonical Commons rehearsal run id, its attempt,
+  and the candidate commit. Everything else is derived.
+- **Candidate consumption:** locate the two rehearsal artifacts by their
+  committed name pattern on that exact run, download them, and run the
+  implemented [candidate consumer](release-commons-candidates.md)
+  (`commons_candidate.verify`) with the repository's own read transport. Its
+  report supplies the verified candidate commit, packet digest and module set.
+- **Plan construction:** run the implemented [planner](release-commons-plan.md)
+  (`commons_plan.build_plan`) with the verified candidate packet, the
+  predecessor packet reconstructed from the live predecessor version's
+  content, a baseline built from the fresh `observe()` snapshot (generation,
+  version id, deployment id, packet and observation digests), and the installed
+  target policy. The planner's output is authoritative: `predecessor.version_id`
+  is the rollback target, `desired_version.bindings` must equal the inherited
+  live bindings, and `plan_sha256` is recorded in the promotion intent.
+- **Engine feeding:** map the planner output onto the engine plan —
+  predecessor version, inherit bindings over the observed installed bindings,
+  compatibility date and current release sha from the active version, and the
+  packet bytes exactly as verified. The engine's own staged-version
+  verification then re-checks the same invariants server-side.
+- **Refusals:** a changed active version or deployment id between planning and
+  promotion (the planner's baseline checks) aborts before staging, mirroring
+  the static path's stale-main discipline.
+
+## Workflow design (after wiring)
+
+Automation follows the static publication discipline and Astra's original
+design intent:
+
+- `commons-promotion.yml`, **dispatch only** (no automatic trigger), protected
+  canonical `main` guards identical to the publication workflow.
+- Environment `production-commons` with a separately scoped provider token and
+  the live-acceptance origin binding; no static secrets.
+- Inputs: run id, attempt, commit. The job runs the wired command and uploads
+  the sanitized outcome exactly like static publication; no artifact, log or
+  summary may contain tokens or account identifiers.
+- One production concurrency group shared with static publication, without
+  canceling an in-progress run.
