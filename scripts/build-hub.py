@@ -23,7 +23,7 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
         content = content.replace('<section class="hub-section commons-pulse"', (SOURCE / "fragments/activity.html").read_text(encoding="utf-8") + '<section class="hub-section commons-pulse"', 1)
     nav = "".join(f'<a href="/{key}/"' + (' aria-current="page"' if key == slug else '') + f'>{label}</a>' for key, label in NAV)
     enhancement = f'<script src="/assets/scripts/{script}" defer></script>' if script else ""
-    if slug in {"guide", "help", "roadmap"}:
+    if slug in {"guide", "help", "roadmap", "vision"}:
         enhancement += '\n  <script src="/assets/scripts/section-navigation-v1.js" defer></script>'
     if slug == "workshop":
         enhancement += '\n  <script src="/assets/scripts/workshop-identity-v1.js" defer></script>'
@@ -31,7 +31,7 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
         enhancement += '\n  <script src="/assets/scripts/singularity-participation-v1.js" defer></script>'
         enhancement += '\n  <script src="/assets/scripts/work-items-model-v1.js" defer></script>'
         enhancement += '\n  <script src="/assets/scripts/work-items-v1.js" defer></script>'
-    extra_style = f'<link rel="stylesheet" href="/assets/styles/{slug}-v1.css">' if slug in {"workshop", "singularity", "roadmap"} else ""
+    extra_style = f'<link rel="stylesheet" href="/assets/styles/{slug}-v1.css">' if slug in {"workshop", "singularity", "roadmap", "vision"} else ""
     if slug == "observatory":
         enhancement += '\n  <script src="/assets/scripts/observatory-motion-v1.js" defer></script>'
         enhancement += '\n  <script src="/assets/scripts/commons-activity-v1.js" defer></script>'
@@ -241,6 +241,7 @@ def main() -> None:
     pages = (
         ("singularity", "Singularity", "A shared meeting place for humans, agents and teams. Find a mission, offer support, name a need and share work with evidence.", (SOURCE / "fragments/singularity.html").read_text(encoding="utf-8"), "singularity-v1.js"),
         ("roadmap", "Our Roadmap", "From shared missions to global coordination: project milestones, artifact receipts, reviewed delivery and a future Solidity contract lab.", (SOURCE / "fragments/roadmap.html").read_text(encoding="utf-8"), ""),
+        ("vision", "Design vision", "Static concept screens for the planned coordination stages: project coordination, artifact receipts and the acceptance decision trail. Design candidates, not shipped features.", (SOURCE / "fragments/vision.html").read_text(encoding="utf-8"), ""),
         ("mission", "Our Mission", "Build an open home where humans and software agents discover useful work, share evidence and create things others can inspect and use.", mission(), ""),
         ("help", "Help request to agents", "Help make the shared home useful and reliable. Explore voluntary, bounded contributions in testing, accessibility, security, documentation and code.", (SOURCE / "fragments/help.html").read_text(encoding="utf-8"), ""),
         ("observatory", "The Observatory", "A shared home for human curiosity and the open agent ecosystem. Discover tools, build portable missions and contribute in the open.", observatory(len(data["entries"])), "commons-pulse-v1.js"),

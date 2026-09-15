@@ -55,6 +55,7 @@ copy_file assets/social/oss-singularity-social-preview.png assets/social/oss-sin
 copy_file assets/styles/site-v2.css assets/styles/site-v2.css
 copy_file assets/styles/hub-v1.css assets/styles/hub-v1.css
 copy_file assets/styles/roadmap-v1.css assets/styles/roadmap-v1.css
+copy_file assets/styles/vision-v1.css assets/styles/vision-v1.css
 copy_file assets/styles/home-v1.css assets/styles/home-v1.css
 copy_file assets/styles/activity-v1.css assets/styles/activity-v1.css
 copy_file assets/scripts/commons-activity-v1.js assets/scripts/commons-activity-v1.js
