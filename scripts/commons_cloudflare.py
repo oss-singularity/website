@@ -160,23 +160,21 @@ class CloudflareAdapter:
         """
         script_path = '/accounts/' + self.account_id + '/workers/scripts/' + self.script_name
 
-        # Upload the worker content (multipart form data with module upload)
-        # The Worker API expects multipart/form-data for module uploads
-        boundary = '----CfWorkerUpload' + hashlib.sha256(candidate_content).hexdigest()[:16]
-        body_parts = []
-
-        # Parse the multipart candidate content (same format as GET response)
-        # The candidate_content is already in multipart format from the artifact
-        if b'Content-Disposition: form-data' in candidate_content:
-            # Already multipart — use as-is with new annotations
+        # Upload with metadata annotations. The multipart boundary declared in
+        # the Content-Type header must be the exact boundary used by the body:
+        # an already-multipart candidate keeps its own boundary.
+        if candidate_content.startswith(b'--'):
+            raw_boundary = candidate_content.split(b'\r\n', 1)[0][2:]
+            require(re.fullmatch(r'[A-Za-z0-9()+_,.=:-]{1,128}', raw_boundary.decode('ascii', 'replace')),
+                    'invalid_candidate')
+            boundary = raw_boundary.decode('ascii')
             raw_body = candidate_content
         else:
-            # Single module — wrap in multipart
-            body_parts.append('--' + boundary)
-            body_parts.append('Content-Disposition: form-data; name="worker.mjs"')
-            body_parts.append('')
-            body_parts.append(candidate_content.decode('utf-8', 'replace'))
-            body_parts.append('--' + boundary + '--')
+            boundary = '----CfWorkerUpload' + hashlib.sha256(candidate_content).hexdigest()[:16]
+            body_parts = ['--' + boundary,
+                          'Content-Disposition: form-data; name="worker.mjs"', '',
+                          candidate_content.decode('utf-8', 'replace'),
+                          '--' + boundary + '--']
             raw_body = '\r\n'.join(body_parts).encode('utf-8')
 
         # Upload with metadata annotations

@@ -143,15 +143,63 @@ class CloudflareAdapterTests(unittest.TestCase):
         self.assertIsNone(obs['active_version'])
         self.assertEqual(len(obs['deployments']), 0)
 
-    def test_stage_version_returns_new_id(self):
+    def test_stage_version_wraps_single_module_and_returns_new_id(self):
         a = _make_adapter()
-        candidate = b'--boundary\r\nContent-Disposition: form-data; name="worker.mjs"\r\n\r\ncode\r\n--boundary--'
+        captured = {}
 
-        with patch.object(a, '_api') as mock_api:
-            mock_api.return_value = {'success': True, 'result': {'id': 'new-version-uuid'}}
-            # Actually, stage_version uses urllib directly, not _api
-            # We need to mock urllib.request.urlopen
-            pass
+        class FakeResponse:
+            def __enter__(self):
+                return self
+            def __exit__(self, *_):
+                return False
+            def read(self, _limit=-1):
+                return json.dumps({'success': True, 'result': {'id': 'new-version-uuid'}}).encode()
+
+        def fake_urlopen(request, timeout=None):
+            captured['url'] = request.full_url
+            captured['method'] = request.get_method()
+            captured['headers'] = dict(request.header_items())
+            captured['body'] = request.data
+            return FakeResponse()
+
+        with patch('urllib.request.urlopen', side_effect=fake_urlopen):
+            new_id = a.stage_version(b'export default {}', 'abc123', 'Test message', 'test-tag')
+
+        self.assertEqual(new_id, 'new-version-uuid')
+        self.assertTrue(captured['url'].endswith('/workers/scripts/test-script/versions'))
+        self.assertEqual(captured['method'], 'POST')
+        self.assertIn(b'Content-Disposition: form-data; name="worker.mjs"', captured['body'])
+        # The declared boundary must be the exact boundary used by the body.
+        boundary = captured['headers']['Content-type'].split('boundary=')[1]
+        self.assertIn(('--' + boundary + '\r\n').encode(), captured['body'])
+        self.assertTrue(captured['body'].endswith(('--' + boundary + '--').encode()))
+
+    def test_stage_version_reuses_the_candidates_own_multipart_boundary(self):
+        a = _make_adapter()
+        captured = {}
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+            def __exit__(self, *_):
+                return False
+            def read(self, _limit=-1):
+                return json.dumps({'success': True, 'result': {'id': 'new-version-uuid'}}).encode()
+
+        def fake_urlopen(request, timeout=None):
+            captured['headers'] = dict(request.header_items())
+            captured['body'] = request.data
+            return FakeResponse()
+
+        multipart = (b'--cf-existing-boundary\r\n'
+                     b'Content-Disposition: form-data; name="worker.mjs"\r\n\r\n'
+                     b'code\r\n--cf-existing-boundary--')
+        with patch('urllib.request.urlopen', side_effect=fake_urlopen):
+            new_id = a.stage_version(multipart, 'abc123', 'Test message', 'test-tag')
+
+        self.assertEqual(new_id, 'new-version-uuid')
+        self.assertEqual(captured['body'], multipart)
+        self.assertIn('boundary=cf-existing-boundary', captured['headers']['Content-type'])
 
     def test_activate_version_returns_deployment_id(self):
         a = _make_adapter()
