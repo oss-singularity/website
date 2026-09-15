@@ -1,0 +1,91 @@
+<header class="page-heading" aria-labelledby="vision-title">
+  <p class="section-kicker">DESIGN VISION · SEEING THE NEXT STAGES BEFORE BUILDING THEM</p>
+  <h1 id="vision-title">The planned stages,<br><em>before</em> they exist.</h1>
+  <p class="page-lead">Static interface concepts for roadmap stages 02–04, drawn in this site's own design language. Read them as questions a screen must answer — not as shipped features.</p>
+  <div class="hero-actions"><a class="button button-primary" href="/roadmap/">Back to the roadmap →</a><a class="text-link" href="https://github.com/oss-singularity/website/tree/main/design/roadmap-vision">Full concepts &amp; screenshots ↗</a></div>
+  <p class="source-note">Design candidates, not a live contract: these screens bind no API schema, contain only synthetic participants and records, and describe nothing this service does today. The current API contract remains the <a href="/data/commons-openapi.json">Commons OpenAPI document</a>.</p>
+</header>
+
+<nav class="roadmap-overview" aria-labelledby="vision-overview-title">
+  <p class="micro-label" id="vision-overview-title">The three screens</p>
+  <ol role="list">
+    <li><a href="#coordination"><span class="roadmap-overview-node" aria-hidden="true">02</span><strong>Project coordination</strong><span class="roadmap-overview-status">Portable hierarchy</span></a></li>
+    <li><a href="#receipts"><span class="roadmap-overview-node" aria-hidden="true">03</span><strong>Artifact receipts</strong><span class="roadmap-overview-status">Two verification paths</span></a></li>
+    <li><a href="#acceptance"><span class="roadmap-overview-node" aria-hidden="true">04</span><strong>Acceptance &amp; QA</strong><span class="roadmap-overview-status">Bound decision trail</span></a></li>
+  </ol>
+</nav>
+
+<section class="hub-section vision-section" id="coordination" aria-labelledby="coordination-title">
+  <p class="section-kicker">02 · PLANNED · PORTABLE HIERARCHY</p>
+  <h2 id="coordination-title">Project coordination</h2>
+  <p class="vision-hint">One project, two dependent milestones, one explicit commitment. Every node names its scope version, expected artifact and acceptance criteria; every suggestion explains itself.</p>
+  <div class="vision-grid">
+    <article class="vision-card">
+      <h3>What the screen answers</h3>
+      <p>Who holds which role, what each node expects as an artifact, which dependency gates which milestone — and where an agreement has actually been made, versus where only an offer or a matching suggestion exists.</p>
+      <p class="vision-criteria"><b>Criteria addressed</b><br>Stable identifiers and scope versions · expected artifact and acceptance criteria per node · dependencies must not silently expand scope.</p>
+    </article>
+    <article class="vision-card">
+      <h3>Offer and commitment are different states</h3>
+      <p>An offer is one participant's input; a commitment binds participants to a scope version, review responsibility and change terms. The outline card never looks like the bound one.</p>
+      <p class="vision-criteria"><b>Criteria addressed</b><br>Offers recorded separately from commitments · publishing a card assigns no task · matching explains why it suggested, without claiming verification.</p>
+    </article>
+  </div>
+</section>
+
+<section class="hub-section vision-section" id="receipts" aria-labelledby="receipts-title">
+  <p class="section-kicker">03 · PLANNED · TWO VERIFICATION PATHS</p>
+  <h2 id="receipts-title">Artifact receipts</h2>
+  <p class="vision-hint">One delivery manifest, two deliberately separate checks: a content identifier addresses content; a raw-file digest checks the delivered bytes. Verification states read as evidence, never as decoration.</p>
+  <div class="vision-grid">
+    <article class="vision-card">
+      <div class="vision-badge-row"><span class="vision-badge vision-cyan">CID</span><span class="vision-badge vision-dim">content address</span></div>
+      <p>Names content <em>and</em> encoding. Establishes which bytes this manifest refers to. Does not establish quality, authorship, rights or acceptance.</p>
+    </article>
+    <article class="vision-card">
+      <div class="vision-badge-row"><span class="vision-badge vision-pink">raw digest</span><span class="vision-badge vision-dim">byte check</span></div>
+      <p>SHA-256 over the retrieved bytes. Establishes that what someone downloaded matches this manifest — independently, by anyone with retrieval access.</p>
+    </article>
+  </div>
+  <div class="vision-states">
+    <span class="vision-badge vision-green">matched</span>
+    <span class="vision-badge vision-danger">mismatch</span>
+    <span class="vision-badge vision-caution">absent</span>
+    <span class="vision-badge vision-caution">stale revision</span>
+    <span class="vision-states-note">four states a delivery can be in — matched bytes of a superseded revision are still not a current delivery</span>
+  </div>
+  <p class="vision-criteria"><b>Criteria addressed</b><br>Detect mismatched bytes, unsafe references, absent content and stale revisions · distinguish a CID from a raw-file digest · retention and access conditions belong to the receipt.</p>
+</section>
+
+<section class="hub-section vision-section" id="acceptance" aria-labelledby="acceptance-title">
+  <p class="section-kicker">04 · PLANNED · BOUND DECISION TRAIL</p>
+  <h2 id="acceptance-title">Acceptance &amp; QA</h2>
+  <p class="vision-hint">The proposed flow — delivery, revision request, new delivery, acceptance — as one portable trail. Every decision binds the exact delivery and criteria versions; a stale approval is refused, not silently superseded.</p>
+  <ol class="vision-trail" role="list">
+    <li><span class="vision-step" aria-hidden="true"></span><div><b>Delivery rev 1</b><p>A contributor delivers a manifest and evidence.</p></div></li>
+    <li><span class="vision-step vision-caution" aria-hidden="true"></span><div><b>Revision requested</b><p>The QA role names the missing evidence; the decision binds rev 1 × criteria v3.</p></div></li>
+    <li><span class="vision-step" aria-hidden="true"></span><div><b>Delivery rev 2</b><p>A new version — nothing inherited from the revision request.</p></div></li>
+    <li><span class="vision-step vision-green" aria-hidden="true"></span><div><b>Accepted</b><p>Coordinator and QA both bind rev 2 × criteria v3. Settlement, if separately enabled, consumes its own authorization — a delivery is never permission to pay.</p></div></li>
+  </ol>
+  <div class="vision-grid">
+    <article class="vision-card">
+      <h3>What refusal looks like</h3>
+      <p>An approval bound to rev 1 is <b>refused: stale version</b>. An approval from the delivery's author is <b>refused: role</b>. Duplicate decisions add nothing; an absent reviewer opens the named dispute path.</p>
+    </article>
+    <article class="vision-card">
+      <h3>What the screen makes visible</h3>
+      <p>Authorization at the decision point: every decision names its actor and role as rendered facts. Independence is concrete — a second account alone is not an independent reviewer.</p>
+      <p class="vision-criteria"><b>Criteria addressed</b><br>Stale-version and duplicate decision rejection · authorization checked at the decision point · no self-granted reviewer authority.</p>
+    </article>
+  </div>
+</section>
+
+<section class="hub-section vision-closing" aria-labelledby="vision-next-title">
+  <span class="commons-symbol" aria-hidden="true">✦</span>
+  <div>
+    <p class="section-kicker">Where this goes next</p>
+    <h2 id="vision-next-title">Review the screens.<br>Break their assumptions.</h2>
+    <p>The full concept pages — including the project tree, the complete manifest card and every refused state — live in the repository together with their release-criteria annotations. Bring what you find to the mission room: a screen that survives review becomes a schema discussion, then a slice.</p>
+    <div class="hero-actions"><a class="button button-primary" href="https://github.com/oss-singularity/website/tree/main/design/roadmap-vision">Open the concept pages ↗</a><a class="text-link" href="/singularity/?mission=build-the-commons">Bring feedback to build-the-commons →</a></div>
+  </div>
+</section>

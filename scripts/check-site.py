@@ -108,6 +108,7 @@ def required_files(actual: set[str], read) -> set[str]:
         "data/commons-openapi.json",
         "data/founding-mission.json", "mission/index.html",
         "data/help-wanted.json", "help/index.html", "roadmap/index.html", "assets/styles/roadmap-v1.css",
+        "vision/index.html", "assets/styles/vision-v1.css",
         "data/help-wanted.schema.json",
         "observatory/index.html", "atlas/index.html", "lab/index.html",
         "guide/index.html", "connect/index.html",
@@ -146,6 +147,7 @@ def check_product(root: Path) -> int:
         "guide/index.html": ["/assets/scripts/section-navigation-v1.js"],
         "help/index.html": ["/assets/scripts/section-navigation-v1.js"],
         "roadmap/index.html": ["/assets/scripts/section-navigation-v1.js"],
+        "vision/index.html": ["/assets/scripts/section-navigation-v1.js"],
     }
     documents = sorted(root.rglob("*.html"))
     for document in documents:

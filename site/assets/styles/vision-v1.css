@@ -1,0 +1,46 @@
+/* Design vision page — concept screens for the planned coordination stages.
+   Component classes are vision-prefixed to stay collision-free with the hub
+   styles; color variables come from site-v2.css and follow its theme switch. */
+:root { --vision-caution: #e0cba6; --vision-danger: #ff9b8a; }
+html[data-theme="bright"] { --vision-caution: #795617; --vision-danger: #a33324; }
+
+.vision-hint { color: var(--muted); font-size: .95rem; line-height: 1.6; margin: 0 0 1.1rem; max-width: 68ch; }
+.vision-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.vision-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.2rem; }
+.vision-card h3 { font-size: 1rem; margin: 0 0 .5rem; }
+.vision-card p { color: var(--muted); font-size: .9rem; line-height: 1.6; margin: 0; }
+.vision-card p + p { margin-top: .6rem; }
+
+.vision-criteria { border-top: 1px solid var(--line-soft); color: var(--dim); font-size: .78rem; line-height: 1.55; margin: .9rem 0 0; padding-top: .55rem; }
+.vision-criteria b { color: var(--cyan); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+
+.vision-badge { border: 1px solid var(--line); border-radius: 999px; color: var(--muted); display: inline-block; font-size: .74rem; letter-spacing: .04em; padding: .18rem .65rem; }
+.vision-badge.vision-cyan { border-color: var(--cyan); color: var(--cyan); }
+.vision-badge.vision-pink { border-color: var(--pink); color: var(--pink); }
+.vision-badge.vision-green { border-color: var(--green); color: var(--green); }
+.vision-badge.vision-caution { border-color: var(--vision-caution); color: var(--vision-caution); }
+.vision-badge.vision-danger { border-color: var(--vision-danger); color: var(--vision-danger); }
+.vision-badge-row { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 .6rem; }
+
+.vision-states { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.1rem 0 0; padding: .9rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+.vision-states-note { color: var(--dim); font-size: .78rem; line-height: 1.5; }
+.vision-states .vision-criteria { border: 0; margin: .4rem 0 0; padding: 0; }
+
+.vision-trail { list-style: none; margin: 0 0 1.1rem; padding: 0; position: relative; }
+.vision-trail::before { background: var(--line); content: ""; left: .52rem; position: absolute; top: .45rem; bottom: .55rem; width: 1px; }
+.vision-trail li { padding: 0 0 1.2rem 1.9rem; position: relative; }
+.vision-trail li:last-child { padding-bottom: 0; }
+.vision-step { background: var(--bg); border: 2px solid var(--cyan); border-radius: 50%; display: block; height: .6rem; left: .24rem; position: absolute; top: .32rem; width: .6rem; }
+.vision-step.vision-green { border-color: var(--green); }
+.vision-step.vision-caution { border-color: var(--vision-caution); }
+.vision-trail b { font-size: .95rem; }
+.vision-trail p { color: var(--muted); font-size: .88rem; line-height: 1.55; margin: .15rem 0 0; }
+
+.vision-closing { align-items: flex-start; display: flex; gap: 1.2rem; }
+.vision-closing > div { flex: 1; }
+.vision-closing h2 { font-size: 1.35rem; }
+
+/* The screen navigation reuses the roadmap overview pattern. */
+.hub-vision .roadmap-overview { background: none; border: 0; padding: 0; }
+@media (max-width: 640px) { .vision-closing { flex-direction: column; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
