@@ -1,5 +1,6 @@
 """Durable, sanitized intent and outcome records in the repository deployment API."""
 import re
+import time
 import urllib.request
 
 from release_source import API, BASE, checks, encode, token
@@ -15,9 +16,10 @@ IN_PROGRESS = 'Verified candidate; publication is in progress.'
 
 
 class Deployments:
-    def __init__(self, environ, opener=None):
+    def __init__(self, environ, opener=None, pause=time.sleep):
         self.environ = environ
         self.opener = opener or urllib.request.build_opener(checks.rehearsal.NoRedirect())
+        self.pause = pause
 
     def request(self, method, route, body=None):
         number = r'[1-9][0-9]{0,18}'
@@ -30,16 +32,19 @@ class Deployments:
             'Authorization': 'Bearer ' + token(self.environ, 'GH_TOKEN'),
             'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2026-03-10',
             'Content-Type': 'application/json', 'Cache-Control': 'no-cache'})
-        try:
-            with self.opener.open(request, timeout=15) as response:
-                require(response.status == (201 if method == 'POST' else 200)
-                        and response.geturl() == API + route, 'deployment_record_unconfirmed')
-                return checks.decode(response.read(checks.MAX_JSON + 1))
-        except ArtifactError:
-            raise
-        except Exception:
-            # Never repeat a mutation after an unknown network outcome.
-            raise ArtifactError('deployment_record_unconfirmed') from None
+        for attempt in range(3 if method == 'GET' else 1):
+            try:
+                with self.opener.open(request, timeout=15) as response:
+                    require(response.status == (201 if method == 'POST' else 200)
+                            and response.geturl() == API + route, 'deployment_record_unconfirmed')
+                    return checks.decode(response.read(checks.MAX_JSON + 1))
+            except ArtifactError:
+                raise
+            except Exception:
+                # Never repeat a mutation after an unknown network outcome.
+                if method == 'POST' or attempt == 2:
+                    raise ArtifactError('deployment_record_unconfirmed') from None
+                self.pause(1.0)
 
     def previous(self):
         items = self.request('GET', LIST)
