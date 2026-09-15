@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>05 · Solidity contract lab · Design vision</title>
+  <link rel="stylesheet" href="vision.css">
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">OSS SINGULARITY · DESIGN VISION · SYNTHETIC DATA</p>
+    <h1>05 · Solidity contract lab</h1>
+    <p class="lede">A guided builder for bounded coordination contracts — research toward a local,
+      synthetic, testnet-only stage. It starts from explicit requirements, never from an arbitrary
+      request to generate and deploy financial code.</p>
+    <p class="candidate-note"><b>Design candidate · research status.</b> Illustrates the contract-lab
+      stage's release criteria with synthetic content. No real funds, no deployment, no key collection —
+      see the <a href="index.html">vision index</a> for scope.</p>
+    <nav class="topline" aria-label="Vision screens">
+      <a href="project-coordination.html">02 · Coordination</a>
+      <a href="artifact-receipts.html">03 · Receipts</a>
+      <a href="acceptance-qa.html">04 · Acceptance</a>
+      <a href="solidity-lab.html" aria-current="page">05 · Contract lab</a>
+      <a href="fair-settlement.html">06 · Settlement</a>
+      <a href="index.html">Overview</a>
+    </nav>
+
+    <section>
+      <span class="stage-tag">Journey view · guided requirements</span>
+      <h2>Requirements first — the builder asks before it writes</h2>
+      <p class="hint">The wizard walks roles, scope commitments, artifact references, acceptance
+        thresholds, deadlines and any optional settlement rule. Every answer lands in a readable
+        agreement summary before a single line of Solidity is generated.</p>
+      <article class="card">
+        <dl class="fields">
+          <dt>Roles</dt><dd>Coordinator @aria · QA @sana · funder: open — each with grant/revoke visibility</dd>
+          <dt>Scope commitment</dt><dd>Milestone m-digest-01 · scope v1 · delivery rev 2 (synthetic)</dd>
+          <dt>Artifact references</dt><dd>Delivery manifest with CID and raw digest, per stage 03</dd>
+          <dt>Acceptance threshold</dt><dd>Scope check + QA check on the same delivery revision</dd>
+          <dt>Deadline</dt><dd>Escalation after 10 days of reviewer silence</dd>
+          <dt>Settlement rule</dt><dd>None in this example — settlement is a separate, optional stage</dd>
+        </dl>
+        <p class="criteria"><b>Criteria addressed</b><br>
+          Start from explicit requirements · explain roles, scope, artifact references, thresholds,
+          deadlines and optional settlement before output · administrative power stays visible.</p>
+      </article>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · what the builder produces</span>
+      <h2>Output is a package, not just code</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Generated with the code</h3>
+          <p>Readable Solidity · the normalized agreement · stated assumptions · a threat model ·
+            version-pinned dependencies · compiler settings · reproducible tests.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Pinned reproducible output · role, signature, replay, nonce, expiry and cross-contract
+            tests accompany every generated contract.</p>
+        </article>
+        <article class="card">
+          <h3>Signing authority is modeled, not assumed</h3>
+          <p>A future signing request binds action, project, scope and delivery version, permitted
+            recipient, amount where relevant, plus expiry and a single-use nonce — under a defined
+            domain. Contract wallets re-verify at execution; nothing caches trust.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Signing authority separate from Commons login · EIP-712 structured signing · explicit
+            semantics for revocation and delegated agent signing limits.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · hard refusals</span>
+      <h2>What the lab will not do</h2>
+      <p class="hint">The refusal states are drawn here so they are reviewable before any generator
+        exists. Each refusal names the boundary it enforces.</p>
+      <div class="grid">
+        <article class="card decision-card stale">
+          <div class="node-head"><span class="name"><s>Collect the user's private key</s></span><span class="badge danger">refused · keys</span></div>
+          <p class="node-body">No private-key collection, no automatic signing, no implicit deployment.
+            A testnet demonstration is not a real-value launch.</p>
+        </article>
+        <article class="card decision-card stale">
+          <div class="node-head"><span class="name"><s>Deploy to mainnet</s></span><span class="badge danger">refused · deployment</span></div>
+          <p class="node-body">First slice is a local delivery-and-acceptance example with synthetic
+            artifacts and no real funds; any testnet exercise needs separate authorization.</p>
+        </article>
+        <article class="card decision-card revision">
+          <div class="node-head"><span class="name">Generate financial code unprompted</span><span class="badge caution">out of scope</span></div>
+          <p class="node-body">The builder addresses bounded coordination agreements — escrow, tokens
+            and marketplaces are not in scope and are not generated "as a bonus".</p>
+        </article>
+      </div>
+      <p class="criteria" style="max-width:68ch"><b>Criteria addressed</b><br>
+        Release criteria: clear review of the requested operation · no private-key collection, automatic
+        signing or implicit deployment · explicit access-control roles with visible grant/revoke powers.</p>
+    </section>
+
+    <footer class="site-note">
+      Synthetic participants, identifiers and outputs exist only in this mockup. Reference points for
+      the research: OpenZeppelin Contracts Wizard and access-control documentation, EIP-712 — cited as
+      references, not integrations or assurances. Next useful test per the roadmap: a local
+      delivery-and-acceptance example with synthetic artifacts and no real funds.
+    </footer>
+  </div>
+</body>
+</html>
