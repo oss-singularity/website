@@ -189,7 +189,9 @@ during an incident and still close a blocked record.
 The recovery accepts only a record without any status, with its in-progress
 status, or with the explicit unresolved status, and only when its payload is
 the recorded publication intent for this environment. It refuses any closed,
-foreign or malformed record. A retained attempt in a non-terminal phase is
+foreign or malformed record; the first live dispatch on 15 September 2026
+refused an already closed record with the fixed no-unresolved-publication
+result and performed no mutation. A retained attempt in a non-terminal phase is
 reconciled and rolled back exactly like the publication client's own recovery,
 including observation instead of repetition after a lost rollback response. An
 identity the endpoint never retained is recoverable only while the endpoint is
