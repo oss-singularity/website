@@ -125,5 +125,6 @@ Record attempt identity and phase durably before external writes. Runner loss or
 an unknown migration, upload or rollback outcome blocks further promotion until
 explicit reconciliation establishes the actual state. Never blindly retry a
 write or restore an old database over newer work. Routine releases are the
-automation target; exceptional recovery remains an operator procedure until it
-has its own verified implementation.
+automation target; blocked static records now have their own verified recovery
+in the publication workflow, while Worker, database and other exceptional
+recovery remains an operator procedure.
