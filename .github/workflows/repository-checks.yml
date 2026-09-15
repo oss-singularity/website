@@ -78,3 +78,7 @@ jobs:
         run: |
           python3 scripts/test-static-publication.py
           python3 -O scripts/test-static-publication.py
+      - name: Validate blocked-record recovery and closed deployments
+        run: |
+          python3 scripts/test-static-recovery.py
+          python3 -O scripts/test-static-recovery.py

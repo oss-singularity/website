@@ -172,11 +172,31 @@ reconciliation before further writes.
 
 A lost runner leaves the original identity in the deployment intent and the
 filesystem journal on the endpoint. A new workflow run refuses an unresolved
-intent. An operator must inspect that original attempt, reconcile the filesystem
-and complete live verification before closing its record. Do not delete an
-unresolved record or reset the server journal merely to unblock another run.
-The ordinary automatic path and exceptional operator recovery have different
-acceptance requirements.
+intent. Dispatch the same workflow with mode `recover` to close that blocked
+record through the implemented bounded recovery: it re-reads the original
+recorded intent, reconciles the retained remote attempt under its original
+identity, and closes the record only after the resulting live bytes pass the
+same HTTP acceptance as a publication. The recovery shares the production
+concurrency group, so it never overlaps a running publication, and it does not
+require `STATIC_PUBLISH_ENABLED`: an operator may disable automatic publication
+during an incident and still close a blocked record.
+
+The recovery accepts only a record without any status, with its in-progress
+status, or with the explicit unresolved status, and only when its payload is
+the recorded publication intent for this environment. It refuses any closed,
+foreign or malformed record. A retained attempt in a non-terminal phase is
+reconciled and rolled back exactly like the publication client's own recovery,
+including observation instead of repetition after a lost rollback response. An
+identity the endpoint never retained is recoverable only while the endpoint is
+still closed at exactly the recorded predecessor and generation. Interrupted
+maintenance is completed through the same bounded maintain operation. A
+terminal verified attempt — live acceptance passed, only maintenance or record
+bookkeeping failed — re-verifies the exact recorded candidate descriptor and
+bytes live and then closes the record as success instead of rolling back a
+healthy site. Operator-modified files, a changed endpoint runtime digest or a
+changed provider configuration refuse recovery and keep the record blocked.
+Never delete an unresolved record or reset the server journal merely to
+unblock another run.
 
 Failed transitions report a fixed `failure.stage` and `failure.code`, such as
 `http_acceptance` and `http_compression_missing`. If recovery also fails,
@@ -189,9 +209,13 @@ remain required.
 ## Verify changes
 
 Run `python3 scripts/test-static-publication.py` and its `python3 -O` counterpart,
+then `python3 scripts/test-static-recovery.py` with its `python3 -O` counterpart,
 then the [complete repository checks](../CONTRIBUTING.md#before-opening-a-pull-request).
 The publication tests use installed isolated endpoint processes and synthetic
 external-service responses. They cover durable intent ordering, lost replies,
 process-exit reconciliation, rollback and preservation of intervening writes.
+The recovery tests cover absent, in-progress and unresolved records, retained
+attempts in non-terminal phases, interrupted maintenance, candidate-descriptor
+binding and refusal when newer operator bytes must be preserved.
 Real GitHub artifact transport, scoped credentials and origin/edge behavior need
 separate canonical/provider evidence; offline fixtures do not establish them.
