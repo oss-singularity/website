@@ -12,6 +12,8 @@ serves, and any step that cannot be resolved closes the intent as unresolved.
 """
 import time
 
+import commons_artifact as artifact
+import commons_rehearsal as rehearsal
 from release_deployment import Deployments
 from release_source import BASE, checks, encode
 from site_artifact import ArtifactError, require
@@ -166,6 +168,34 @@ def provider_generation(observation):
     number = versions[active].get('number')
     require(type(number) is int and 1 <= number <= 2**63 - 1, 'provider_state_unverified')
     return number
+
+
+def reconstruct_predecessor(content, commit):
+    """Rebuild the predecessor packet from the live predecessor version's content.
+
+    The provider's multipart form is parsed into its modules, the packet is
+    rebuilt against the recorded predecessor commit, and unpack binds the
+    result: live bytes that do not belong to that commit refuse here. The
+    packet is never taken from the candidate.
+    """
+    require(type(content) is bytes and content.startswith(b'--') and b'\r\n' in content,
+            'invalid_candidate')
+    boundary = content.split(b'\r\n', 1)[0][2:]
+    require(2 <= len(boundary) <= 128, 'invalid_candidate')
+    files = {}
+    for part in content.split(b'--' + boundary)[1:-1]:
+        head, _, body = part.partition(b'\r\n\r\n')
+        head_text = head.decode('utf-8', 'replace')
+        if 'name="metadata"' in head_text:
+            continue
+        name = head_text.split('name="', 1)[1].split('"', 1)[0] if 'name="' in head_text else None
+        require(name is not None and body.endswith(b'\r\n'), 'invalid_candidate')
+        files[name] = body[:-2]
+    require(0 < len(files) <= 32 and len(set(files)) == len(files), 'invalid_candidate')
+    packet = artifact.packet(files, commit, rehearsal.SCHEMA_SHA256)
+    restored, _descriptor = artifact.unpack(packet, commit, rehearsal.SCHEMA_SHA256)
+    require(restored == files, 'invalid_candidate')
+    return packet
 
 
 def find_staged(adapter, message, tag):
