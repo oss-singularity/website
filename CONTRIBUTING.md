@@ -35,6 +35,7 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Fixed-command remote static observation | [Observer guide](docs/release-static-observer.md), [`scripts/static-remote-observe.py`](scripts/static-remote-observe.py), [`scripts/test-static-remote-observe.py`](scripts/test-static-remote-observe.py) |
 | Restricted static writes, retention and remote recovery | [Remote writer guide](docs/release-static-remote.md), [`scripts/static-remote-release.py`](scripts/static-remote-release.py), [`scripts/static_remote.py`](scripts/static_remote.py), [`scripts/static_retention.py`](scripts/static_retention.py), [`scripts/test-static-remote.py`](scripts/test-static-remote.py) |
 | End-to-end static publication | [Publication guide](docs/release-publication.md), [`scripts/static_publication.py`](scripts/static_publication.py), [`scripts/test-static-publication.py`](scripts/test-static-publication.py), [publication workflow](.github/workflows/static-publication.yml) |
+| Closing blocked static publication records | [Publication guide](docs/release-publication.md), [`scripts/static_recovery.py`](scripts/static_recovery.py), [`scripts/test-static-recovery.py`](scripts/test-static-recovery.py), [publication workflow](.github/workflows/static-publication.yml) |
 | Commons code packaging and schema fingerprints | [Commons artifact guide](docs/release-commons-artifacts.md), [`scripts/commons_artifact.py`](scripts/commons_artifact.py), [`scripts/test-commons-artifact.py`](scripts/test-commons-artifact.py) |
 | Commons artifact transport on canonical main | [Commons rehearsal guide](docs/release-commons-rehearsal.md), [`scripts/commons_rehearsal.py`](scripts/commons_rehearsal.py), [Commons workflow](.github/workflows/commons-release-rehearsal.yml) |
 | Completed Commons candidates, source and checks | [Commons consumer guide](docs/release-commons-candidates.md), [`scripts/commons_candidate.py`](scripts/commons_candidate.py), [`scripts/test-commons-candidate.py`](scripts/test-commons-candidate.py) |
@@ -104,6 +105,8 @@ python3 scripts/test-static-remote.py
 python3 -O scripts/test-static-remote.py
 python3 scripts/test-static-publication.py
 python3 -O scripts/test-static-publication.py
+python3 scripts/test-static-recovery.py
+python3 -O scripts/test-static-recovery.py
 ```
 
 The first command rebuilds and validates the static site, references, metadata, budgets and public data contracts. The service suite uses real SQLite transactions; the browser-controller tests cover mission handoff, theme behavior and private-state boundaries. The Python suites check machine contracts, static artifacts, rehearsal, candidate consumption, required-check provenance, static operation planning, journaled transitions and fixed-command remote protocols. Recovery tests terminate disposable worker processes and reopen their journals in fresh processes. Remote protocol tests install the real isolated entry points into private synthetic roots; they never connect to SSH or a hosting account. CI runs these without production access. Report the checks you actually ran and any that remain for review; automated checks do not replace visual or accessibility review.

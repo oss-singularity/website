@@ -11,6 +11,7 @@ LIST = BASE + '/deployments?environment=' + ENVIRONMENT + '&task=deploy%3Aoss-st
 SUCCESS = 'Static bytes, origin, edge, API and rollback material verified.'
 ROLLED_BACK = 'Publication failed; original static bytes and HTTP rollback verified.'
 UNRESOLVED = 'Outcome requires reconciliation before another publication.'
+IN_PROGRESS = 'Verified candidate; publication is in progress.'
 
 
 class Deployments:
@@ -57,6 +58,28 @@ class Deployments:
                 {('success', SUCCESS), ('failure', ROLLED_BACK)}, 'unfinished_publication')
         return number
 
+    def unresolved(self):
+        """Return the latest record number and payload when only recovery can close it.
+
+        A record without any status, or with its in-progress or explicit
+        unresolved status, belongs to a publication that cannot still be running:
+        the workflow concurrency group serializes every publication and recovery
+        job, and each finished job posts exactly one final status. Any other
+        record is not recoverable here and keeps blocking new publications.
+        """
+        items = self.request('GET', LIST)
+        require(type(items) is list and len(items) == 1, 'no_unresolved_publication')
+        item = items[0]
+        number = checks.positive(item.get('id'))
+        require(item.get('environment') == ENVIRONMENT and item.get('task') == TASK
+                and item.get('production_environment') is True and type(item.get('payload')) is dict
+                and item['payload'].get('kind') == 'static-publication-intent', 'invalid_recovery_record')
+        statuses = self.request('GET', BASE + '/deployments/' + str(number) + '/statuses?per_page=1&page=1')
+        require(type(statuses) is list and len(statuses) <= 1, 'deployment_history_unverified')
+        require(not statuses or (statuses[0].get('state'), statuses[0].get('description')) in
+                {('error', UNRESOLVED), ('in_progress', IN_PROGRESS)}, 'no_unresolved_publication')
+        return number, item['payload']
+
     def start(self, sha, payload, previous):
         # Re-read immediately before recording intent. The workflow concurrency
         # group serializes cooperating jobs; the server also has its own lock.
@@ -75,7 +98,7 @@ class Deployments:
 
     def finish(self, number, outcome):
         checks.positive(number)
-        states = {'in_progress': ('in_progress', 'Verified candidate; publication is in progress.'),
+        states = {'in_progress': ('in_progress', IN_PROGRESS),
                   'success': ('success', SUCCESS), 'rolled_back': ('failure', ROLLED_BACK),
                   'unresolved': ('error', UNRESOLVED)}
         require(outcome in states, 'invalid_deployment_outcome')

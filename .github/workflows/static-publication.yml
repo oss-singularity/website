@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Verify the complete handoff, or publish with production enabled
+        description: Verify the complete handoff, publish with production enabled, or close one blocked record
         type: choice
-        options: [plan, publish]
+        options: [plan, publish, recover]
         default: plan
         required: true
 
@@ -58,7 +58,7 @@ jobs:
           repositories: website
           permission-administration: read
           skip-token-revoke: false
-      - name: Verify the handoff and run the selected publication mode
+      - name: Verify the handoff and run the selected release mode
         id: publication
         env:
           GH_TOKEN: ${{ github.token }}
@@ -76,8 +76,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/static-publication.py --commit "$GITHUB_SHA" --mode "$RELEASE_MODE" \
-            > "$RUNNER_TEMP/static-publication-report.json"
+          if [ "$RELEASE_MODE" = "recover" ]; then
+            python3 scripts/static-recovery.py --commit "$GITHUB_SHA" \
+              > "$RUNNER_TEMP/static-release-report.json"
+          else
+            python3 scripts/static-publication.py --commit "$GITHUB_SHA" --mode "$RELEASE_MODE" \
+              > "$RUNNER_TEMP/static-release-report.json"
+          fi
       - name: Present the sanitized outcome
         if: always() && steps.publication.outcome != 'skipped'
         shell: python
@@ -85,18 +90,18 @@ jobs:
           import json
           import os
           from pathlib import Path
-          report = Path(os.environ["RUNNER_TEMP"]) / "static-publication-report.json"
+          report = Path(os.environ["RUNNER_TEMP"]) / "static-release-report.json"
           if report.is_file() and 0 < report.stat().st_size <= 16384:
               value = json.loads(report.read_bytes())
               rendered = json.dumps(value, sort_keys=True, indent=2)
               print(rendered)
               with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-                  summary.write("Static publication result\n\n```json\n" + rendered + "\n```\n")
+                  summary.write("Static release result\n\n```json\n" + rendered + "\n```\n")
       - name: Retain only the sanitized outcome
         if: always() && steps.publication.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: static-publication-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/static-publication-report.json
+          name: static-release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/static-release-report.json
           if-no-files-found: ignore
           retention-days: 14
