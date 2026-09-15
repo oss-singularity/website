@@ -1,11 +1,12 @@
 """Offline tests for the promotion command's derivations and output contract."""
 import importlib.util
 import json
+from pathlib import Path
 import unittest
 
 from site_artifact import ArtifactError
 
-spec = importlib.util.spec_from_file_location('cpc', 'commons-promotion.py')
+spec = importlib.util.spec_from_file_location('cpc', Path(__file__).resolve().parent / 'commons-promotion.py')
 cli = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cli)
 
