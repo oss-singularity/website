@@ -222,6 +222,21 @@ class CloudflareAdapter:
         require(type(new_id) is str and len(new_id) > 0, 'provider_request_failed')
         return new_id
 
+    def script_content(self):
+        """Read the deployed script as the provider's own multipart form."""
+        url = BASE + '/accounts/' + self.account_id + '/workers/scripts/' + self.script_name
+        request = urllib.request.Request(url, method='GET',
+                                         headers={'Authorization': 'Bearer ' + self.token})
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                raw = response.read(8 * 1024 * 1024 + 1)
+        except ArtifactError:
+            raise
+        except Exception:
+            raise ArtifactError('provider_request_failed') from None
+        require(0 < len(raw) <= 8 * 1024 * 1024, 'invalid_candidate')
+        return raw
+
     def version_detail(self, version_id):
         """Read one immutable version's server-side detail for staged verification."""
         return self._api('GET', '/accounts/' + self.account_id + '/workers/scripts/'
