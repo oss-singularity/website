@@ -33,9 +33,6 @@ AddType text/plain .sha256
   <FilesMatch "^(?:robots\.txt|sitemap\.xml|site\.webmanifest|llms\.txt|.*\.json)$">
     Header set Cache-Control "public, max-age=3600"
   </FilesMatch>
-  # Prevent the origin LiteSpeed cache from serving stale content
-  # after a publication replaces files on disk.
-  Header set X-LiteSpeed-Cache-Control "no-cache"
 </IfModule>
 
 <IfModule mod_deflate.c>
