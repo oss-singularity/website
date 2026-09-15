@@ -222,6 +222,11 @@ class CloudflareAdapter:
         require(type(new_id) is str and len(new_id) > 0, 'provider_request_failed')
         return new_id
 
+    def version_detail(self, version_id):
+        """Read one immutable version's server-side detail for staged verification."""
+        return self._api('GET', '/accounts/' + self.account_id + '/workers/scripts/'
+                         + self.script_name + '/versions/' + version_id).get('result', {})
+
     def activate_version(self, version_id, message):
         """Deploy a specific version at 100% traffic.
 

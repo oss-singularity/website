@@ -1,6 +1,7 @@
 """Durable, sanitized intent and outcome records in the repository deployment API."""
 import re
 import time
+import urllib.parse
 import urllib.request
 
 from release_source import API, BASE, checks, encode, token
@@ -16,14 +17,17 @@ IN_PROGRESS = 'Verified candidate; publication is in progress.'
 
 
 class Deployments:
-    def __init__(self, environ, opener=None, pause=time.sleep):
+    def __init__(self, environ, opener=None, pause=time.sleep, environment=ENVIRONMENT, task=TASK):
         self.environ = environ
         self.opener = opener or urllib.request.build_opener(checks.rehearsal.NoRedirect())
         self.pause = pause
+        self.environment, self.task = environment, task
+        self.list = (BASE + '/deployments?environment=' + urllib.parse.quote(environment)
+                     + '&task=' + urllib.parse.quote(task, safe='') + '&per_page=1&page=1')
 
     def request(self, method, route, body=None):
         number = r'[1-9][0-9]{0,18}'
-        permitted = ((method == 'GET' and (route == LIST or re.fullmatch(re.escape(BASE) +
+        permitted = ((method == 'GET' and (route == self.list or re.fullmatch(re.escape(BASE) +
                       r'/deployments/' + number + r'(?:/statuses\?per_page=1&page=1)?', route)))
                      or (method == 'POST' and (route == BASE + '/deployments' or re.fullmatch(re.escape(BASE) +
                           r'/deployments/' + number + '/statuses', route))))
