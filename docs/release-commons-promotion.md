@@ -122,6 +122,25 @@ implementation can be reviewed against a written contract.
   promotion (the planner's baseline checks) aborts before staging, mirroring
   the static path's stale-main discipline.
 
+Three contracts close the remaining open points of that wiring:
+
+- **Artifact names.** The canonical rehearsal publishes the verified packet as
+  `commons-candidate-{sha}-{run_id}-{run_attempt}` and the separate receipt as
+  `commons-rehearsal-receipt-{sha}-{run_id}-{run_attempt}`; the wired command
+  locates both on the selected run by these exact names and downloads nothing
+  else.
+- **Generation mapping.** The planner's baseline carries a `generation` from
+  the transition fixture's journal model. The live provider has no journal,
+  but it has a provider-native monotonic counter: the version `number` the API
+  assigns to every uploaded version. The wiring defines generation as the
+  active version's `number`, recorded in the baseline and therefore bound into
+  the observation digest — a concurrent upload by anyone else changes the next
+  observation and is refused exactly like a changed predecessor.
+- **Predecessor packet.** The predecessor packet is reconstructed from the
+  live predecessor version's own content (the provider's multipart form), not
+  from the candidate: `unpack` binds it to the recorded predecessor commit, and
+  a mismatch between live bytes and that commit refuses the promotion.
+
 ## Workflow design (after wiring)
 
 Automation follows the static publication discipline and Astra's original
