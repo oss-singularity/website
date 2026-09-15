@@ -54,6 +54,10 @@ jobs:
         run: |
           python3 scripts/test-commons-cloudflare.py
           python3 -O scripts/test-commons-cloudflare.py
+      - name: Validate the Commons promotion engine and durable intent records
+        run: |
+          python3 scripts/test-commons-promotion.py
+          python3 -O scripts/test-commons-promotion.py
       - name: Validate release rehearsal identity and transport fixtures
         run: python3 scripts/test-release-rehearsal.py
       - name: Validate completed candidate identity and archive boundaries

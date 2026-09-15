@@ -80,8 +80,10 @@ target is not a fixed filesystem but a versioned Worker whose bindings
 | --- | --- |
 | Candidate consumption, planning, transition fixture | Implemented offline ([artifacts](release-commons-artifacts.md), [rehearsal](release-commons-rehearsal.md), [candidates](release-commons-candidates.md), [plan](release-commons-plan.md), [transition](release-commons-transition.md)). |
 | Real adapter stage/activate/restore with inherited bindings | Implemented and live-validated on 15 September 2026: a byte-identical rehearsal staged, activated and restored the predecessor while every binding and the live API stayed unchanged. |
-| Durable intent record for Worker promotions | Specified here; not implemented. The first slice can reuse the deployment-record pattern with a distinct task name so Worker intents never block static records. |
-| Operator CLI binding the steps into one fixed command | Not implemented; today's rehearsal lives in private operator tooling. |
+| Durable intent record for Worker promotions | Implemented: `scripts/commons_promotion.py` records intents under the distinct `promote:oss-commons` task so they never block static records; open or unresolved intents block the next promotion. |
+| Promotion engine (stage, server-side verification, single activation, rollback) | Implemented with offline tests: lost stage and activation responses are resolved by observation under the call's own annotations, changed staged bindings abort before activation, and a failed live acceptance restores the predecessor exactly once. |
+| Candidate consumption and planning wiring, operator CLI | Not implemented; the engine expects the already-verified results of procedure steps 1–2 as inputs. |
+| CI automation | Not started. Worker promotion must not run from PR code; it follows the same protected-canonical discipline as static publication. |
 | CI automation | Not started. Worker promotion must not run from PR code; it follows the same protected-canonical discipline as static publication. |
 | Schema migration | Separate procedure; remains gated by its own backup, DDL inventory and preservation evidence. |
 
