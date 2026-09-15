@@ -1,0 +1,91 @@
+# Commons Worker promotion
+
+This document defines the reviewed promotion procedure that turns the
+[planner](release-commons-plan.md), the [transition fixture](release-commons-transition.md)
+and the [live-validated Cloudflare adapter](../scripts/commons_cloudflare.py)
+into a bounded release path for the Commons Worker. It separates what is
+**specified**, what is **implemented**, and what stays an **operator
+procedure** until its own verified implementation exists. The procedure is
+design criteria, not a working automation: nothing here changes production
+until each gate below has its own evidence.
+
+The static publication path is the architectural template: independently
+consumed candidates, durable intent, one serialized target, live acceptance
+and retained rollback. Worker promotion differs in one decisive point — the
+target is not a fixed filesystem but a versioned Worker whose bindings
+(secrets, D1 database) must survive every transition unchanged.
+
+## Ground rules
+
+- **Code-only first.** A promotion that changes Worker code must demonstrate
+  compatibility with the installed schema profile (see
+  [artifacts](release-commons-artifacts.md)). Schema changes are a separate
+  procedure with their own migration, backup and DDL inventory; they are out
+  of scope here.
+- **Bindings are inherited, never re-entered.** The live rehearsal on
+  15 September 2026 confirmed the provider's model: staged versions reuse the
+  installed bindings through `inherit` entries; secrets and database bindings
+  cannot and must not be re-uploaded. A promotion whose staged version loses,
+  renames or re-types any binding fails before activation.
+- **One writer, durable intent.** A single promotion runs at a time. Before
+  the first mutation, a durable intent record binds the candidate commit,
+  descriptor digest, planned predecessor version and the operator or run
+  identity. The record stays open until the promotion closes as promoted,
+  rolled back or unresolved — the same closed-record discipline as the static
+  deployment records.
+- **Never repeat a mutation.** Stage, activate and restore are attempted
+  exactly once per intent. Lost responses are resolved by observation
+  (read the current deployments and versions by identity annotations), and an
+  ambiguous outcome keeps the intent unresolved.
+- **Every activation is paired with retained rollback.** The predecessor
+  version is captured before activation and restored — not redeployed — on
+  rollback, because versions are immutable.
+
+## Procedure
+
+1. **Consume the candidate.** Use the [completed-run consumer](release-commons-candidates.md)
+   to bind one successful canonical rehearsal run: exact archives, rebuilt
+   source and required-check provenance for the candidate commit. A missing or
+   ambiguous rehearsal blocks promotion.
+2. **Plan against the live predecessor.** Run the [version-bound planner](release-commons-plan.md)
+   against the adapter's `observe()` snapshot: the active version must match
+   the recorded release annotation (currently the `workers/tag` binding to the
+   release commit), and the plan records the predecessor version, the code
+   changes, and the expected unchanged set — bindings, routes, schedules and
+   D1 schema fingerprint.
+3. **Record the intent.** Write the durable intent (commit, descriptor digest,
+   predecessor version, planned binding fingerprint) before staging.
+4. **Stage.** Upload the candidate as a new version with `inherit` bindings,
+   the annotated message/tag from the plan, and the compatibility date from
+   the installed settings. Verify the staged version server-side: module set,
+   bindings (including the D1 binding id and both secrets), handlers and
+   compatibility date must equal the plan. A mismatch aborts the intent;
+   nothing was activated.
+5. **Activate once.** Deploy the staged version at 100%. Immediately verify
+   live acceptance: the public `/api/v1` answers with the expected release
+   identity, read endpoints return uncached published records, and the route
+   and schedule inventory is unchanged.
+6. **Close or roll back.** If live acceptance passes, close the intent as
+   promoted. Otherwise restore the predecessor version once, re-run the same
+   live acceptance against it, and close the intent as rolled back. Any
+   unresolvable step closes the intent as unresolved and blocks the next
+   promotion until an operator reconciles it.
+7. **Preserve the evidence.** The promotion record keeps the staged version
+   id, both deployment ids and the acceptance results. Staged versions are
+   immutable; the provider's own version listing is the retention mechanism.
+
+## Current state and next slices
+
+| Step | State |
+| --- | --- |
+| Candidate consumption, planning, transition fixture | Implemented offline ([artifacts](release-commons-artifacts.md), [rehearsal](release-commons-rehearsal.md), [candidates](release-commons-candidates.md), [plan](release-commons-plan.md), [transition](release-commons-transition.md)). |
+| Real adapter stage/activate/restore with inherited bindings | Implemented and live-validated on 15 September 2026: a byte-identical rehearsal staged, activated and restored the predecessor while every binding and the live API stayed unchanged. |
+| Durable intent record for Worker promotions | Specified here; not implemented. The first slice can reuse the deployment-record pattern with a distinct task name so Worker intents never block static records. |
+| Operator CLI binding the steps into one fixed command | Not implemented; today's rehearsal lives in private operator tooling. |
+| CI automation | Not started. Worker promotion must not run from PR code; it follows the same protected-canonical discipline as static publication. |
+| Schema migration | Separate procedure; remains gated by its own backup, DDL inventory and preservation evidence. |
+
+The first implementation slice is the fixed operator command that executes
+steps 2–7 against one intent record, with offline tests mirroring the
+[transition fixture](release-commons-transition.md) and a synthetic provider —
+before any routine automation is considered.
