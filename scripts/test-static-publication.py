@@ -99,6 +99,17 @@ class RecordedDeployments:
         self.outcome = outcome
 
 
+class ScriptedOpener:
+    def __init__(self, outcomes):
+        self.outcomes, self.calls = list(outcomes), []
+    def open(self, request, timeout):
+        self.calls.append(request.get_method() + ' ' + request.full_url)
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
 @contextmanager
 def prepared_case(**options):
     values = {'.htaccess': ACCESS, 'index.html': b'old page', '404.html': b'missing',
@@ -511,6 +522,64 @@ class DeploymentTests(unittest.TestCase):
         for state, description in [('success', deployments.SUCCESS), ('failure', deployments.ROLLED_BACK)]:
             statuses = [{'state': state, 'description': description}]
             self.assertEqual(api.previous(), 42)
+
+    def client(self, outcomes):
+        pauses, opener = [], ScriptedOpener(outcomes)
+        api = deployments.Deployments({'GH_TOKEN': 'synthetic-public-fixture'}, opener, pauses.append)
+        return api, opener, pauses
+
+    def test_transient_read_failures_retry_bounded_times_before_failing_closed(self):
+        item = {'id': 42, 'environment': deployments.ENVIRONMENT, 'task': deployments.TASK,
+                'production_environment': True, 'payload': {'kind': 'static-publication-intent'}}
+        closed = [{'state': 'success', 'description': deployments.SUCCESS}]
+        listed = fixtures.Response(source.encode([item]), deployments.API + deployments.LIST)
+        history = fixtures.Response(source.encode(closed), deployments.API + deployments.BASE
+                                    + '/deployments/42/statuses?per_page=1&page=1')
+        api, opener, pauses = self.client([OSError('connection reset'), listed, history])
+        self.assertEqual(api.previous(), 42)
+        self.assertEqual(len(opener.calls), 3)
+        self.assertEqual(pauses, [1.0])
+        api, opener, pauses = self.client([OSError('connection reset')] * 3)
+        with self.assertRaisesRegex(ArtifactError, 'deployment_record_unconfirmed'):
+            api.request('GET', deployments.LIST)
+        self.assertEqual(len(opener.calls), 3)
+        self.assertEqual(pauses, [1.0, 1.0])
+
+    def test_status_posts_never_repeat_and_their_confirmation_read_may_retry(self):
+        post = deployments.BASE + '/deployments/42/statuses'
+        read = post + '?per_page=1&page=1'
+        accepted = fixtures.Response(b'{}', deployments.API + post, status=201)
+        confirmed = fixtures.Response(source.encode([{'state': 'success', 'description': deployments.SUCCESS}]),
+                                      deployments.API + read)
+        api, opener, pauses = self.client([OSError('connection reset')])
+        with self.assertRaisesRegex(ArtifactError, 'deployment_record_unconfirmed'):
+            api.request('POST', post, {'state': 'success', 'description': deployments.SUCCESS})
+        self.assertEqual(len(opener.calls), 1)
+        self.assertEqual(pauses, [])
+        api, opener, pauses = self.client([accepted, OSError('connection reset'), OSError('connection reset'), confirmed])
+        api.finish(42, 'success')
+        self.assertEqual(len(opener.calls), 4)
+        self.assertEqual(pauses, [1.0, 1.0])
+
+    def test_validation_failures_are_never_retried_on_any_method(self):
+        api, opener, pauses = self.client([])
+        with self.assertRaisesRegex(ArtifactError, 'invalid_deployment_route'):
+            api.request('GET', deployments.BASE + '/deployments/42/cancel')
+        with self.assertRaisesRegex(ArtifactError, 'invalid_deployment_route'):
+            api.request('POST', deployments.BASE + '/branches', {})
+        self.assertEqual(opener.calls, [])
+        malformed = fixtures.Response(source.encode([{'id': 42}]), deployments.API + deployments.LIST)
+        api, opener, pauses = self.client([malformed])
+        with self.assertRaisesRegex(ArtifactError, 'deployment_history_unverified'):
+            api.previous()
+        self.assertEqual(len(opener.calls), 1)
+        self.assertEqual(pauses, [])
+        redirected = fixtures.Response(b'{}', 'https://example.invalid' + deployments.LIST)
+        api, opener, pauses = self.client([redirected])
+        with self.assertRaisesRegex(ArtifactError, 'deployment_record_unconfirmed'):
+            api.request('GET', deployments.LIST)
+        self.assertEqual(len(opener.calls), 1)
+        self.assertEqual(pauses, [])
 
 
 class HTTPTests(unittest.TestCase):

@@ -105,6 +105,11 @@ record become successful. Maintenance preserves the current rollback material.
 A bookkeeping or maintenance failure keeps the record unresolved without
 undoing an already healthy verified site.
 
+A status post is attempted exactly once and never repeated. The read that
+confirms a posted status may retry a transient failure a bounded number of
+times before reporting it. A successful record therefore stands even when a
+run reports a confirmation failure.
+
 ## Configure access before activation
 
 Use a `production-static` environment restricted to the exact `main` branch.
