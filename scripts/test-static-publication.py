@@ -525,7 +525,10 @@ class HTTPTests(unittest.TestCase):
         files = fixture.payload({'.htaccess': LEGACY_ACCESS, 'index.html': b'old page'})
         class Client(http.HTTP):
             def get(self, path, **options):
-                return {'status': 200, 'body': files[path[1:]]}
+                key = path[1:]
+                if '?' in key:
+                    key = key.split('?')[0]
+                return {'status': 200, 'body': files[key]}
         baseline = {'baseline_manifest_sha256': source.digest(files[MANIFEST])}
         client = Client('1.1.1.1')
         self.assertEqual(client.predecessor(baseline, LEGACY_ACCESS), files)
@@ -540,6 +543,9 @@ class HTTPTests(unittest.TestCase):
         class Client(http.HTTP):
             def get(self, path, surface='edge', **options):
                 name = path[1:] or 'index.html'
+                if '?' in name:
+                    name = name.split('?')[0]
+                name = name or 'index.html'
                 if name.startswith('oss-release-missing-'):
                     name = '404.html'
                 suffix = Path(name).suffix

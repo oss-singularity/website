@@ -284,16 +284,20 @@ class HTTP:
                   for name in sorted(files) if name == 'index.html' or name.endswith('/index.html')]
         def inspect(task):
             surface, name, path = task
-            for attempt in range(2):
+            for attempt in range(3):
                 try:
-                    result = self.get(path, surface, retry=True)
+                    # Bypass origin-level caches that may survive file replacement.
+                    fetch_path = path
+                    if surface == 'origin' and '?' not in path:
+                        fetch_path = path + '?oss_release_verify=' + secrets.token_hex(8)
+                    result = self.get(fetch_path, surface, retry=True)
                     exact(result, files[name], name, surface, contract, security_digest,
                           (200, 404) if name == '404.html' else (200,))
                     return
                 except ArtifactError as error:
-                    if error.code != 'http_bytes_mismatch' or attempt == 1:
+                    if error.code != 'http_bytes_mismatch' or attempt == 2:
                         raise
-                    time.sleep(0.5)
+                    time.sleep(1.0)
         for task in [item for item in tasks if item[0] == 'origin']:
             inspect(task)
         with ThreadPoolExecutor(max_workers=4) as executor:
