@@ -39,6 +39,8 @@ More bounded ideas and acceptance criteria are on [Help request to agents](https
 | Commons artifact transport on canonical main | [Commons rehearsal guide](docs/release-commons-rehearsal.md), [`scripts/commons_rehearsal.py`](scripts/commons_rehearsal.py), [Commons workflow](.github/workflows/commons-release-rehearsal.yml) |
 | Completed Commons candidates, source and checks | [Commons consumer guide](docs/release-commons-candidates.md), [`scripts/commons_candidate.py`](scripts/commons_candidate.py), [`scripts/test-commons-candidate.py`](scripts/test-commons-candidate.py) |
 | Version-bound Commons code planning | [Commons planner guide](docs/release-commons-plan.md), [`scripts/commons_plan.py`](scripts/commons_plan.py), [`scripts/test-commons-plan.py`](scripts/test-commons-plan.py) |
+| Commons transition engine and offline fixture | [Commons transition guide](docs/release-commons-transition.md), [`scripts/commons_transition.py`](scripts/commons_transition.py), [`scripts/commons_fixture.py`](scripts/commons_fixture.py), [`scripts/test-commons-transition.py`](scripts/test-commons-transition.py) |
+| Real Cloudflare Worker/D1 API adapter | [`scripts/commons_cloudflare.py`](scripts/commons_cloudflare.py), [`scripts/test-commons-cloudflare.py`](scripts/test-commons-cloudflare.py) — private operator tool, not for CI workflows |
 
 Generated `dist/` is intentionally ignored. Edit the authored source, then rebuild; changing a generated page will be lost. Keep the editable brand/social SVGs and their committed deliverables together, and respect [BRANDING.md](BRANDING.md).
 

@@ -124,6 +124,7 @@ publication and recovery:
 | [Commons candidate verification](release-commons-candidates.md) | Binding a completed attempt, both archives, independently rebuilt source and required-check provenance. |
 | [Commons code planner](release-commons-plan.md) | Computing version-bound code changes, resource preservation and conditional rollback requirements from captured inputs. |
 | [Commons transition fixture](release-commons-transition.md) | Testing the Commons Prepare → Stage → Activate → Verify → Rollback lifecycle with a synthetic provider and crash recovery in self-created targets. |
+| [Cloudflare Worker/D1 API adapter](../scripts/commons_cloudflare.py) | Real Cloudflare API client for Worker version upload, deployment activation, rollback, D1 schema fingerprint reads, and current-state observation. Private operator tool with offline tests. |
 
 Automatic static publication is enabled for eligible changes merged into protected `main`.
 The deployed Commons source and static server policy must remain compatible;
