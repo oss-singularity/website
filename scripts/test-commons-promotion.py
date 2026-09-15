@@ -210,6 +210,34 @@ class PromotionTests(unittest.TestCase):
             promotion.open_intent(records)
 
 
+class PredecessorTests(unittest.TestCase):
+    def multipart(self, names, boundary='----Px'):
+        parts = ''.join(
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{n}"; filename="{n}"'
+            f'\r\nContent-Type: application/javascript+module\r\n\r\nconsole.log("{n}");\r\n'
+            for n in names)
+        return parts.encode() + f'--{boundary}--'.encode()
+
+    def test_predecessor_packet_is_rebuilt_from_live_content_and_bound(self):
+        import commons_artifact as artifact
+        import commons_rehearsal as rehearsal
+        content = self.multipart(sorted(artifact.MODULES))
+        packet = promotion.reconstruct_predecessor(content, '3' * 40)
+        restored, descriptor = artifact.unpack(packet, '3' * 40, rehearsal.SCHEMA_SHA256)
+        self.assertEqual(set(restored), set(artifact.MODULES))
+        self.assertTrue(all(v.startswith(b'console.log(') for v in restored.values()))
+        self.assertEqual(descriptor['commit'], '3' * 40)
+
+    def test_predecessor_reconstruction_refuses_damaged_content(self):
+        import commons_artifact as artifact
+        content = self.multipart(sorted(artifact.MODULES))
+        truncated = content[:content.rfind(b'--' + b'----Px')]
+        for broken in [b'', b'no-multipart', truncated + b'trailing',
+                       content.replace(b'console.log', b'console\x00log', 1)]:
+            with self.assertRaises(ArtifactError):
+                promotion.reconstruct_predecessor(broken, '3' * 40)
+
+
 class WiringPrimitiveTests(unittest.TestCase):
     def test_rehearsal_artifacts_locate_by_exact_names_and_refuse_ambiguity(self):
         sha, run_id = '2' * 40, 555
