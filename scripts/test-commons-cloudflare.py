@@ -143,7 +143,7 @@ class CloudflareAdapterTests(unittest.TestCase):
         self.assertIsNone(obs['active_version'])
         self.assertEqual(len(obs['deployments']), 0)
 
-    def test_stage_version_wraps_single_module_and_returns_new_id(self):
+    def test_stage_version_wraps_single_module_with_a_metadata_part(self):
         a = _make_adapter()
         captured = {}
 
@@ -162,19 +162,33 @@ class CloudflareAdapterTests(unittest.TestCase):
             captured['body'] = request.data
             return FakeResponse()
 
+        inherit = [{'name': 'DB', 'type': 'inherit'}]
         with patch('urllib.request.urlopen', side_effect=fake_urlopen):
-            new_id = a.stage_version(b'export default {}', 'abc123', 'Test message', 'test-tag')
+            new_id = a.stage_version(b'export default {}', 'abc123', 'Test message', 'test-tag',
+                                     bindings=inherit, compatibility_date='2026-09-04')
 
         self.assertEqual(new_id, 'new-version-uuid')
         self.assertTrue(captured['url'].endswith('/workers/scripts/test-script/versions'))
         self.assertEqual(captured['method'], 'POST')
-        self.assertIn(b'Content-Disposition: form-data; name="worker.mjs"', captured['body'])
-        # The declared boundary must be the exact boundary used by the body.
+        header_names = {name.lower() for name in captured['headers']}
+        self.assertNotIn('cf-worker-metadata', header_names)
         boundary = captured['headers']['Content-type'].split('boundary=')[1]
-        self.assertIn(('--' + boundary + '\r\n').encode(), captured['body'])
-        self.assertTrue(captured['body'].endswith(('--' + boundary + '--').encode()))
+        body = captured['body']
+        self.assertTrue(body.startswith(('--' + boundary + '\r\n').encode()))
+        self.assertTrue(body.endswith(('--' + boundary + '--').encode()))
+        self.assertIn(b'Content-Disposition: form-data; name="metadata"', body)
+        metadata_start = body.index(b'\r\n\r\n', body.index(b'name="metadata"')) + 4
+        metadata_end = body.index(b'\r\n--' + boundary.encode(), metadata_start)
+        metadata = json.loads(body[metadata_start:metadata_end])
+        self.assertEqual(metadata['main_module'], 'worker.mjs')
+        self.assertEqual(metadata['bindings'], inherit)
+        self.assertEqual(metadata['compatibility_date'], '2026-09-04')
+        self.assertEqual(metadata['annotations']['workers/message'], 'Test message')
+        self.assertEqual(metadata['annotations']['workers/tag'], 'test-tag')
+        self.assertIn(b'Content-Disposition: form-data; name="worker.mjs"; filename="worker.mjs"', body)
+        self.assertIn(b'export default {}', body)
 
-    def test_stage_version_reuses_the_candidates_own_multipart_boundary(self):
+    def test_stage_version_rebuilds_a_multipart_candidate_with_the_metadata_part(self):
         a = _make_adapter()
         captured = {}
 
@@ -191,15 +205,22 @@ class CloudflareAdapterTests(unittest.TestCase):
             captured['body'] = request.data
             return FakeResponse()
 
-        multipart = (b'--cf-existing-boundary\r\n'
-                     b'Content-Disposition: form-data; name="worker.mjs"\r\n\r\n'
-                     b'code\r\n--cf-existing-boundary--')
+        first = b'first module body'
+        second = b'second module body'
+        multipart = (b'--cf-existing\r\nContent-Disposition: form-data; name="worker.mjs"\r\n\r\n'
+                     + first + b'\r\n--cf-existing\r\nContent-Disposition: form-data; name="util.mjs"\r\n\r\n'
+                     + second + b'\r\n--cf-existing--')
         with patch('urllib.request.urlopen', side_effect=fake_urlopen):
             new_id = a.stage_version(multipart, 'abc123', 'Test message', 'test-tag')
 
         self.assertEqual(new_id, 'new-version-uuid')
-        self.assertEqual(captured['body'], multipart)
-        self.assertIn('boundary=cf-existing-boundary', captured['headers']['Content-type'])
+        boundary = captured['headers']['Content-type'].split('boundary=')[1]
+        body = captured['body']
+        self.assertNotIn(b'cf-existing', body)
+        self.assertIn(b'name="metadata"', body)
+        self.assertIn((b'\r\n\r\n' + first + b'\r\n--' + boundary.encode()), body)
+        self.assertIn((b'\r\n\r\n' + second + b'\r\n--' + boundary.encode()), body)
+        self.assertEqual(body.count(b'Content-Disposition: form-data; name='), 3)
 
     def test_activate_version_returns_deployment_id(self):
         a = _make_adapter()
@@ -208,6 +229,12 @@ class CloudflareAdapterTests(unittest.TestCase):
             mock_api.return_value = {'success': True, 'result': {'id': 'new-deployment-uuid'}}
             dep_id = a.activate_version('v3-uuid', 'Test activation')
             self.assertEqual(dep_id, 'new-deployment-uuid')
+            method, path, body = mock_api.call_args[0]
+            self.assertEqual(method, 'POST')
+            self.assertTrue(path.endswith('/deployments'))
+            # Deployment annotations accept only workers/message; the version
+            # upload annotation workers/triggered_by is refused with 10210.
+            self.assertEqual(body['annotations'], {'workers/message': 'Test activation'})
 
     def test_activate_version_fails_on_api_error(self):
         a = _make_adapter()

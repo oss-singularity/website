@@ -153,49 +153,65 @@ class CloudflareAdapter:
             'd1_schema_fingerprint': schema_fingerprint,
         }
 
-    def stage_version(self, candidate_content, candidate_commit, message, tag):
+    def stage_version(self, candidate_content, candidate_commit, message, tag,
+                      bindings=None, main_module='worker.mjs', compatibility_date=None):
         """Upload new Worker code as a new version. Does NOT change traffic.
 
+        The Workers version API takes multipart/form-data with a JSON "metadata"
+        form part plus one part per module; a CF-WORKER-METADATA header is
+        refused. Binding names passed as {"name": ..., "type": "inherit"} reuse
+        the installed values, including secrets and D1, which cannot be
+        re-uploaded through this endpoint. An already-multipart candidate is
+        split into its exact module parts; a single module is wrapped.
         Returns the new version ID. The version is immutable after creation.
         """
         script_path = '/accounts/' + self.account_id + '/workers/scripts/' + self.script_name
+        boundary = '----CfWorkerUpload' + hashlib.sha256(candidate_content).hexdigest()[:16]
+        metadata = {'main_module': main_module, 'bindings': bindings or []}
+        if compatibility_date is not None:
+            metadata['compatibility_date'] = compatibility_date
+        if message is not None or tag is not None:
+            # Annotations ride in the metadata part; the provider rejects
+            # workers/triggered_by there and reserves it for its own records.
+            metadata['annotations'] = {}
+            if message is not None:
+                metadata['annotations']['workers/message'] = message
+            if tag is not None:
+                metadata['annotations']['workers/tag'] = tag
 
-        # Upload with metadata annotations. The multipart boundary declared in
-        # the Content-Type header must be the exact boundary used by the body:
-        # an already-multipart candidate keeps its own boundary.
+        def form_part(headers, payload):
+            return ('--' + boundary + '\r\n' + headers + '\r\n\r\n').encode() + payload + b'\r\n'
+
+        raw_body = form_part('Content-Disposition: form-data; name="metadata"\r\nContent-Type: application/json',
+                             encode(metadata).encode())
         if candidate_content.startswith(b'--'):
-            raw_boundary = candidate_content.split(b'\r\n', 1)[0][2:]
-            require(re.fullmatch(r'[A-Za-z0-9()+_,.=:-]{1,128}', raw_boundary.decode('ascii', 'replace')),
+            outer = candidate_content.split(b'\r\n', 1)[0][2:]
+            require(re.fullmatch(r'[A-Za-z0-9()+_,.=:-]{1,128}', outer.decode('ascii', 'replace')),
                     'invalid_candidate')
-            boundary = raw_boundary.decode('ascii')
-            raw_body = candidate_content
+            for part in candidate_content.split(b'--' + outer)[1:-1]:
+                head, _, module = part.partition(b'\r\n\r\n')
+                name = re.search(r'name="([^"]+)"', head.decode('utf-8', 'replace'))
+                require(name is not None, 'invalid_candidate')
+                require(module.endswith(b'\r\n'), 'invalid_candidate')
+                raw_body += form_part('Content-Disposition: form-data; name="' + name[1]
+                                      + '"; filename="' + name[1] + '"\r\nContent-Type: application/javascript+module',
+                                      module[:-2])
         else:
-            boundary = '----CfWorkerUpload' + hashlib.sha256(candidate_content).hexdigest()[:16]
-            body_parts = ['--' + boundary,
-                          'Content-Disposition: form-data; name="worker.mjs"', '',
-                          candidate_content.decode('utf-8', 'replace'),
-                          '--' + boundary + '--']
-            raw_body = '\r\n'.join(body_parts).encode('utf-8')
+            raw_body += form_part('Content-Disposition: form-data; name="' + main_module
+                                  + '"; filename="' + main_module + '"\r\nContent-Type: application/javascript+module',
+                                  candidate_content)
+        raw_body += b'--' + boundary.encode() + b'--'
 
-        # Upload with metadata annotations
         url = BASE + script_path + '/versions'
         req = urllib.request.Request(url, method='POST', data=raw_body, headers={
             'Authorization': 'Bearer ' + self.token,
             'Content-Type': 'multipart/form-data; boundary=' + boundary,
-            'CF-WORKER-METADATA': encode({
-                'main_module': 'worker.mjs',
-                'bindings': [],
-            }),
-            'CF-WORKER-ANNOTATIONS': encode({
-                'workers/message': message,
-                'workers/tag': tag,
-                'workers/triggered_by': 'upload',
-            }),
         })
         try:
             with urllib.request.urlopen(req, timeout=60) as response:
                 result = json.loads(response.read(65536))
         except urllib.error.HTTPError as error:
+            error.read(4096)
             raise ArtifactError('provider_request_failed') from None
         except Exception:
             raise ArtifactError('provider_request_failed') from None
@@ -207,7 +223,11 @@ class CloudflareAdapter:
         return new_id
 
     def activate_version(self, version_id, message):
-        """Deploy a specific version at 100% traffic."""
+        """Deploy a specific version at 100% traffic.
+
+        Deployment annotations accept only workers/message; the version-upload
+        annotation workers/triggered_by is refused here with error 10210.
+        """
         script_path = '/accounts/' + self.account_id + '/workers/scripts/' + self.script_name
 
         result = self._api('POST', script_path + '/deployments', {
@@ -215,7 +235,6 @@ class CloudflareAdapter:
             'versions': [{'version_id': version_id, 'percentage': 100}],
             'annotations': {
                 'workers/message': message,
-                'workers/triggered_by': 'upload',
             },
         })
         require(result.get('success') is True, 'provider_request_failed')
