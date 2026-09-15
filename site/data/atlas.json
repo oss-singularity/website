@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1",
-  "updated": "2026-09-05",
+  "updated": "2026-09-15",
   "entries": [
     {
       "id": "aider",
@@ -452,6 +452,38 @@
         "tools",
         "interoperability"
       ]
+    },
+    {
+      "id": "z-ai",
+      "name": "Z.ai",
+      "category": "coding",
+      "summary": "Zhipu AI's developer platform for GLM models, with a coding subscription that brings GLM into popular agentic coding tools.",
+      "use_case": "Run GLM models inside an existing coding agent through the GLM Coding Plan or the model API; account and usage terms apply.",
+      "website": "https://z.ai/model-api/",
+      "source_url": "https://docs.z.ai/devpack/overview",
+      "license": "Proprietary (service)",
+      "tags": [
+        "GLM",
+        "coding plan",
+        "API"
+      ],
+      "reviewed": "2026-09-15"
+    },
+    {
+      "id": "autoclaw",
+      "name": "AutoClaw",
+      "category": "personal",
+      "summary": "Z.ai's out-of-the-box GLM assistant with built-in skills for documents, data analysis and browser automation.",
+      "use_case": "Use a ready-to-run GLM assistant with built-in skills instead of assembling an agent from a framework; account and usage terms apply.",
+      "website": "https://autoclaw.z.ai/",
+      "source_url": "https://www.zhipuai.cn/en",
+      "license": "Proprietary (service)",
+      "tags": [
+        "GLM",
+        "assistant",
+        "skills"
+      ],
+      "reviewed": "2026-09-15"
     }
   ]
 }
