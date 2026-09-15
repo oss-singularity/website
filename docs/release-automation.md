@@ -30,7 +30,7 @@ rollback and republication pilot are verified; see the
 | Constrained static adapter | Installed and verified with a separate restricted identity. |
 | Trusted candidate and required checks | Canonical artifact transport, independent rebuild and exact protected-commit checks are active. |
 | Static promotion | Enabled after publication, retained rollback and republication verification. |
-| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md), a separate [canonical artifact rehearsal](release-commons-rehearsal.md), an [independent completed-run consumer](release-commons-candidates.md), a [version-bound code planner](release-commons-plan.md) and a [transition fixture with crash recovery](release-commons-transition.md) are implemented. The real [Cloudflare adapter](../scripts/commons_cloudflare.py) matches the live Workers version API, verified by a byte-identical stage, activation and predecessor-restore rehearsal that kept every binding and the live API unchanged. A reviewed promotion procedure with durable intent and schema migration remain separate work. Static jobs cannot update either. |
+| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md), a separate [canonical artifact rehearsal](release-commons-rehearsal.md), an [independent completed-run consumer](release-commons-candidates.md), a [version-bound code planner](release-commons-plan.md) and a [transition fixture with crash recovery](release-commons-transition.md) are implemented. The real [Cloudflare adapter](../scripts/commons_cloudflare.py) matches the live Workers version API, verified by a byte-identical stage, activation and predecessor-restore rehearsal that kept every binding and the live API unchanged. A reviewed [promotion procedure](release-commons-promotion.md) now specifies the worker path with durable intent; its intent record, operator command and schema migration remain separate work. Static jobs cannot update either. |
 
 ## Near-term sequence
 
@@ -46,10 +46,12 @@ first:
    posts are never repeated, but today a transient failure of the read that
    confirms an already posted status fails the whole run. A bounded read-only
    retry keeps the no-blind-retry rule for every mutation.
-3. **Worker promotion procedure — next stage.** Bind the live-validated
-   adapter primitives into a reviewed promotion procedure with durable intent,
-   following the same source, transport and live-acceptance separation as
-   static publication.
+3. **Worker promotion procedure — specified.** The [promotion procedure](release-commons-promotion.md)
+   binds the live-validated adapter primitives into a reviewed path with
+   durable intent, inherited bindings, single-attempt mutations and retained
+   rollback. Its first implementation slice is a fixed operator command with
+   offline tests; routine automation follows the static publication discipline
+   afterwards.
 4. **Publication status audit — optional.** A failing workflow conclusion with
    a closed successful record should be reconcilable from the deployment record
    without re-running a publication.
