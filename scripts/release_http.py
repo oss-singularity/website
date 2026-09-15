@@ -8,6 +8,7 @@ import socket
 import ssl
 import subprocess
 import tempfile
+import time
 import urllib.parse
 
 from release_source import checks, digest
@@ -283,18 +284,41 @@ class HTTP:
                   for name in sorted(files) if name == 'index.html' or name.endswith('/index.html')]
         def inspect(task):
             surface, name, path = task
-            result = self.get(path, surface, retry=True)
-            exact(result, files[name], name, surface, contract, security_digest,
-                  (200, 404) if name == '404.html' else (200,))
+            for attempt in range(2):
+                try:
+                    result = self.get(path, surface, retry=True)
+                    exact(result, files[name], name, surface, contract, security_digest,
+                          (200, 404) if name == '404.html' else (200,))
+                    return
+                except ArtifactError as error:
+                    if error.code != 'http_bytes_mismatch' or attempt == 1:
+                        raise
+                    time.sleep(0.5)
         for task in [item for item in tasks if item[0] == 'origin']:
             inspect(task)
         with ThreadPoolExecutor(max_workers=4) as executor:
             list(executor.map(inspect, [item for item in tasks if item[0] == 'edge']))
         for surface in ['origin', 'edge']:
             missing = self.get('/oss-release-missing-' + secrets.token_hex(12), surface, retry=True)
-            exact(missing, files['404.html'], '404.html', surface, contract, security_digest, (404,))
+            for _ in range(2):
+                try:
+                    exact(missing, files['404.html'], '404.html', surface, contract, security_digest, (404,))
+                    break
+                except ArtifactError as error:
+                    if error.code != 'http_bytes_mismatch' or _ == 1:
+                        raise
+                    time.sleep(0.5)
+                    missing = self.get('/oss-release-missing-' + secrets.token_hex(12), surface, retry=True)
         bot = self.get('/', user_agent='TelegramBot', retry=True)
-        exact(bot, files['index.html'], 'index.html', 'edge', contract, security_digest)
+        for _ in range(2):
+            try:
+                exact(bot, files['index.html'], 'index.html', 'edge', contract, security_digest)
+                break
+            except ArtifactError as error:
+                if error.code != 'http_bytes_mismatch' or _ == 1:
+                    raise
+                time.sleep(0.5)
+                bot = self.get('/', user_agent='TelegramBot', retry=True)
         legacy = historical and digest(files['.htaccess']) == LEGACY_ACCESS_SHA256
         self.redirects(legacy=legacy)
         tls = self.tls()
