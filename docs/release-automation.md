@@ -30,7 +30,29 @@ rollback and republication pilot are verified; see the
 | Constrained static adapter | Installed and verified with a separate restricted identity. |
 | Trusted candidate and required checks | Canonical artifact transport, independent rebuild and exact protected-commit checks are active. |
 | Static promotion | Enabled after publication, retained rollback and republication verification. |
-| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md), a separate [canonical artifact rehearsal](release-commons-rehearsal.md), an [independent completed-run consumer](release-commons-candidates.md) and a [version-bound code planner](release-commons-plan.md) are implemented. A journaled transition fixture, constrained remote promotion and schema migration remain separate work. Static jobs cannot update either. |
+| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md), a separate [canonical artifact rehearsal](release-commons-rehearsal.md), an [independent completed-run consumer](release-commons-candidates.md), a [version-bound code planner](release-commons-plan.md) and a [transition fixture with crash recovery](release-commons-transition.md) are implemented. The real [Cloudflare adapter](../scripts/commons_cloudflare.py) matches the live Workers version API, verified by a byte-identical stage, activation and predecessor-restore rehearsal that kept every binding and the live API unchanged. A reviewed promotion procedure with durable intent and schema migration remain separate work. Static jobs cannot update either. |
+
+## Near-term sequence
+
+The stages above advance in a deliberate order. The current sequence, newest
+first:
+
+1. **Blocked-record recovery — available.** The publication workflow closes its
+   own blocked deployment records through a reviewed `recover` dispatch; see the
+   [publication guide](release-publication.md#pilot-reports-and-exceptional-recovery).
+   Its first live dispatch refused an already closed record with the fixed
+   no-unresolved-publication result and performed no mutation.
+2. **Bounded read retry for record confirmations — next hardening.** Status
+   posts are never repeated, but today a transient failure of the read that
+   confirms an already posted status fails the whole run. A bounded read-only
+   retry keeps the no-blind-retry rule for every mutation.
+3. **Worker promotion procedure — next stage.** Bind the live-validated
+   adapter primitives into a reviewed promotion procedure with durable intent,
+   following the same source, transport and live-acceptance separation as
+   static publication.
+4. **Publication status audit — optional.** A failing workflow conclusion with
+   a closed successful record should be reconcilable from the deployment record
+   without re-running a publication.
 
 The target is exclusively OSS Singularity: its static destination, Commons
 Worker, dedicated D1 database and necessary cache invalidation. The existing
