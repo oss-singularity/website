@@ -1,7 +1,7 @@
 <header class="page-heading" aria-labelledby="vision-title">
   <p class="section-kicker">DESIGN VISION · SEEING THE NEXT STAGES BEFORE BUILDING THEM</p>
   <h1 id="vision-title">The planned stages,<br><em>before</em> they exist.</h1>
-  <p class="page-lead">Static interface concepts for roadmap stages 02–04, drawn in this site's own design language. Read them as questions a screen must answer — not as shipped features.</p>
+  <p class="page-lead">Static interface concepts for roadmap stages 02–06, drawn in this site's own design language. Read them as questions a screen must answer — not as shipped features.</p>
   <div class="hero-actions"><a class="button button-primary" href="/roadmap/">Back to the roadmap →</a><a class="text-link" href="https://github.com/oss-singularity/website/tree/main/design/roadmap-vision">Full concepts &amp; screenshots ↗</a></div>
   <p class="source-note">Design candidates, not a live contract: these screens bind no API schema, contain only synthetic participants and records, and describe nothing this service does today. The current API contract remains the <a href="/data/commons-openapi.json">Commons OpenAPI document</a>.</p>
 </header>
@@ -12,6 +12,8 @@
     <li><a href="#coordination"><span class="roadmap-overview-node" aria-hidden="true">02</span><strong>Project coordination</strong><span class="roadmap-overview-status">Portable hierarchy</span></a></li>
     <li><a href="#receipts"><span class="roadmap-overview-node" aria-hidden="true">03</span><strong>Artifact receipts</strong><span class="roadmap-overview-status">Two verification paths</span></a></li>
     <li><a href="#acceptance"><span class="roadmap-overview-node" aria-hidden="true">04</span><strong>Acceptance &amp; QA</strong><span class="roadmap-overview-status">Bound decision trail</span></a></li>
+    <li><a href="#contract-lab"><span class="roadmap-overview-node" aria-hidden="true">05</span><strong>Solidity contract lab</strong><span class="roadmap-overview-status">Research</span></a></li>
+    <li><a href="#settlement"><span class="roadmap-overview-node" aria-hidden="true">06</span><strong>Fair settlement</strong><span class="roadmap-overview-status">Proposed · optional</span></a></li>
   </ol>
 </nav>
 
@@ -76,6 +78,47 @@
       <h3>What the screen makes visible</h3>
       <p>Authorization at the decision point: every decision names its actor and role as rendered facts. Independence is concrete — a second account alone is not an independent reviewer.</p>
       <p class="vision-criteria"><b>Criteria addressed</b><br>Stale-version and duplicate decision rejection · authorization checked at the decision point · no self-granted reviewer authority.</p>
+    </article>
+  </div>
+</section>
+
+<section class="hub-section vision-section" id="contract-lab" aria-labelledby="contract-lab-title">
+  <p class="section-kicker">05 · RESEARCH · TESTNET TARGET</p>
+  <h2 id="contract-lab-title">Solidity contract lab</h2>
+  <p class="vision-hint">A guided builder that starts from explicit requirements — roles, scope commitments, artifact references, acceptance thresholds, deadlines — and produces readable Solidity together with the normalized agreement, assumptions, threat model and reproducible tests. Signing authority binds action, scope, delivery version, recipient, expiry and a single-use nonce.</p>
+  <div class="vision-grid">
+    <article class="vision-card">
+      <h3>What the lab produces</h3>
+      <p>A pinned, reproducible package: contract, agreement, assumptions, threat model, version-pinned dependencies, compiler settings and tests — with administrative power visible in the agreement and interface.</p>
+      <p class="vision-criteria"><b>Criteria addressed</b><br>Pinned reproducible output · role, signature, replay, nonce and expiry tests · signing authority separate from Commons login.</p>
+    </article>
+    <article class="vision-card">
+      <h3>What the lab refuses</h3>
+      <p>No private-key collection, no automatic signing, no implicit deployment, no unprompted financial code. First slice: a local example with synthetic artifacts and no real funds; any testnet exercise needs separate authorization.</p>
+      <p class="vision-criteria"><b>Criteria addressed</b><br>Clear review of the requested operation · a testnet demonstration is not a real-value launch.</p>
+    </article>
+  </div>
+</section>
+
+<section class="hub-section vision-section" id="settlement" aria-labelledby="settlement-title">
+  <p class="section-kicker">06 · PROPOSED · OPTIONAL</p>
+  <h2 id="settlement-title">Fair settlement</h2>
+  <p class="vision-hint">The agreement — budget, asset, contributors, fees, funding responsibility, release conditions, rights, deadlines, cancellation and dispute path — comes before the work. An optional independent instance holds one agreement's funds within its accepted authority; voluntary work remains voluntary.</p>
+  <div class="vision-states">
+    <span class="vision-badge vision-cyan">funded</span>
+    <span class="vision-badge vision-dim">delivered</span>
+    <span class="vision-badge vision-green">accepted</span>
+    <span class="vision-badge vision-caution">disputed</span>
+    <span class="vision-badge vision-green">released</span>
+    <span class="vision-badge vision-caution">refunded</span>
+    <span class="vision-badge vision-dim">cancelled</span>
+    <span class="vision-states-note">every outcome defined before implementation — a delivery reference alone releases nothing</span>
+  </div>
+  <div class="vision-grid vision-gap-top">
+    <article class="vision-card">
+      <h3>The gate before real value</h3>
+      <p>A published threat model, an independently reviewed implementation with resolved findings, fund invariants and adversarial tests, bytecode/source correspondence, and transparent administrative powers — including their absence.</p>
+      <p class="vision-criteria"><b>Criteria addressed</b><br>Conservation of funds and bounded release/refund · forged, replayed and front-run decisions exercised · incident, pause and recovery procedures.</p>
     </article>
   </div>
 </section>

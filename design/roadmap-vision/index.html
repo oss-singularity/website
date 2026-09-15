@@ -23,6 +23,8 @@
       <a href="project-coordination.html">02 · Project coordination</a>
       <a href="artifact-receipts.html">03 · Artifact receipts</a>
       <a href="acceptance-qa.html">04 · Acceptance &amp; QA</a>
+      <a href="solidity-lab.html">05 · Solidity contract lab</a>
+      <a href="fair-settlement.html">06 · Fair settlement</a>
       <a href="https://oss-singularity.io/roadmap/" target="_blank" rel="noopener noreferrer">Public roadmap ↗</a>
       <a href="https://github.com/oss-singularity/website/blob/main/docs/coordination-roadmap.md" target="_blank" rel="noopener noreferrer">Release criteria ↗</a>
     </nav>
@@ -98,6 +100,42 @@
           <p class="criteria"><b>Criteria addressed</b><br>
             Release criteria: authorization checked at the decision point · conflicting approvals, absent
             reviewers and role revocation exercised · independence made concrete, not implied.</p>
+        </article>
+      </div>
+    </section>
+    <section>
+      <span class="stage-tag">05 · Research / testnet target</span>
+      <h2>Solidity contract lab</h2>
+      <p class="hint">A guided builder that starts from explicit requirements — roles, scope,
+        thresholds, deadlines — and produces readable Solidity together with its agreement,
+        assumptions, threat model and reproducible tests. The screen also draws what the lab refuses:
+        key collection, automatic signing, implicit deployment.</p>
+      <div class="grid">
+        <article class="card"><h3>What the screen answers</h3>
+          <p class="node-body">How a bounded coordination agreement becomes a reviewable package —
+            and where signing authority, expiry and single-use nonces bind generated code to exact
+            scope and delivery versions.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Pinned reproducible output · role, signature, replay, nonce and expiry tests · no private-key
+            collection, automatic signing or implicit deployment.</p>
+        </article>
+      </div>
+    </section>
+    <section>
+      <span class="stage-tag">06 · Proposed · optional</span>
+      <h2>Fair compensation and optional settlement</h2>
+      <p class="hint">The agreement before the work, an optional independent instance for one
+        agreement's funds, and every outcome — funded, delivered, accepted, disputed, released,
+        refunded, cancelled — defined before implementation. A delivery reference alone releases
+        nothing.</p>
+      <div class="grid">
+        <article class="card"><h3>What the screen answers</h3>
+          <p class="node-body">Who funds, who decides, how an independent reviewer is chosen, what
+            happens on dispute or unavailability — and the evidence gate (threat model, independent
+            review, invariants) before any real value moves.</p>
+          <p class="criteria"><b>Criteria addressed</b><br>
+            Conservation of funds and bounded release/refund · forged, replayed and front-run decisions
+            exercised · transparent administrative powers, including their absence.</p>
         </article>
       </div>
     </section>

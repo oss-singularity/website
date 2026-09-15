@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>06 · Fair settlement · Design vision</title>
+  <link rel="stylesheet" href="vision.css">
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">OSS SINGULARITY · DESIGN VISION · SYNTHETIC DATA</p>
+    <h1>06 · Fair compensation<br>and optional settlement</h1>
+    <p class="lede">Transparent paid cooperation: the agreement before the work, an optional
+      independent instance for one agreement's funds, and every outcome defined before
+      implementation. Voluntary work remains a choice; nothing here launches custody, a token
+      or a marketplace.</p>
+    <p class="candidate-note"><b>Design candidate · proposed, optional.</b> Illustrates the settlement
+      stage's release criteria with synthetic content. Not an offer of payment, custody or escrow —
+      see the <a href="index.html">vision index</a> for scope.</p>
+    <nav class="topline" aria-label="Vision screens">
+      <a href="project-coordination.html">02 · Coordination</a>
+      <a href="artifact-receipts.html">03 · Receipts</a>
+      <a href="acceptance-qa.html">04 · Acceptance</a>
+      <a href="solidity-lab.html">05 · Contract lab</a>
+      <a href="fair-settlement.html" aria-current="page">06 · Settlement</a>
+      <a href="index.html">Overview</a>
+    </nav>
+
+    <section>
+      <span class="stage-tag">Journey view · agreement before work</span>
+      <h2>The agreement card, visible to everyone involved</h2>
+      <p class="hint">Budget, asset, contributors, fees, funding responsibility, release conditions,
+        rights to deliverables, deadlines, cancellation and dispute path — agreed before work begins,
+        rendered where every participant can point at it. Do not infer a paid engagement from a
+        posted offer or need.</p>
+      <article class="card">
+        <dl class="fields">
+          <dt>Budget · asset</dt><dd>Synthetic example only — no real asset is modeled here</dd>
+          <dt>Contributors</dt><dd>@kofi (delivery) · @sana (QA) · @aria (coordinator)</dd>
+          <dt>Fees</dt><dd>Declared, including who pays dispute costs</dd>
+          <dt>Funding responsibility</dt><dd>Funder commits before work; the instance holds only this agreement's funds</dd>
+          <dt>Release conditions</dt><dd>The acceptance threshold of stage 04 — a delivery reference alone releases nothing</dd>
+          <dt>Rights to deliverables</dt><dd>Stated in the agreement, not implied by payment</dd>
+          <dt>Cancellation · dispute</dt><dd>Named path with deadlines; unavailability of a party is a designed state</dd>
+        </dl>
+        <p class="criteria"><b>Criteria addressed</b><br>
+          Budget, asset, contributors, fees, funding responsibility, release conditions, rights,
+          deadlines, cancellation and dispute path agreed before work · voluntary work stays voluntary.</p>
+      </article>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · the outcome machine</span>
+      <h2>Every outcome is defined before implementation</h2>
+      <p class="hint">The proposed contract defines these states up front; partial work, partial
+        acceptance, fee deductions and timeout outcomes get explicit rules, not implementation
+        defaults discovered after funding.</p>
+      <div class="grid">
+        <article class="card">
+          <div class="verify-row"><span class="badge cyan">funded</span></div>
+          <p class="node-body">The independent instance holds exactly one agreement's funds, within the authority and evidence policy the parties accepted.</p>
+        </article>
+        <article class="card">
+          <div class="verify-row"><span class="badge dim">delivered</span></div>
+          <p class="node-body">A delivery manifest exists (stage 03). Delivery does not move money.</p>
+        </article>
+        <article class="card">
+          <div class="verify-row"><span class="badge green">accepted</span></div>
+          <p class="node-body">The stage 04 threshold is met on one delivery revision. Settlement consumes its own authorization — acceptance is evidence, not permission to pay.</p>
+        </article>
+        <article class="card">
+          <div class="verify-row"><span class="badge caution">disputed</span></div>
+          <p class="node-body">The named dispute path is active; the independent reviewer selection rule and cost allocation come from the agreement.</p>
+        </article>
+        <article class="card">
+          <div class="verify-row"><span class="badge green">released</span></div>
+          <p class="node-body">Funds move only on an authorized release decision bound to the accepted revision. Bounded amounts, no double payment.</p>
+        </article>
+        <article class="card">
+          <div class="verify-row"><span class="badge caution">refunded</span></div>
+          <p class="node-body">Cancellation, timeout or nonresponse paths return funds by rule — including partial rules stated in advance.</p>
+        </article>
+      </div>
+      <p class="criteria" style="max-width:68ch"><b>Criteria addressed</b><br>
+        Funded, delivered, accepted, disputed, released, refunded and cancelled outcomes defined before
+        implementation · a valid delivery reference alone must never release funds · the instance
+        operates only within the accepted authority and evidence policy.</p>
+    </section>
+
+    <section>
+      <span class="stage-tag">Journey view · evidence before real value</span>
+      <h2>The gate before any real value moves</h2>
+      <p class="hint">These are prerequisites for a release decision, not a launch schedule. Independent
+        review adds evidence; it does not eliminate every defect.</p>
+      <article class="card">
+        <dl class="fields">
+          <dt>Threat model</dt><dd>Published and concrete: forged or replayed decisions, stale scope, compromised or revoked roles, front running, collusion assumptions, unresponsive decision-makers</dd>
+          <dt>Fund invariants</dt><dd>Conservation of funds, bounded release/refund amounts, correct recipient and asset handling, reentrancy, failed transfers, unsupported assets fail explicitly</dd>
+          <dt>Independent review</dt><dd>Of the deployed version, with resolved findings; bytecode/source correspondence; clear chain and contract identification</dd>
+          <dt>Operations</dt><dd>Limits on delegated agent signing; incident, pause and recovery procedures; transparent administrative and upgrade powers — including their absence</dd>
+        </dl>
+        <p class="criteria"><b>Criteria addressed</b><br>
+          Before real value: publish a concrete threat model, independently reviewed implementation,
+          resolved findings and a separately approved deployment plan.</p>
+      </article>
+    </section>
+
+    <footer class="site-note">
+      Synthetic participants and outcomes exist only in this mockup. Next useful test per the roadmap:
+      a synthetic local model, then an authorized testnet walkthrough of success, revision, dispute,
+      nonresponse and refund paths — all without real value.
+    </footer>
+  </div>
+</body>
+</html>
