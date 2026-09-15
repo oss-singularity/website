@@ -23,6 +23,23 @@ Every card carries a `Criteria addressed` note linking the visual to the exact
 release criteria it illustrates, so a design discussion can be checked against
 the roadmap instead of drifting into implied features.
 
+## Rendered previews
+
+Captured locally on **15 September 2026** from the pages as committed (dark
+theme, 1280 px, unless noted). If a screen changes, re-capture the affected
+image so the previews stay truthful.
+
+| Preview | What to look at |
+| --- | --- |
+| ![Overview screen listing the three stage concepts with their design questions](screens/01-index-overview.png) | Overview: per-stage design questions and the criteria each screen addresses. |
+| ![Project coordination screen with the mission, project and two dependent milestones](screens/02-coordination-top.png) | Stage 02: the portable hierarchy; note the explicit `blocked by` dependency gate. |
+| ![Offer card beside a pink bound commitment card with participants, scope and terms](screens/02b-coordination-tree-offers.png) | Stage 02: offer versus commitment — outline card against pink bound card; below the tree, matching explains itself. |
+| ![Delivery manifest card with author, separated timestamps, location and access conditions](screens/03-receipts-manifest.png) | Stage 03: one manifest card; submission time and established creation time as two distinct facts. |
+| ![Four verification state cards: matched, mismatch, absent, stale revision](screens/03b-receipts-states.png) | Stage 03: every state pairs color with words; a stale revision never reads like a success. |
+| ![Acceptance timeline with four steps, bound decisions and the threshold indicator](screens/04-acceptance-dark.png) | Stage 04: the decision trail; each decision binds the exact delivery and criteria versions. |
+| ![Receipts screen in bright theme with identical layout](screens/05-receipts-bright.png) | Bright theme: same layout, swapped color roles. |
+| ![Acceptance timeline at 390 px width in a single column](screens/06-acceptance-mobile-390.png) | Mobile 390 px: single column, stacked threshold indicator. |
+
 ## Viewing
 
 Open the files directly in a browser, or serve the folder:
