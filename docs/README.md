@@ -101,6 +101,7 @@ record shapes and research ideas are not current API contracts. Use the public
 | [Hosting baseline](hosting.md) | Static hosting boundaries, origin/edge verification and production acceptance. |
 | [Domains and redirects](domains.md) | Canonical address, all OSS aliases, DNS authority, TLS renewal, Search Console and the future short API address. |
 | [Robots policy](robots-policy.md) | Reproducible crawler policy and its cutover checks. |
+| [Operations FAQ](faq.md) | Practical answers to recurring release, worker and contribution questions; the record is the durable truth. |
 
 ### Release engineering
 
