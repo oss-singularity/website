@@ -1,6 +1,6 @@
 # Domains and redirects
 
-Operational baseline verified on **12 September 2026**. Use this guide to choose
+Operational baseline verified on **14 September 2026** (oss-oo.org Edge pilot activated). Use this guide to choose
 the correct public address and understand the deployed domain configuration.
 Recheck provider state before changing it; this inventory is not deployment
 authority. [Hosting](hosting.md) covers the main origin and release boundary.
@@ -22,12 +22,15 @@ for authoritative DNS. Registrar registration remains separate from DNS hosting.
 | `oss-singularity.org` | Namecheap | DNS-only; Netcup native 301 forwarding. |
 | `oss-oo.com` | Namecheap | DNS-only; Netcup native 301 forwarding. |
 | `oss-oo.io` | Namecheap | DNS-only; Netcup native 301 forwarding. Reserved possibility for a future short API address. |
-| `oss-oo.org` | Namecheap | DNS-only; Netcup native 301 forwarding. |
+| `oss-oo.org` | Namecheap | **Cloudflare proxy with Edge Single Redirect** (pilot, activated 14 Sep 2026). All traffic receives a 301 to the canonical website at the Cloudflare edge; `raw.http.request.uri` preserves percent-encoded characters including `%2F`. ACME challenges pass through to the Netcup origin. SSL mode: strict. |
 
 ```mermaid
 flowchart LR
-    aliases["Six additional domains: apex + www"] -->|"Cloudflare DNS only"| netcup["Netcup HTTPS redirect"]
-    netcup -->|"301"| canonical["https://oss-singularity.io"]
+    aliases["Five additional domains: apex + www"] -->|"Cloudflare DNS only"| netcup["Netcup HTTPS redirect"]
+    oss_oo["oss-oo.org (pilot)"] -->|"Cloudflare proxy"| edge_redirect["Edge Single Redirect"]
+    edge_redirect -->|"301"| canonical["https://oss-singularity.io"]
+    edge_redirect -->|"ACME bypass"| netcup_acme["Netcup origin ACME"]
+    netcup -->|"301"| canonical
     canonical --> edge["Cloudflare proxy"]
     edge --> static["Namecheap static website"]
     edge -->|"/api/*"| commons["Commons Worker + D1"]
@@ -38,6 +41,30 @@ Cloudflare zones do not currently provide proxied HTTP caching, redirect rules
 or HTTP traffic analytics. Existing mail and non-web records were preserved;
 neither DNS consolidation nor a website release changes the mail provider.
 
+## oss-oo.org Edge Redirect Pilot
+
+Since 14 September 2026, `oss-oo.org` uses a Cloudflare Single Redirect rule at
+the edge instead of a Netcup origin redirect. Key differences from the DNS-only
+forwarding domains:
+
+- **Redirect at the edge**: The Cloudflare rule fires before the request reaches
+  Netcup, preserving `raw.http.request.uri` including percent-encoded slashes
+  (`%2F`), hashes (`%23`), question marks (`%3F`) and double-encoded characters.
+- **ACME passthrough**: `/.well-known/acme-challenge/` and `/cdn-cgi/` paths are
+  excluded from the redirect and reach the Netcup origin directly.
+- **Cache bypass**: ACME challenge paths are excluded from Cloudflare caching.
+- **SSL mode**: `strict` requires a valid origin certificate (Netcup Let's Encrypt,
+  valid until 11 December 2026).
+- **DNS**: All apex and `www` A/AAAA records are proxied through Cloudflare.
+
+The pilot proves that Cloudflare edge redirects preserve raw request bytes better
+than Netcup's native forwarding. The remaining five additional domains continue
+with DNS-only Netcup redirects until the pilot is validated over a full certificate
+renewal cycle.
+
+Rollback: set DNS records to `proxied: false`, remove the Single Redirect and
+Cache rules. The Netcup `.htaccess` redirect remains in place as a fallback.
+
 ## TLS and minimized hosting
 
 All six additional domains have valid Let's Encrypt certificates covering apex
@@ -46,7 +73,7 @@ valid chains were checked; a future renewal cycle has not yet been observed.
 Certificate validation remains with Netcup, independently of website publication.
 
 Five domains use Plesk's native forwarding type, which needs no application
-runtime. The `.de` website retains its static redirect with PHP, FastCGI, CGI,
+runtime (oss-oo.org uses the Cloudflare edge redirect pilot instead). The `.de` website retains its static redirect with PHP, FastCGI, CGI,
 SSI, custom error documents and web statistics disabled. Subscription-wide
 services are outside this configuration change.
 
