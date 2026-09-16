@@ -53,10 +53,21 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Obtain a temporary repository-policy reader
+        id: reader
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_READER_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_READER_PRIVATE_KEY }}
+          owner: oss-singularity
+          repositories: website
+          permission-administration: read
+          skip-token-revoke: false
       - name: Promote the verified candidate
         id: promotion
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_POLICY_TOKEN: ${{ steps.reader.outputs.token }}
           COMMONS_CF_TOKEN: ${{ secrets.COMMONS_CF_TOKEN }}
           COMMONS_ACCOUNT_ID: ${{ secrets.COMMONS_ACCOUNT_ID }}
           COMMONS_ZONE_ID: ${{ secrets.COMMONS_ZONE_ID }}
