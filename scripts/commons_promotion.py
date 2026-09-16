@@ -277,7 +277,7 @@ def capture_observation(adapter, predecessor_descriptor, schema_query):
     require(type(live) is dict and type(live.get('active_version')) is str, 'provider_state_unverified')
     active = live['active_version']
     deployments = live.get('deployments')
-    require(type(deployments) is list and 0 < len(deployments) <= 8, 'provider_state_unverified')
+    require(type(deployments) is list and 0 < len(deployments) <= 64, 'provider_state_unverified')
     deployment = deployments[0]
     require(type(deployment) is dict and type(deployment.get('id')) is str
             and deployment.get('strategy') == 'percentage', 'provider_state_unverified')
