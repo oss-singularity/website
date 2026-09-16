@@ -16,6 +16,7 @@ MODULES = ['worker.mjs', 'util.mjs']
 BINDINGS = [
     {'name': 'DB', 'type': 'd1', 'id': 'd1-uuid'},
     {'name': 'ADMIN_TOKEN', 'type': 'secret_text'},
+    {'name': 'GITHUB_READ_TOKEN', 'type': 'secret_text'},
     {'name': 'PUBLIC_ORIGIN', 'type': 'plain_text', 'text': 'https://oss-singularity.io'},
 ]
 OLD = '1' * 40
@@ -354,6 +355,7 @@ class CaptureTests(unittest.TestCase):
                   'database_id': DATABASE, 'route_id': 'c' * 32}
         raw_bindings = [
             {'name': 'ADMIN_TOKEN', 'type': 'secret_text'},
+            {'name': 'GITHUB_READ_TOKEN', 'type': 'secret_text'},
             {'database_id': DATABASE, 'id': DATABASE, 'name': 'DB', 'type': 'd1'},
             {'name': 'IP_HMAC_SECRET', 'type': 'secret_text'},
             {'name': 'PUBLIC_ORIGIN', 'text': 'https://oss-singularity.io', 'type': 'plain_text'},
@@ -495,7 +497,7 @@ class EnginePlanTests(unittest.TestCase):
                 'bindings': {'DB': {'type': 'd1', 'id': DATABASE},
                              'PUBLIC_ORIGIN': {'type': 'plain_text', 'text': 'https://oss-singularity.io'},
                              'RELEASE_SHA': {'type': 'plain_text', 'text': NEW},
-                             'ADMIN_TOKEN': {'type': 'secret_text'},
+                             'ADMIN_TOKEN': {'type': 'secret_text'}, 'GITHUB_READ_TOKEN': {'type': 'secret_text'},
                              'IP_HMAC_SECRET': {'type': 'secret_text'}},
                 'runtime': {'compatibility_date': '2026-09-04'}},
             'plan_sha256': 'a' * 64,
@@ -511,7 +513,7 @@ class EnginePlanTests(unittest.TestCase):
         self.assertEqual(plan['tag'], 'the-tag')
         self.assertEqual(plan['bindings'], [
             {'name': 'ADMIN_TOKEN', 'type': 'inherit'},
-            {'name': 'DB', 'type': 'inherit'},
+            {'name': 'DB', 'type': 'inherit'}, {'name': 'GITHUB_READ_TOKEN', 'type': 'inherit'},
             {'name': 'IP_HMAC_SECRET', 'type': 'inherit'},
             {'name': 'PUBLIC_ORIGIN', 'type': 'inherit'},
             {'name': 'RELEASE_SHA', 'type': 'plain_text', 'text': NEW},
@@ -519,6 +521,7 @@ class EnginePlanTests(unittest.TestCase):
         self.assertEqual(plan['installed_bindings'], [
             {'name': 'ADMIN_TOKEN', 'type': 'secret_text'},
             {'name': 'DB', 'type': 'd1', 'id': DATABASE},
+            {'name': 'GITHUB_READ_TOKEN', 'type': 'secret_text'},
             {'name': 'IP_HMAC_SECRET', 'type': 'secret_text'},
             {'name': 'PUBLIC_ORIGIN', 'type': 'plain_text', 'text': 'https://oss-singularity.io'},
             {'name': 'RELEASE_SHA', 'type': 'plain_text', 'text': NEW},
