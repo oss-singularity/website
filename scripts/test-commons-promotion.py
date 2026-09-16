@@ -64,6 +64,7 @@ class FakeAdapter:
         self.versions = {VERSION_A: {'annotations': {'workers/message': 'installed', 'workers/tag': 'installed'}}}
         self.calls = []
         self.fail_stage, self.fail_activate, self.drop_binding = fail_stage, fail_activate, drop_binding
+        self.staged_identity = None
 
     def observe(self):
         return {'active_version': self.active, 'versions': self.versions}
@@ -73,6 +74,7 @@ class FakeAdapter:
         self.calls.append('stage')
         version = 'stag-' + commit[:4]
         self.versions[version] = {'annotations': {'workers/message': message, 'workers/tag': tag}}
+        self.staged_identity = {'workers/message': message, 'workers/tag': tag}
         if self.fail_stage:
             self.fail_stage = False
             raise ArtifactError('provider_request_failed')
@@ -82,11 +84,16 @@ class FakeAdapter:
         self.calls.append('detail')
         if version_id == VERSION_A:
             return {'resources': {'bindings': BINDINGS,
-                    'script': {'modules': [{'name': 'installed.mjs'}]},
+                    'script': {'etag': 'e' * 64, 'handlers': promotion.WORKER_HANDLERS['handlers'],
+                               'named_handlers': [{'name': name} for name in
+                                                  promotion.WORKER_HANDLERS['named_handlers']]},
                     'script_runtime': {'compatibility_date': '2026-09-04'}}}
         bindings = [b for b in BINDINGS if not (self.drop_binding and b['type'] == 'd1')]
-        return {'resources': {'bindings': bindings,
-                'script': {'modules': [{'name': name} for name in MODULES]},
+        return {'annotations': dict(self.staged_identity or {}),
+                'resources': {'bindings': bindings,
+                'script': {'etag': 'e' * 64, 'handlers': promotion.WORKER_HANDLERS['handlers'],
+                           'named_handlers': [{'name': name} for name in
+                                              promotion.WORKER_HANDLERS['named_handlers']]},
                 'script_runtime': {'compatibility_date': '2026-09-04'}}}
 
     def activate_version(self, version_id, message):

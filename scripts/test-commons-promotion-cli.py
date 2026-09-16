@@ -181,6 +181,7 @@ class FakeProvider:
         self.calls = []
         self.staged_detail = None
         self.staged = None
+        self.staged_annotations = None
 
     def observe(self):
         self.calls.append('observe')
@@ -201,9 +202,11 @@ class FakeProvider:
     def version_detail(self, version_id):
         self.calls.append('detail:' + version_id)
         if version_id == self.staged:
-            return self.staged_detail
+            return {'annotations': dict(self.staged_annotations),
+                    'resources': self.staged_detail['resources']}
         return {'resources': {'bindings': [dict(item) for item in self.installed],
-                'script': {'etag': 'd' * 64},
+                'script': {'etag': 'd' * 64, 'handlers': ['fetch', 'scheduled'],
+                           'named_handlers': [{'name': 'cleanup'}, {'name': 'safeUrl'}]},
                 'script_runtime': {'compatibility_date': '2026-09-04', 'usage_model': 'standard'}}}
 
     def script_settings(self):
@@ -232,6 +235,7 @@ class FakeProvider:
         names = cli.packet_modules(content)
         assert set(names) == set(artifact.MODULES)
         self.staged = 'staged-' + commit[:4]
+        self.staged_annotations = {'workers/message': message, 'workers/tag': tag}
         resolved = []
         for binding in bindings:
             if binding['type'] == 'inherit':
@@ -241,7 +245,8 @@ class FakeProvider:
                 resolved.append(dict(binding))
         self.staged_detail = {'resources': {
             'bindings': resolved,
-            'script': {'modules': [{'name': name} for name in names]},
+            'script': {'etag': 'e' * 64, 'handlers': ['fetch', 'scheduled'],
+                       'named_handlers': [{'name': 'cleanup'}, {'name': 'safeUrl'}]},
             'script_runtime': {'compatibility_date': compatibility_date}}}
         return self.staged
 

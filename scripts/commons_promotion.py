@@ -10,6 +10,7 @@ are expected here as their already-verified results. Mutations are never
 repeated; a lost response is resolved by observing which version the deployment
 serves, and any step that cannot be resolved closes the intent as unresolved.
 """
+import re
 import time
 
 import commons_artifact as artifact
@@ -28,6 +29,12 @@ ROLLED_BACK = 'Promotion did not pass; predecessor version restored and verified
 UNRESOLVED = 'Outcome requires reconciliation before another promotion.'
 
 EXPECTED_SECRET_TYPES = {'secret_text'}
+
+# The worker's export surface as the provider reports it for the main module.
+# Pinned like the module and migration contracts: a candidate that changes it
+# refuses here, and widening it is a reviewed contract change, not a silent one.
+WORKER_HANDLERS = {'handlers': ['fetch', 'scheduled'],
+                   'named_handlers': ['cleanup', 'safeUrl']}
 
 
 def open_intent(deployments):
@@ -106,13 +113,14 @@ def binding_fingerprint(bindings):
     return sorted(result)
 
 
-def verify_staged(detail, candidate_modules, installed_bindings, compatibility_date):
+def verify_staged(detail, installed_bindings, compatibility_date, annotations):
     """Verify the staged version server-side before any activation.
 
-    The staged version must carry exactly the candidate's module set, the
-    installed bindings inherited unchanged (same names, types, D1 ids and
-    secret presence), the installed compatibility date, and the same handlers
-    the live script exposes.
+    The provider's version detail carries no module list, so the staged state
+    is verified against the fields it does report: the upload identity
+    (annotations matching this call's message and tag), the desired bindings
+    (same names, types, D1 ids and secret presence), the installed
+    compatibility date, and the worker's pinned export surface.
     """
     require(type(detail) is dict, 'staged_version_unverified')
     resources = detail.get('resources')
@@ -127,12 +135,18 @@ def verify_staged(detail, candidate_modules, installed_bindings, compatibility_d
             require(identifier is None and _text is None, 'staged_bindings_changed')
     require(staged_bindings == expected, 'staged_bindings_changed')
     script = resources.get('script')
-    require(type(script) is dict, 'staged_version_unverified')
-    staged_modules = sorted(item.get('name') for item in script.get('modules', []) if type(item) is dict)
-    require(staged_modules == sorted(candidate_modules), 'staged_modules_changed')
-    runtime = detail.get('resources', {}).get('script_runtime')
+    require(type(script) is dict
+            and script.get('handlers') == WORKER_HANDLERS['handlers'], 'staged_modules_changed')
+    require(sorted(item.get('name') for item in script.get('named_handlers', []) if type(item) is dict)
+            == WORKER_HANDLERS['named_handlers'], 'staged_modules_changed')
+    runtime = resources.get('script_runtime')
     require(type(runtime) is dict and runtime.get('compatibility_date') == compatibility_date,
             'staged_settings_changed')
+    detail_annotations = detail.get('annotations')
+    require(type(detail_annotations) is dict and type(annotations) is dict
+            and detail_annotations.get('workers/message') == annotations.get('workers/message')
+            and detail_annotations.get('workers/tag') == annotations.get('workers/tag'),
+            'staged_version_unverified')
     return True
 
 
@@ -425,8 +439,9 @@ def promote(adapter, intent, plan, candidate, accept):
             # an absent or ambiguous observation never retries the upload.
             staged = find_staged(adapter, plan['message'], plan['tag'])
         require(staged, 'staged_version_unverified')
-        verify_staged(adapter.version_detail(staged), candidate['modules'],
-                      plan['installed_bindings'], plan['compatibility_date'])
+        verify_staged(adapter.version_detail(staged), plan['installed_bindings'],
+                      plan['compatibility_date'],
+                      {'workers/message': plan['message'], 'workers/tag': plan['tag']})
         try:
             adapter.activate_version(staged, plan['message'])
         except ArtifactError:
