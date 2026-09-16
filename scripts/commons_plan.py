@@ -180,6 +180,10 @@ def build_plan(*, candidate_packet, expected_candidate_commit, expected_candidat
     require(digest(encode(state)) == baseline['observation_sha256']
             and state['version']['id'] == baseline['version_id']
             and state['deployment']['id'] == baseline['deployment_id'], 'baseline_observation_mismatch')
+    missing = [name for name in candidate['modules'] if name not in predecessor['modules']]
+    # A candidate that adds a worker module ships with a schema/migration
+    # procedure, never with this code-only path.
+    require(not missing, 'installed_code_mismatch')
     changes = [{'name': name,
                 'operation': 'keep' if candidate['modules'][name] == predecessor['modules'][name] else 'replace',
                 'before': predecessor['modules'][name], 'after': candidate['modules'][name]}

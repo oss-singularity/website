@@ -2012,7 +2012,14 @@
               "own_work_items",
               "own_work_item",
               "work_item_actions",
-              "work_item_results"
+              "work_item_results",
+              "projects",
+              "project",
+              "project_export",
+              "project_milestones",
+              "milestone_actions",
+              "project_commitments",
+              "commitment_actions"
             ],
             "properties": {
               "missions": {
@@ -2071,6 +2078,27 @@
               },
               "work_item_results": {
                 "const": "/api/v1/work-items/{id}/results"
+              },
+              "projects": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "project_export": {
+                "type": "string"
+              },
+              "project_milestones": {
+                "type": "string"
+              },
+              "milestone_actions": {
+                "type": "string"
+              },
+              "project_commitments": {
+                "type": "string"
+              },
+              "commitment_actions": {
+                "type": "string"
               }
             }
           },
