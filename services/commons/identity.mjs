@@ -94,19 +94,43 @@ export async function createChallenge(request, env, now) {
   return response({ id, proof: { network: NETWORK, challenge_id: id, nonce }, challenge_token: challengeToken, gist_filename: FILENAME, expires_at: new Date(expires).toISOString() }, 201);
 }
 
-async function githubJson(path) {
-  // Callers construct only these two fixed GitHub API paths; never fetch raw_url,
-  // redirects, avatars or any URL supplied by a remote response or proposal.
-  if (!/^\/(?:gists\/[a-f0-9]{1,64}|users\/[a-z0-9][a-z0-9-]{0,38})$/.test(path)) throw new ApiError(503, 'service_unavailable', 'Identity verification is temporarily unavailable.');
+async function githubFetch(path, authorization) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    const result = await fetch(`https://api.github.com${path}`, {
+    return await fetch(`https://api.github.com${path}`, {
       redirect: 'manual', signal: controller.signal,
-      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'OSS-Singularity-Identity', 'X-GitHub-Api-Version': '2026-03-10' },
+      headers: {
+        Accept: 'application/vnd.github+json', 'User-Agent': 'OSS-Singularity-Identity', 'X-GitHub-Api-Version': '2026-03-10',
+        ...(authorization ? { Authorization: authorization } : {}),
+      },
     });
-    if (result.status === 404) invalid('The public GitHub proof or account could not be found.', 'gist_url');
-    if (!result.ok || result.redirected) throw new ApiError(503, 'upstream_unavailable', 'GitHub verification is temporarily unavailable. Try again later.');
+  } finally { clearTimeout(timer); }
+}
+
+async function githubJson(path, env) {
+  // Callers construct only these two fixed GitHub API paths; never fetch raw_url,
+  // redirects, avatars or any URL supplied by a remote response or proposal.
+  if (!/^\/(?:gists\/[a-f0-9]{1,64}|users\/[a-z0-9][a-z0-9-]{0,38})$/.test(path)) throw new ApiError(503, 'service_unavailable', 'Identity verification is temporarily unavailable.');
+  // Anonymous calls leave Cloudflare's shared worker egress addresses, whose
+  // per-IP GitHub quota is persistently exhausted by other tenants; an optional
+  // read-only token gives this worker its own quota. A rejected token degrades
+  // to one anonymous retry instead of failing enrollment closed.
+  const token = typeof env?.GITHUB_READ_TOKEN === 'string' && /^[A-Za-z0-9_]{20,255}$/.test(env.GITHUB_READ_TOKEN) ? env.GITHUB_READ_TOKEN : null;
+  const attempts = token ? [{ authorization: `Bearer ${token}` }, { authorization: null }] : [{ authorization: null }];
+  let result = null;
+  for (let index = 0; index < attempts.length; index += 1) {
+    if (index > 0) await new Promise(resolve => setTimeout(resolve, 1200));
+    const attempt = await githubFetch(path, attempts[index].authorization);
+    if (attempt.status === 404) invalid('The public GitHub proof or account could not be found.', 'gist_url');
+    if (attempt.ok && !attempt.redirected) { result = attempt; break; }
+    await attempt.body?.cancel();
+    const rateLimited = attempt.status === 403 || attempt.status === 429;
+    if (index === attempts.length - 1 || !rateLimited) {
+      throw new ApiError(503, 'upstream_unavailable', 'GitHub verification is temporarily unavailable. Try again later.');
+    }
+  }
+  try {
     if (Number(result.headers.get('content-length')) > MAX_GITHUB_BYTES) invalid('The GitHub proof response is too large; use a small gist containing only the proof.', 'gist_url');
     const reader = result.body?.getReader();
     if (!reader) throw new ApiError(503, 'upstream_unavailable', 'GitHub returned an incomplete response.');
@@ -129,7 +153,7 @@ async function githubJson(path) {
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError(503, 'upstream_unavailable', 'GitHub verification is temporarily unavailable. Try again later.');
-  } finally { clearTimeout(timer); }
+  }
 }
 
 export async function verifyIdentity(request, env, now) {
@@ -143,7 +167,7 @@ export async function verifyIdentity(request, env, now) {
     WHERE id = ? AND token_hash = ? AND consumed_at IS NULL AND expires_at > ? AND verification_attempts < 3
     RETURNING id, github_login, nonce_hash, expires_at`).bind(id, challengeHash, now).first();
   if (!challenge) throw new ApiError(401, 'unauthorized', 'A valid unexpired challenge token with remaining verification attempts is required.');
-  const document = await githubJson(`/gists/${gist}`);
+  const document = await githubJson(`/gists/${gist}`, env);
   const owner = document?.owner;
   const file = document?.files?.[FILENAME];
   if (document?.public !== true || document.truncated === true || !owner || !Number.isSafeInteger(owner.id) || owner.id <= 0 ||
@@ -155,7 +179,7 @@ export async function verifyIdentity(request, env, now) {
   if (!proof || Array.isArray(proof) || Object.keys(proof).sort().join(',') !== 'challenge_id,network,nonce' ||
       proof.network !== NETWORK || proof.challenge_id !== challenge.id || typeof proof.nonce !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(proof.nonce) ||
       !equalHash(await digest(proof.nonce), challenge.nonce_hash)) invalid('The gist proof does not match this challenge.', 'gist_url');
-  const account = await githubJson(`/users/${challenge.github_login}`);
+  const account = await githubJson(`/users/${challenge.github_login}`, env);
   const created = Date.parse(account?.created_at);
   if (!account || account.id !== owner.id || githubLogin(account.login) !== challenge.github_login || typeof account.created_at !== 'string' || !Number.isFinite(created) || created > now || created < 0) {
     invalid('GitHub account identity and creation time could not be verified.', 'github_login');
