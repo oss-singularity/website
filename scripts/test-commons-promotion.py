@@ -1,7 +1,11 @@
 """Offline promotion engine tests against a synthetic provider and records."""
 import json
+import sqlite3
 import unittest
+from pathlib import Path
 
+import commons_artifact as artifact
+import commons_plan as planner
 import commons_promotion as promotion
 import release_deployment as deployments
 import release_source as source
@@ -14,6 +18,12 @@ BINDINGS = [
     {'name': 'ADMIN_TOKEN', 'type': 'secret_text'},
     {'name': 'PUBLIC_ORIGIN', 'type': 'plain_text', 'text': 'https://oss-singularity.io'},
 ]
+OLD = '1' * 40
+NEW = '2' * 40
+VERSION = '11111111-1111-4111-8111-111111111111'
+DEPLOYMENT = '22222222-2222-4222-8222-222222222222'
+PENDING_VERSION = '33333333-3333-4333-8333-333333333333'
+DATABASE = '44444444-4444-4444-8444-444444444444'
 
 
 def plan(**changes):
@@ -267,6 +277,240 @@ class WiringPrimitiveTests(unittest.TestCase):
                        {'active_version': 'v-b', 'versions': {'v-b': {'number': '5'}}}]:
             with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
                 promotion.provider_generation(broken)
+
+
+class LiveShapeAdapter:
+    """Synthetic provider whose reads carry the live API's exact response shapes."""
+    def __init__(self, case):
+        self.case = case
+        self.calls = []
+
+    def observe(self):
+        self.calls.append('observe')
+        return {**self.case['live']}
+
+    def version_detail(self, version_id):
+        self.calls.append('detail:' + version_id)
+        assert version_id == self.case['live']['active_version']
+        return {**self.case['detail'], 'resources': {**self.case['detail']['resources'],
+                'bindings': [dict(item) for item in self.case['raw_bindings']]}}
+
+    def script_settings(self):
+        self.calls.append('settings')
+        return {**self.case['settings_raw'], 'bindings': [dict(item) for item in self.case['raw_bindings']]}
+
+    def script_subdomain(self):
+        self.calls.append('subdomain')
+        return dict(self.case['subdomain'])
+
+    def schema_rows(self, query):
+        self.calls.append('schema')
+        assert query == artifact.SCHEMA_QUERY
+        return [dict(item) for item in self.case['result_sets']]
+
+
+class CaptureTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        root = Path(__file__).resolve().parents[1] / 'services/commons'
+        files, migrations = artifact.source_inputs(root)
+        schema = artifact.expected_schema(migrations)
+        with sqlite3.connect(':memory:') as database:
+            database.row_factory = sqlite3.Row
+            for name in sorted(migrations):
+                database.executescript(migrations[name].decode())
+            rows = [dict(row) for row in database.execute(artifact.SCHEMA_QUERY)]
+        packet = artifact.packet(files, OLD, schema)
+        _files, descriptor = artifact.unpack(packet, OLD, planner.SCHEMA_SHA256)
+        policy = {'schema_version': 1, 'target': planner.TARGET, 'account_id': 'a' * 32,
+                  'zone_id': 'b' * 32, 'script_name': planner.SCRIPT,
+                  'database_id': DATABASE, 'route_id': 'c' * 32}
+        raw_bindings = [
+            {'name': 'ADMIN_TOKEN', 'type': 'secret_text'},
+            {'database_id': DATABASE, 'id': DATABASE, 'name': 'DB', 'type': 'd1'},
+            {'name': 'IP_HMAC_SECRET', 'type': 'secret_text'},
+            {'name': 'PUBLIC_ORIGIN', 'text': 'https://oss-singularity.io', 'type': 'plain_text'},
+            {'name': 'RELEASE_SHA', 'text': OLD, 'type': 'plain_text'},
+        ]
+        cls.case = {
+            'packet': packet, 'descriptor': descriptor, 'rows': rows, 'policy': policy,
+            'raw_bindings': raw_bindings,
+            'live': {
+                'schema_version': 1, 'target': planner.SCRIPT, 'account_id': 'a' * 32,
+                'zone_id': 'b' * 32, 'script_name': planner.SCRIPT,
+                'active_version': VERSION, 'latest_version_id': VERSION,
+                'versions': {VERSION: {'number': 4, 'metadata': {}, 'annotations': {}}},
+                'deployments': [{'id': DEPLOYMENT, 'strategy': 'percentage',
+                                 'versions': [{'version_id': VERSION, 'percentage': 100}]}],
+                'routes': [{'id': 'c' * 32, 'pattern': 'oss-singularity.io/api/*',
+                            'script': planner.SCRIPT, 'request_limit_fail_open': False}],
+                'schedules': [{'cron': '17 * * * *', 'created_on': '2026-09-05T08:07:13.971361Z'}],
+                'subdomain': 'mail-85f', 'd1_schema_fingerprint': 'fp',
+            },
+            'detail': {'resources': {
+                'bindings': raw_bindings,
+                'script': {'etag': 'd' * 64, 'handlers': ['fetch', 'scheduled'],
+                           'last_deployed_from': 'api'},
+                'script_runtime': {'compatibility_date': '2026-09-04', 'usage_model': 'standard'}}},
+            'settings_raw': {
+                'annotations': {'workers/message': 'installed', 'workers/triggered_by': 'version_upload'},
+                'compatibility_date': '2026-09-04', 'compatibility_flags': [], 'logpush': False,
+                'placement': {}, 'tags': ['commons', 'oss-singularity'], 'tail_consumers': [],
+                'usage_model': 'standard'},
+            'subdomain': {'enabled': False, 'previews_enabled': False},
+            'result_sets': [{'meta': {}, 'success': True, 'results': rows}],
+        }
+
+    def adapter(self, **live_changes):
+        case = {**self.case, 'live': {**self.case['live'], **live_changes}}
+        return LiveShapeAdapter(case)
+
+    def capture(self, adapter):
+        return promotion.capture_observation(adapter, self.case['descriptor'], artifact.SCHEMA_QUERY)
+
+    def test_capture_matches_the_planner_model_exactly(self):
+        adapter = self.adapter()
+        captured = self.capture(adapter)
+        self.assertEqual(adapter.calls, ['observe', 'detail:' + VERSION, 'settings', 'subdomain', 'schema'])
+        self.assertEqual(captured['generation'], 4)
+        observation = captured['observation']
+        expected_settings = planner.settings(self.case['policy'], OLD)
+        self.assertEqual(observation['settings'], expected_settings)
+        self.assertEqual(observation['version']['bindings'], expected_settings['bindings'])
+        self.assertEqual(observation['version']['etag'], 'd' * 64)
+        self.assertEqual(observation['version']['runtime'],
+                         {'compatibility_date': '2026-09-04', 'compatibility_flags': [],
+                          'usage_model': 'standard'})
+        self.assertEqual(observation['deployment'],
+                         {'id': DEPLOYMENT, 'strategy': 'percentage',
+                          'versions': [{'version_id': VERSION, 'percentage': 100}]})
+        self.assertEqual(observation['routes'], self.case['live']['routes'])
+        self.assertEqual(observation['schedules'], ['17 * * * *'])
+        self.assertEqual(observation['subdomain'], {'enabled': False, 'previews_enabled': False})
+        self.assertEqual(observation['modules'], self.case['descriptor']['modules'])
+        self.assertEqual(observation['schema'], self.case['rows'])
+        self.assertEqual(observation['latest_version_id'], VERSION)
+
+    def test_baseline_binds_generation_packets_and_normalized_state(self):
+        captured = self.capture(self.adapter())
+        baseline = promotion.plan_baseline(captured['generation'], OLD, self.case['packet'],
+                                           self.case['descriptor'], self.case['policy'],
+                                           captured['observation'])
+        state = planner.observed_state(captured['observation'], self.case['policy'],
+                                       self.case['descriptor'])
+        self.assertEqual(baseline, {
+            'schema_version': 1, 'target': planner.TARGET, 'generation': 4, 'commit': OLD,
+            'packet_sha256': artifact.digest(self.case['packet']),
+            'policy_sha256': artifact.digest(artifact.encode(self.case['policy'])),
+            'observation_sha256': artifact.digest(artifact.encode(state)),
+            'version_id': VERSION, 'deployment_id': DEPLOYMENT})
+
+    def test_unowned_pending_versions_refuse_before_any_intent_exists(self):
+        captured = self.capture(self.adapter(latest_version_id=PENDING_VERSION))
+        with self.assertRaisesRegex(ArtifactError, 'unowned_pending_version'):
+            promotion.plan_baseline(captured['generation'], OLD, self.case['packet'],
+                                    self.case['descriptor'], self.case['policy'],
+                                    captured['observation'])
+
+    def test_capture_refuses_unknown_provider_noise(self):
+        settings_variants = [
+            {**self.case['settings_raw'], 'observability': {'enabled': True}},
+            {**self.case['settings_raw'], 'unknown_field': 1},
+            {key: value for key, value in self.case['settings_raw'].items() if key != 'logpush'},
+        ]
+        for settings in settings_variants:
+            case = {**self.case, 'settings_raw': settings}
+            with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
+                promotion.capture_observation(LiveShapeAdapter(case), self.case['descriptor'],
+                                              artifact.SCHEMA_QUERY)
+        for bindings in [[{'name': 'DB', 'type': 'kv', 'id': 'x'}],
+                         [{'name': 'RELEASE_SHA', 'type': 'plain_text', 'text': OLD, 'id': 'x'}],
+                         [{'name': 'DB', 'type': 'd1', 'id': DATABASE, 'database_id': 'other'}],
+                         []]:
+            case = {**self.case, 'raw_bindings': bindings}
+            with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
+                promotion.capture_observation(LiveShapeAdapter(case), self.case['descriptor'],
+                                              artifact.SCHEMA_QUERY)
+        for detail in [{'resources': {'bindings': self.case['raw_bindings'],
+                                      'script': {'etag': 'short'},
+                                      'script_runtime': {'compatibility_date': '2026-09-04',
+                                                         'usage_model': 'standard'}}},
+                       {'resources': {'bindings': self.case['raw_bindings'],
+                                      'script': {'etag': 'd' * 64}}}
+                       ]:
+            case = {**self.case, 'detail': detail}
+            with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
+                promotion.capture_observation(LiveShapeAdapter(case), self.case['descriptor'],
+                                              artifact.SCHEMA_QUERY)
+        for subdomain in [{'enabled': False}, {'enabled': False, 'previews_enabled': False, 'name': 'x'},
+                          {'enabled': 'no', 'previews_enabled': False}]:
+            case = {**self.case, 'subdomain': subdomain}
+            with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
+                promotion.capture_observation(LiveShapeAdapter(case), self.case['descriptor'],
+                                              artifact.SCHEMA_QUERY)
+        for sets in [[], [{'success': False, 'results': []}], [{'success': True, 'results': []}]]:
+            case = {**self.case, 'result_sets': sets}
+            with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
+                promotion.capture_observation(LiveShapeAdapter(case), self.case['descriptor'],
+                                              artifact.SCHEMA_QUERY)
+        case = {**self.case, 'live': {**self.case['live'], 'deployments': []}}
+        with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
+            promotion.capture_observation(LiveShapeAdapter(case), self.case['descriptor'],
+                                          artifact.SCHEMA_QUERY)
+
+
+class EnginePlanTests(unittest.TestCase):
+    def planned(self, **changes):
+        value = {
+            'predecessor': {'version_id': VERSION},
+            'release_sha_change': {'before': OLD, 'after': NEW},
+            'desired_version': {
+                'bindings': {'DB': {'type': 'd1', 'id': DATABASE},
+                             'PUBLIC_ORIGIN': {'type': 'plain_text', 'text': 'https://oss-singularity.io'},
+                             'RELEASE_SHA': {'type': 'plain_text', 'text': NEW},
+                             'ADMIN_TOKEN': {'type': 'secret_text'},
+                             'IP_HMAC_SECRET': {'type': 'secret_text'}},
+                'runtime': {'compatibility_date': '2026-09-04'}},
+            'plan_sha256': 'a' * 64,
+        }
+        value.update(changes)
+        return value
+
+    def test_release_sha_is_reentered_and_everything_else_inherits(self):
+        plan = promotion.engine_plan(NEW, self.planned(), 'Promote the candidate', 'the-tag')
+        self.assertEqual(plan['predecessor_version'], VERSION)
+        self.assertEqual(plan['release_sha'], OLD)
+        self.assertEqual(plan['message'], 'Promote the candidate')
+        self.assertEqual(plan['tag'], 'the-tag')
+        self.assertEqual(plan['bindings'], [
+            {'name': 'ADMIN_TOKEN', 'type': 'inherit'},
+            {'name': 'DB', 'type': 'inherit'},
+            {'name': 'IP_HMAC_SECRET', 'type': 'inherit'},
+            {'name': 'PUBLIC_ORIGIN', 'type': 'inherit'},
+            {'name': 'RELEASE_SHA', 'type': 'plain_text', 'text': NEW},
+        ])
+        self.assertEqual(plan['installed_bindings'], [
+            {'name': 'ADMIN_TOKEN', 'type': 'secret_text'},
+            {'name': 'DB', 'type': 'd1', 'id': DATABASE},
+            {'name': 'IP_HMAC_SECRET', 'type': 'secret_text'},
+            {'name': 'PUBLIC_ORIGIN', 'type': 'plain_text', 'text': 'https://oss-singularity.io'},
+            {'name': 'RELEASE_SHA', 'type': 'plain_text', 'text': NEW},
+        ])
+        self.assertEqual(plan['main_module'], 'worker.mjs')
+        self.assertEqual(plan['compatibility_date'], '2026-09-04')
+        self.assertEqual(plan['plan_sha256'], 'a' * 64)
+
+    def test_refuses_mismatched_release_identity(self):
+        with self.assertRaisesRegex(ArtifactError, 'invalid_plan'):
+            promotion.engine_plan(OLD, self.planned(), 'm', 't')
+        stale = self.planned()
+        stale['desired_version']['bindings']['RELEASE_SHA'] = {'type': 'plain_text', 'text': OLD}
+        with self.assertRaisesRegex(ArtifactError, 'invalid_plan'):
+            promotion.engine_plan(NEW, stale, 'm', 't')
+        missing = self.planned()
+        del missing['desired_version']['bindings']['RELEASE_SHA']
+        with self.assertRaisesRegex(ArtifactError, 'invalid_plan'):
+            promotion.engine_plan(NEW, missing, 'm', 't')
 
 
 if __name__ == '__main__':

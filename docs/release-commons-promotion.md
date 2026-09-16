@@ -83,14 +83,16 @@ target is not a fixed filesystem but a versioned Worker whose bindings
 | Durable intent record for Worker promotions | Implemented: `scripts/commons_promotion.py` records intents under the distinct `promote:oss-commons` task so they never block static records; open or unresolved intents block the next promotion. |
 | Promotion engine (stage, server-side verification, single activation, rollback) | Implemented with offline tests: lost stage and activation responses are resolved by observation under the call's own annotations, changed staged bindings abort before activation, and a failed live acceptance restores the predecessor exactly once. |
 | Fixed operator command (steps 3–7) | Implemented: `scripts/commons-promotion.py` derives the plan from live provider state (installed bindings become inherit entries; predecessor, compatibility date and current release identity are read from the active version), takes the candidate packet and commit as inputs, uses the same live API acceptance as publication, and reports one sanitized JSON outcome. Account identifiers and the provider token come from the environment and stay outside the repository. |
-| Candidate consumption and planning wiring | Not implemented as command wiring; the command deliberately performs no candidate download or planning itself — steps 1–2 run through the implemented contracts beforehand. |
-| CI automation | Not started. Worker promotion must not run from PR code; it follows the same protected-canonical discipline as static publication. |
+| Live capture, baseline and engine mapping | Implemented with offline tests and live read validation: `capture_observation` composes the planner's normalized observation from bounded live reads, `plan_baseline` records the normalized state digest and refuses unowned pending versions before any intent, and `engine_plan` maps the planner output onto the engine contract (inherit bindings; `RELEASE_SHA` re-entered with the candidate commit). |
+| Candidate download and verification wiring | Not implemented as command wiring; locating and downloading the rehearsal artifacts through `rehearsal_artifacts` and running `commons_candidate.verify` in the command's `--from-rehearsal` path remain the next slice. |
 | CI automation | Not started. Worker promotion must not run from PR code; it follows the same protected-canonical discipline as static publication. |
 | Schema migration | Separate procedure; remains gated by its own backup, DDL inventory and preservation evidence. |
 
 The first implementation slices — the durable intent record, the promotion
-engine and the fixed operator command for steps 3–7 — are implemented with
-offline tests. What remains is wiring steps 1–2 and, afterwards, automation.
+engine, the fixed operator command for steps 3–7 and the live capture with
+baseline and engine mapping — are implemented with offline tests. What
+remains is the candidate download and verification wiring inside the command
+and, afterwards, automation.
 
 ## Wiring specification for steps 1–2
 
@@ -116,8 +118,11 @@ implementation can be reviewed against a written contract.
 - **Engine feeding:** map the planner output onto the engine plan —
   predecessor version, inherit bindings over the observed installed bindings,
   compatibility date and current release sha from the active version, and the
-  packet bytes exactly as verified. The engine's own staged-version
-  verification then re-checks the same invariants server-side.
+  packet bytes exactly as verified. One binding is deliberately not inherited:
+  `RELEASE_SHA` is re-entered as plain text with the candidate commit, so the
+  promoted version serves its own release identity for live acceptance; the
+  engine's staged-version verification then checks the staged state against
+  the planner's desired bindings, which model exactly that end state.
 - **Refusals:** a changed active version or deployment id between planning and
   promotion (the planner's baseline checks) aborts before staging, mirroring
   the static path's stale-main discipline.
@@ -140,6 +145,18 @@ Three contracts close the remaining open points of that wiring:
   live predecessor version's own content (the provider's multipart form), not
   from the candidate: `unpack` binds it to the recorded predecessor commit, and
   a mismatch between live bytes and that commit refuses the promotion.
+- **Live capture.** The planner's normalized observation is composed from
+  bounded live reads and validated against the provider's real response shapes
+  (read-only, 16 September 2026): the settings read's annotations part and the
+  d1 bindings' redundant `database_id` mirror are dropped as provider noise,
+  any other unknown field refuses, an absent `observability` key means the
+  disabled default, the version etag comes from the staged resources' script
+  block, workers.dev exposure is read from the script-scoped subdomain
+  endpoint, and the installed modules come from the reconstructed predecessor
+  descriptor. `observed_state` then validates the composed observation, and
+  the baseline records the normalized state digest, the generation, and both
+  packet digests — a capture against a provider with unowned pending versions
+  refuses before any intent exists.
 
 ## Workflow design (after wiring)
 
