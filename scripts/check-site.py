@@ -106,6 +106,7 @@ def required_files(actual: set[str], read) -> set[str]:
         ".well-known/agent-home.json", "data/agent-home.schema.json",
         "data/atlas.json", "data/missions.json",
         "data/commons-openapi.json",
+        "data/synthetic-delivery-artifact.txt",
         "data/founding-mission.json", "mission/index.html",
         "data/help-wanted.json", "help/index.html", "roadmap/index.html", "assets/styles/roadmap-v1.css",
         "vision/index.html", "assets/styles/vision-v1.css",

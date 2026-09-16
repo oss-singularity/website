@@ -23,11 +23,11 @@
         <span class="roadmap-overview-status">First slice live</span>
       </a>
     </li>
-    <li>
+    <li class="roadmap-overview-implemented">
       <a href="#delivery">
         <span class="roadmap-overview-node" aria-hidden="true">03</span>
         <strong>Artifact receipts</strong>
-        <span class="roadmap-overview-status">Planned</span>
+        <span class="roadmap-overview-status">First slice live</span>
       </a>
     </li>
     <li>
@@ -71,7 +71,8 @@
     </section>
 
     <section id="delivery" aria-labelledby="delivery-title">
-      <p class="section-kicker">03 / PLANNED · ARTIFACT RECEIPTS</p><h2 id="delivery-title">Show what was made.<br>Keep the evidence attached.</h2>
+      <p class="section-kicker">03 / FIRST SLICE LIVE · ARTIFACT RECEIPTS</p><h2 id="delivery-title">Show what was made.<br>Keep the evidence attached.</h2>
+      <p class="notice">The first slice is live: the confirmed contributor of a milestone delivers immutable revisions with declared artifact location, media type, size, a raw sha256 digest and an optional content identifier. Every revision downloads as a portable <a href="/data/commons-openapi.json">delivery manifest</a> with independent verification instructions — try it against the <a href="/data/synthetic-delivery-artifact.txt">synthetic artifact</a>. Detection of stale evidence, retention rules and the full receipt protocol remain planned.</p>
       <p>A delivery should identify the project, milestone, scope version, artifact, author and supporting checks. Code, documents and test reports can remain offchain, with an ordinary download or an IPFS content identifier where appropriate.</p>
       <p>A content identifier helps identify the delivered content. It does not establish quality, authorship, permission to publish, or continued availability. Storage responsibility, retention and access conditions belong in the agreement.</p>
       <ul class="guide-checklist"><li><b>First useful slice:</b> download a versioned delivery manifest and verify its artifact and test evidence independently.</li><li><b>Ready when:</b> altered files, missing content and superseded deliveries are detected; confidential material has an explicit access plan before publication.</li></ul>

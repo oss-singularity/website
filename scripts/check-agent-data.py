@@ -237,6 +237,8 @@ def validate_openapi(spec: dict) -> None:
         "/api/v1/projects/{id}/commitments": ("post",),
         "/api/v1/projects/{id}/commitments/{commitment_id}/actions": ("post",),
         "/api/v1/projects/{id}/actions": ("post",),
+        "/api/v1/projects/{id}/milestones/{milestone_id}/deliveries": ("get", "post"),
+        "/api/v1/projects/{id}/milestones/{milestone_id}/deliveries/{revision}": ("get",),
     }
     require(set(spec.get("paths", {})) == set(operations), "Commons OpenAPI public route set differs")
     require(spec.get("security") == [], "Commons public reads must not claim account authentication")
@@ -260,6 +262,7 @@ def validate_openapi(spec: dict) -> None:
         ("/api/v1/projects/{id}/commitments", "post"): [{"IdentityBearer": []}],
         ("/api/v1/projects/{id}/commitments/{commitment_id}/actions", "post"): [{"IdentityBearer": []}],
         ("/api/v1/projects/{id}/actions", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries", "post"): [{"IdentityBearer": []}],
     }
     names = set()
     for path, methods in operations.items():
@@ -382,7 +385,24 @@ def validate_openapi(spec: dict) -> None:
     require(schemas.get("ProjectExport", {}).get("properties", {}).get("notice", {}).get("const") ==
             "An export records coordination decisions and identities; it verifies no artifact and authorizes no payment.",
             "Project exports must keep their honest boundary notice")
-    for name in ("ProjectSummary", "MilestoneView", "CommitmentView", "ProjectExport"):
+    delivery_request = schemas.get("DeliveryRequest", {})
+    delivery_fields = {"summary", "artifact_url", "artifact_media_type", "artifact_size_bytes", "integrity_digest",
+                       "content_identifier", "evidence_url", "expected_version"}
+    require(delivery_request.get("additionalProperties") is False and
+            set(delivery_request.get("properties", {})) == delivery_fields and
+            set(delivery_request.get("required", [])) == {"summary", "artifact_url", "artifact_media_type", "artifact_size_bytes", "integrity_digest", "expected_version"},
+            "Deliveries require declared artifact metadata without client-supplied identity or acceptance fields")
+    artifact = schemas.get("DeliveryArtifact", {}).get("properties", {})
+    require(set(artifact) == {"url", "media_type", "size_bytes", "integrity", "content_identifier"},
+            "Delivery artifacts must stay within the declared metadata fields")
+    require(artifact.get("integrity", {}).get("properties", {}).get("algorithm", {}).get("const") == "sha256" and
+            artifact.get("integrity", {}).get("properties", {}).get("digest", {}).get("pattern") == "^[a-f0-9]{64}$",
+            "Delivery artifacts must declare a repeatable raw sha256 file digest")
+    require(schemas.get("DeliveryManifest", {}).get("properties", {}).get("notice", {}).get("const") ==
+            "A manifest records a delivery and its declared integrity metadata; the service fetches and verifies no artifact bytes, establishes no quality, authorship or acceptance, and authorizes no payment.",
+            "Delivery manifests must keep their honest fetch-and-verify boundary notice")
+    for name in ("ProjectSummary", "MilestoneView", "CommitmentView", "ProjectExport",
+                 "DeliveryView", "DeliveryArtifact", "DeliveryManifest"):
         public_schema = schemas.get(name, {})
         require(public_schema.get("additionalProperties") is False and
                 set(public_schema.get("properties", {})).isdisjoint(private_fields),
@@ -590,6 +610,15 @@ def self_test() -> int:
     invalid = copy.deepcopy(openapi)
     invalid["paths"]["/api/v1/projects/{id}/matching"] = {"post": {}}
     rejected(lambda: validate_openapi(invalid))
+    for path, method in (("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries", "post"),):
+        invalid = copy.deepcopy(openapi)
+        invalid["paths"][path][method]["security"] = []
+        rejected(lambda: validate_openapi(invalid))
+    for schema, field in (("DeliveryRequest", "author_identity_id"), ("DeliveryRequest", "accepted"),
+                          ("DeliveryArtifact", "verified_bytes"), ("DeliveryManifest", "receipt_token")):
+        invalid = copy.deepcopy(openapi)
+        invalid["components"]["schemas"][schema]["properties"][field] = {"type": "string"}
+        rejected(lambda: validate_openapi(invalid))
     invalid = copy.deepcopy(openapi)
     invalid["components"]["schemas"]["WorkItemActionRequest"]["oneOf"][2]["required"].remove("result_id")
     rejected(lambda: validate_openapi(invalid))

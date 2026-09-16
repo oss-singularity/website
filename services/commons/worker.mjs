@@ -4,6 +4,7 @@ import { activity } from './activity.mjs';
 import { submitParticipation, listParticipations, participationReceipt, updateParticipation, moderateParticipation, cleanupParticipations } from './participations.mjs';
 import { createWorkItem, listWorkItems, readWorkItem, actOnWorkItem, submitWorkResult, moderateWorkItem, cleanupWorkItems, workItemDiscovery } from './work-items.mjs';
 import { createProject, listProjects, readProject, addMilestone, milestoneAction, offerCommitment, commitmentAction, projectExport, projectAction, projectDiscovery } from './projects.mjs';
+import { submitDelivery, listDeliveries, deliveryManifest, receiptsDiscovery } from './receipts.mjs';
 
 const PREFIX = '/api/v1';
 const DAY = 86_400_000;
@@ -229,6 +230,7 @@ function discovery(env) {
       own_work_items: `${PREFIX}/work-items/mine`, own_work_item: `${PREFIX}/work-items/mine/{id}`,
       work_item_actions: `${PREFIX}/work-items/{id}/actions`, work_item_results: `${PREFIX}/work-items/{id}/results`,
       ...projectDiscovery(),
+      ...receiptsDiscovery(),
     },
     limits: { body_bytes: MAX_BODY, title: { min: 3, max: 120 }, summary: { min: 20, max: 2000 }, url_max: 2048, review_score: { min: 1, max: 5 }, submissions_per_hour: 5, submissions_per_day: 50, pending_capacity: 200 },
     privacy: {
@@ -290,10 +292,13 @@ export default {
       const projectCommitments = path.match(/^\/api\/v1\/projects\/([a-z0-9][a-z0-9-]{0,79})\/commitments$/);
       const projectCommitmentAction = path.match(/^\/api\/v1\/projects\/([a-z0-9][a-z0-9-]{0,79})\/commitments\/([a-z0-9][a-z0-9-]{0,79})\/actions$/);
       const projectActions = path.match(/^\/api\/v1\/projects\/([a-z0-9][a-z0-9-]{0,79})\/actions$/);
-      const projectMatch = projectList || projectExportRoute || projectMilestones || projectMilestoneAction || projectCommitments || projectCommitmentAction || projectActions ? null
+      const milestoneDeliveries = path.match(/^\/api\/v1\/projects\/([a-z0-9][a-z0-9-]{0,79})\/milestones\/([a-f0-9][a-f0-9-]{0,79})\/deliveries$/);
+      const deliveryManifestRoute = path.match(/^\/api\/v1\/projects\/([a-z0-9][a-z0-9-]{0,79})\/milestones\/([a-f0-9][a-f0-9-]{0,79})\/deliveries\/([1-9][0-9]{0,1})$/);
+      const projectMatch = projectList || projectExportRoute || projectMilestones || projectMilestoneAction || projectCommitments || projectCommitmentAction || projectActions || milestoneDeliveries || deliveryManifestRoute ? null
         : path.match(/^\/api\/v1\/projects\/([a-z0-9][a-z0-9-]{0,79})$/);
       const isAdmin = path === `${PREFIX}/admin/proposals` || Boolean(adminMatch) || participationAdminList || Boolean(participationAdminMatch) || workAdminList || Boolean(workAdmin);
       const methods = workList ? ['GET', 'POST'] : workMine || workAdminList || workPrivate || workPublic ? ['GET'] : workAction || workResult ? ['POST'] : workAdmin ? ['PATCH']
+        : milestoneDeliveries ? ['GET', 'POST'] : deliveryManifestRoute ? ['GET']
         : projectList ? ['GET', 'POST'] : projectMatch || projectExportRoute ? ['GET']
         : projectMilestones || projectMilestoneAction || projectCommitments || projectCommitmentAction || projectActions ? ['POST']
         : path === `${PREFIX}/participations` ? ['GET', 'POST'] : participationMatch ? ['GET', 'PATCH']
@@ -321,6 +326,8 @@ export default {
       if (participationAdminList) return await listParticipations(request, env, now, 'admin');
       if (workList && request.method === 'GET') return await listWorkItems(request, env, now);
       if (projectList && request.method === 'GET') return await listProjects(request, env, now);
+      if (milestoneDeliveries && request.method === 'GET') return await listDeliveries(request, env, milestoneDeliveries[1], milestoneDeliveries[2], now);
+      if (deliveryManifestRoute) return await deliveryManifest(request, env, deliveryManifestRoute[1], deliveryManifestRoute[2], Number(deliveryManifestRoute[3]), now);
       if (workMine) return await listWorkItems(request, env, now, 'mine');
       if (workAdminList) return await listWorkItems(request, env, now, 'admin');
       if (url.search) invalid('This endpoint does not accept query parameters.');
@@ -331,6 +338,7 @@ export default {
       if (workResult) return await submitWorkResult(request, env, workResult[1], now);
       if (workAdmin) return await moderateWorkItem(request, env, workAdmin[1], now);
       if (projectList) return await createProject(request, env, now);
+      if (milestoneDeliveries) return await submitDelivery(request, env, milestoneDeliveries[1], milestoneDeliveries[2], now);
       if (projectExportRoute) return await projectExport(request, env, projectExportRoute[1], now);
       if (projectMilestones) return await addMilestone(request, env, projectMilestones[1], now);
       if (projectMilestoneAction) return await milestoneAction(request, env, projectMilestoneAction[1], projectMilestoneAction[2], now);
