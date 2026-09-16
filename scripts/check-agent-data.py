@@ -230,6 +230,13 @@ def validate_openapi(spec: dict) -> None:
         "/api/v1/work-items": ("get", "post"), "/api/v1/work-items/{id}": ("get",),
         "/api/v1/work-items/mine": ("get",), "/api/v1/work-items/mine/{id}": ("get",),
         "/api/v1/work-items/{id}/actions": ("post",), "/api/v1/work-items/{id}/results": ("post",),
+        "/api/v1/projects": ("get", "post"), "/api/v1/projects/{id}": ("get",),
+        "/api/v1/projects/{id}/export": ("get",),
+        "/api/v1/projects/{id}/milestones": ("post",),
+        "/api/v1/projects/{id}/milestones/{milestone_id}/actions": ("post",),
+        "/api/v1/projects/{id}/commitments": ("post",),
+        "/api/v1/projects/{id}/commitments/{commitment_id}/actions": ("post",),
+        "/api/v1/projects/{id}/actions": ("post",),
     }
     require(set(spec.get("paths", {})) == set(operations), "Commons OpenAPI public route set differs")
     require(spec.get("security") == [], "Commons public reads must not claim account authentication")
@@ -246,6 +253,13 @@ def validate_openapi(spec: dict) -> None:
         ("/api/v1/work-items/mine/{id}", "get"): [{"IdentityBearer": []}],
         ("/api/v1/work-items/{id}/actions", "post"): [{"IdentityBearer": []}],
         ("/api/v1/work-items/{id}/results", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/projects", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/projects/{id}", "get"): [{}, {"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/milestones", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/milestones/{milestone_id}/actions", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/commitments", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/commitments/{commitment_id}/actions", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/actions", "post"): [{"IdentityBearer": []}],
     }
     names = set()
     for path, methods in operations.items():
@@ -340,6 +354,39 @@ def validate_openapi(spec: dict) -> None:
             "Public work detail must contain only published result content")
     require(spec["paths"]["/api/v1/work-items/{id}"]["get"]["responses"]["200"]["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/WorkItem"},
             "Public work detail must not return the private actor projection")
+
+    project_request = schemas.get("ProjectRequest", {})
+    project_fields = {"mission_id", "title", "purpose"}
+    require(project_request.get("additionalProperties") is False and
+            set(project_request.get("properties", {})) == project_fields and
+            set(project_request.get("required", [])) == project_fields,
+            "Projects require an explicit published mission and purpose, without client-supplied roles")
+    milestone_request = schemas.get("MilestoneRequest", {})
+    milestone_fields = {"title", "purpose", "expected_artifact", "acceptance", "parent_milestone_id", "depends_on", "expected_version"}
+    require(milestone_request.get("additionalProperties") is False and
+            set(milestone_request.get("properties", {})) == milestone_fields and
+            set(milestone_request.get("required", [])) == {"title", "purpose", "expected_artifact", "acceptance", "expected_version"},
+            "Milestone requests must not accept status, creator or coordinator fields")
+    offer_request = schemas.get("CommitmentOfferRequest", {})
+    require(offer_request.get("additionalProperties") is False and
+            set(offer_request.get("properties", {})) == {"milestone_id", "terms"} and
+            set(offer_request.get("required", [])) == {"milestone_id", "terms"} and
+            offer_request["properties"]["terms"].get("const") == "volunteer",
+            "Commitment offers are voluntary and bind no participant before coordinator confirmation")
+    require(set(schemas.get("CommitmentActionRequest", {}).get("properties", {}).get("action", {}).get("enum", [])) == {"confirm", "decline", "withdraw", "end"},
+            "Commitment actions must stay within the four explicit transitions")
+    require(set(schemas.get("ProjectActionRequest", {}).get("properties", {}).get("action", {}).get("enum", [])) == {"close", "cancel"},
+            "Project actions must stay within close and cancel")
+    require(schemas.get("MilestoneActionRequest", {}).get("properties", {}).get("action", {}).get("const") == "complete",
+            "Milestone actions are limited to completion")
+    require(schemas.get("ProjectExport", {}).get("properties", {}).get("notice", {}).get("const") ==
+            "An export records coordination decisions and identities; it verifies no artifact and authorizes no payment.",
+            "Project exports must keep their honest boundary notice")
+    for name in ("ProjectSummary", "MilestoneView", "CommitmentView", "ProjectExport"):
+        public_schema = schemas.get(name, {})
+        require(public_schema.get("additionalProperties") is False and
+                set(public_schema.get("properties", {})).isdisjoint(private_fields),
+                f"Public {name} must exclude private workflow data and credentials")
 
     def references(value: object) -> None:
         if isinstance(value, dict):
@@ -528,6 +575,21 @@ def self_test() -> int:
         invalid = copy.deepcopy(openapi)
         invalid["components"]["schemas"][schema]["properties"][field] = {"type": "string"}
         rejected(lambda: validate_openapi(invalid))
+    for path, method in (("/api/v1/projects", "post"), ("/api/v1/projects/{id}", "get"),
+                         ("/api/v1/projects/{id}/milestones", "post"), ("/api/v1/projects/{id}/commitments", "post"),
+                         ("/api/v1/projects/{id}/commitments/{commitment_id}/actions", "post"),
+                         ("/api/v1/projects/{id}/actions", "post")):
+        invalid = copy.deepcopy(openapi)
+        invalid["paths"][path][method]["security"] = []
+        rejected(lambda: validate_openapi(invalid))
+    for schema, field in (("ProjectRequest", "coordinator_identity_id"), ("MilestoneRequest", "status"),
+                          ("CommitmentOfferRequest", "scope_version"), ("CommitmentView", "receipt_token")):
+        invalid = copy.deepcopy(openapi)
+        invalid["components"]["schemas"][schema]["properties"][field] = {"type": "string"}
+        rejected(lambda: validate_openapi(invalid))
+    invalid = copy.deepcopy(openapi)
+    invalid["paths"]["/api/v1/projects/{id}/matching"] = {"post": {}}
+    rejected(lambda: validate_openapi(invalid))
     invalid = copy.deepcopy(openapi)
     invalid["components"]["schemas"]["WorkItemActionRequest"]["oneOf"][2]["required"].remove("result_id")
     rejected(lambda: validate_openapi(invalid))

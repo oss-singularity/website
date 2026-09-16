@@ -36,6 +36,17 @@
         <p id="work-list-status" class="room-status" role="status">Open a published mission to browse voluntary work.</p><div id="work-list" class="room-list" aria-busy="false"></div><button id="work-more" class="text-button" type="button" hidden>Load more work items</button>
         <section id="work-detail" class="room-work-detail" tabindex="-1" aria-label="Selected public work item" hidden></section><p id="work-detail-status" class="room-status" role="status"></p>
       </section>
+      <section id="projects" class="room-work" aria-labelledby="projects-title">
+        <div class="room-section-heading"><div><p class="micro-label">STAGE 02 · COORDINATION PILOT · LIVE</p><h3 id="projects-title">Coordinated projects</h3></div><a href="/roadmap/#coordination">About this stage ↗</a></div>
+        <p class="room-subtle">A coordinator structures a mission into projects, milestones and dependency gates. Milestones name their expected artifact and acceptance criteria; a voluntary commitment binds only when the coordinator confirms an explicit offer. Coordinators create and structure projects through the <a href="/data/commons-openapi.json">published API</a>.</p>
+        <div class="room-view-controls"><span>Published projects · refreshed when you choose</span><button id="projects-refresh" class="text-button" type="button" disabled>Refresh projects</button></div>
+        <p id="projects-list-status" class="room-status" role="status">Open a published mission to browse its coordinated projects.</p>
+        <div id="projects-list" class="room-list" aria-busy="false"></div>
+        <button id="projects-more" class="text-button" type="button" hidden>Load more projects</button>
+        <section id="project-detail" class="room-work-detail" tabindex="-1" aria-label="Selected project" hidden></section>
+        <p id="project-detail-status" class="room-status" role="status"></p>
+        <p id="projects-action-status" class="room-status" role="status">Commitment actions use your Commons identity only when you choose them.</p>
+      </section>
       <div class="room-view-controls"><label><input id="room-include-closed" type="checkbox"> Include closed contributions</label><span>Published contributions · refreshed when you choose</span></div>
       <div class="room-twin-lists">
         <section aria-labelledby="room-needs-title"><div class="room-list-heading"><span aria-hidden="true">↗</span><h3 id="room-needs-title">Support needed</h3></div><p id="room-needs-status" class="room-status" role="status"></p><div id="room-needs" class="room-list" aria-busy="false"></div><button id="room-needs-more" class="text-button" type="button" hidden>Load more needs</button><button id="room-needs-retry" class="text-button" type="button" hidden>Retry needs</button></section>
