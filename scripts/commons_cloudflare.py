@@ -144,6 +144,7 @@ class CloudflareAdapter:
                 'id': r.get('id'),
                 'pattern': r.get('pattern'),
                 'script': r.get('script'),
+                'request_limit_fail_open': r.get('request_limit_fail_open'),
             } for r in routes],
             'schedules': [{
                 'cron': s.get('cron'),
@@ -236,6 +237,39 @@ class CloudflareAdapter:
             raise ArtifactError('provider_request_failed') from None
         require(0 < len(raw) <= 8 * 1024 * 1024, 'invalid_candidate')
         return raw
+
+    def script_settings(self):
+        """Read the installed script settings.
+
+        The provider omits the observability key entirely while observability
+        is disabled; the raw result is returned for bounded normalization by
+        the caller.
+        """
+        return self._api('GET', '/accounts/' + self.account_id + '/workers/scripts/'
+                         + self.script_name + '/settings').get('result', {})
+
+    def script_subdomain(self):
+        """Read this script's workers.dev exposure ({'enabled', 'previews_enabled'})."""
+        return self._api('GET', '/accounts/' + self.account_id + '/workers/scripts/'
+                         + self.script_name + '/subdomain').get('result', {})
+
+    def schema_rows(self, query):
+        """Run one fixed read-only inventory SELECT against the D1 database.
+
+        The query text is pinned by the caller (the artifact module's
+        SCHEMA_QUERY); this method only transports it. Exactly one result set
+        with a bounded, non-empty row list is returned.
+        """
+        require(type(query) is str and 0 < len(query) <= 1024, 'invalid_schema')
+        result = self._api('POST', '/accounts/' + self.account_id + '/d1/database/'
+                           + self.d1_uuid + '/query', {'sql': query})
+        require(result.get('success') is True, 'provider_request_failed')
+        sets = result.get('result')
+        require(type(sets) is list and len(sets) == 1 and type(sets[0]) is dict
+                and sets[0].get('success') is True, 'provider_request_failed')
+        rows = sets[0].get('results')
+        require(type(rows) is list and 0 < len(rows) <= 256, 'provider_request_failed')
+        return sets
 
     def version_detail(self, version_id):
         """Read one immutable version's server-side detail for staged verification."""

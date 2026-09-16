@@ -252,6 +252,47 @@ class CloudflareAdapterTests(unittest.TestCase):
             dep_id = a.restore_predecessor('v2-uuid', 'Rollback test')
             self.assertEqual(dep_id, 'rollback-dep-uuid')
 
+    def test_script_settings_reads_the_settings_endpoint(self):
+        a = _make_adapter()
+        with patch.object(a, '_api') as mock_api:
+            mock_api.return_value = {'result': {'compatibility_date': '2026-09-04'}}
+            self.assertEqual(a.script_settings(), {'compatibility_date': '2026-09-04'})
+            method, path = mock_api.call_args[0]
+            self.assertEqual(method, 'GET')
+            self.assertTrue(path.endswith('/workers/scripts/test-script/settings'))
+
+    def test_script_subdomain_reads_the_script_scoped_endpoint(self):
+        a = _make_adapter()
+        with patch.object(a, '_api') as mock_api:
+            mock_api.return_value = {'result': {'enabled': False, 'previews_enabled': False}}
+            self.assertEqual(a.script_subdomain(), {'enabled': False, 'previews_enabled': False})
+            method, path = mock_api.call_args[0]
+            self.assertEqual(method, 'GET')
+            self.assertTrue(path.endswith('/workers/scripts/test-script/subdomain'))
+
+    def test_schema_rows_posts_the_pinned_read_only_query(self):
+        a = _make_adapter()
+        rows = [{'type': 'table', 'name': 'missions', 'tbl_name': 'missions', 'sql': 'CREATE TABLE missions(id)'}]
+        with patch.object(a, '_api') as mock_api:
+            mock_api.return_value = {'success': True, 'result': [{'success': True, 'results': rows}]}
+            self.assertEqual(a.schema_rows('SELECT 1'), [{'success': True, 'results': rows}])
+            method, path, body = mock_api.call_args[0]
+            self.assertEqual(method, 'POST')
+            self.assertTrue(path.endswith('/d1/database/test-d1-uuid/query'))
+            self.assertEqual(body, {'sql': 'SELECT 1'})
+
+    def test_schema_rows_refuses_failed_or_empty_results(self):
+        a = _make_adapter()
+        for response in [{'success': False, 'result': [{'success': True, 'results': [{}]}]},
+                         {'success': True, 'result': []},
+                         {'success': True, 'result': [{'success': True, 'results': []}]}]:
+            with patch.object(a, '_api', return_value=response):
+                with self.assertRaises(ArtifactError):
+                    a.schema_rows('SELECT 1')
+        with patch.object(a, '_api'):
+            with self.assertRaises(ArtifactError):
+                a.schema_rows('')
+
     def test_observe_fingerprints_d1_schema(self):
         a = _make_adapter()
         d1_with_fingerprint = {

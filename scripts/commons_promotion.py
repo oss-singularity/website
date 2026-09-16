@@ -13,6 +13,7 @@ serves, and any step that cannot be resolved closes the intent as unresolved.
 import time
 
 import commons_artifact as artifact
+import commons_plan as planner
 import commons_rehearsal as rehearsal
 from release_deployment import Deployments
 from release_source import BASE, checks, encode
@@ -196,6 +197,185 @@ def reconstruct_predecessor(content, commit):
     restored, _descriptor = artifact.unpack(packet, commit, rehearsal.SCHEMA_SHA256)
     require(restored == files, 'invalid_candidate')
     return packet
+
+
+BINDING_FIELDS = {'d1': frozenset({'name', 'type', 'id', 'database_id'}),
+                  'plain_text': frozenset({'name', 'type', 'text'}),
+                  'secret_text': frozenset({'name', 'type'})}
+SETTINGS_READ_FIELDS = frozenset({'annotations', 'bindings', 'compatibility_date',
+                                  'compatibility_flags', 'logpush', 'placement', 'tags',
+                                  'tail_consumers', 'usage_model'})
+
+
+def normalized_bindings(raw):
+    """Key the provider's binding list by name with profile-exact fields.
+
+    The d1 entry's redundant database_id mirror is dropped after checking it
+    matches the id, so the result compares equal to the planner's binding
+    model. Unknown binding types or unexpected extra fields refuse.
+    """
+    require(type(raw) is list and 0 < len(raw) <= 32, 'provider_state_unverified')
+    result = {}
+    for item in raw:
+        require(type(item) is dict, 'provider_state_unverified')
+        name, kind = item.get('name'), item.get('type')
+        require(type(name) is str and 0 < len(name) <= 64 and name not in result
+                and kind in BINDING_FIELDS and set(item) == BINDING_FIELDS[kind],
+                'provider_state_unverified')
+        if kind == 'd1':
+            require(item['database_id'] == item['id'], 'provider_state_unverified')
+        result[name] = {key: item[key] for key in sorted(set(item) - {'name', 'database_id'})}
+    return result
+
+
+def capture_observation(adapter, predecessor_descriptor, schema_query):
+    """Compose the planner's normalized observation from one live read set.
+
+    Bounded normalization rules (verified against the live API on 16 September
+    2026): the settings read's annotations part and the d1 bindings' redundant
+    database_id mirror are provider noise and dropped, every other settings
+    field must be one of the profile's, an absent observability key means the
+    disabled default, the version etag comes from the staged resources' script
+    block, and workers.dev exposure is read from the script-scoped subdomain
+    endpoint. The installed modules come from the reconstructed predecessor
+    descriptor, which `reconstruct_predecessor` already bound to the live
+    script bytes and commit.
+    """
+    require(type(predecessor_descriptor) is dict
+            and type(predecessor_descriptor.get('modules')) is dict, 'invalid_candidate')
+    live = adapter.observe()
+    require(type(live) is dict and type(live.get('active_version')) is str, 'provider_state_unverified')
+    active = live['active_version']
+    deployments = live.get('deployments')
+    require(type(deployments) is list and 0 < len(deployments) <= 8, 'provider_state_unverified')
+    deployment = deployments[0]
+    require(type(deployment) is dict and type(deployment.get('id')) is str
+            and deployment.get('strategy') == 'percentage', 'provider_state_unverified')
+    detail = adapter.version_detail(active)
+    resources = detail.get('resources') if type(detail) is dict else None
+    require(type(resources) is dict, 'provider_state_unverified')
+    script = resources.get('script')
+    require(type(script) is dict and type(script.get('etag')) is str and len(script['etag']) == 64,
+            'provider_state_unverified')
+    runtime = resources.get('script_runtime')
+    require(type(runtime) is dict and type(runtime.get('compatibility_date')) is str
+            and type(runtime.get('usage_model')) is str, 'provider_state_unverified')
+    raw_settings = adapter.script_settings()
+    needed_settings = SETTINGS_READ_FIELDS - {'annotations'}
+    require(type(raw_settings) is dict and 'observability' not in raw_settings
+            and set(raw_settings) <= SETTINGS_READ_FIELDS and needed_settings <= set(raw_settings),
+            'provider_state_unverified')
+    subdomain = adapter.script_subdomain()
+    require(type(subdomain) is dict and set(subdomain) == {'enabled', 'previews_enabled'}
+            and all(type(subdomain[key]) is bool for key in subdomain), 'provider_state_unverified')
+    result_sets = adapter.schema_rows(schema_query)
+    require(type(result_sets) is list and len(result_sets) == 1 and type(result_sets[0]) is dict
+            and result_sets[0].get('success') is True, 'provider_state_unverified')
+    rows = result_sets[0].get('results')
+    require(type(rows) is list and 0 < len(rows) <= 256, 'provider_state_unverified')
+    routes = live.get('routes')
+    require(type(routes) is list and len(routes) <= 32, 'provider_state_unverified')
+    normalized_routes = []
+    for route in routes:
+        require(type(route) is dict and set(route) == {'id', 'pattern', 'script',
+                                                       'request_limit_fail_open'},
+                'provider_state_unverified')
+        normalized_routes.append(dict(route))
+    schedules = live.get('schedules')
+    require(type(schedules) is list and len(schedules) <= 32, 'provider_state_unverified')
+    normalized_schedules = []
+    for schedule in schedules:
+        require(type(schedule) is dict and type(schedule.get('cron')) is str, 'provider_state_unverified')
+        normalized_schedules.append(schedule['cron'])
+    flags = runtime.get('compatibility_flags', raw_settings['compatibility_flags'])
+    observation = {
+        'schema_version': 1, 'target': planner.TARGET,
+        'account_id': live.get('account_id'), 'zone_id': live.get('zone_id'),
+        'script_name': live.get('script_name'),
+        'deployment': {'id': deployment['id'], 'strategy': deployment['strategy'],
+                       'versions': deployment.get('versions')},
+        'version': {'id': active, 'etag': script['etag'],
+                    'bindings': normalized_bindings(resources.get('bindings')),
+                    'runtime': {'compatibility_date': runtime['compatibility_date'],
+                                'compatibility_flags': flags, 'usage_model': runtime['usage_model']}},
+        'latest_version_id': live.get('latest_version_id'),
+        'settings': {
+            'bindings': normalized_bindings(raw_settings['bindings']),
+            'compatibility_date': raw_settings['compatibility_date'],
+            'compatibility_flags': raw_settings['compatibility_flags'],
+            'usage_model': raw_settings['usage_model'], 'logpush': raw_settings['logpush'],
+            'observability': {'enabled': False}, 'placement': raw_settings['placement'],
+            'tags': raw_settings['tags'], 'tail_consumers': raw_settings['tail_consumers'],
+        },
+        'routes': normalized_routes, 'schedules': normalized_schedules,
+        'subdomain': {'enabled': subdomain['enabled'], 'previews_enabled': subdomain['previews_enabled']},
+        'modules': predecessor_descriptor['modules'], 'schema': rows,
+    }
+    return {'observation': observation, 'generation': provider_generation(live)}
+
+
+def plan_baseline(generation, predecessor_commit, predecessor_packet, predecessor_descriptor,
+                  policy, observation):
+    """Build the planner's baseline from one verified live capture.
+
+    The observation digest covers the normalized state (the exact shape the
+    planner re-derives from the same observation), so any drift between
+    capture and planning is refused by build_plan exactly like a changed
+    predecessor. A capture against a provider with unowned pending versions
+    fails here, before any intent exists.
+    """
+    state = planner.observed_state(observation, policy, predecessor_descriptor)
+    baseline = {'schema_version': 1, 'target': planner.TARGET, 'generation': generation,
+                'commit': artifact.commit(predecessor_commit),
+                'packet_sha256': artifact.digest(predecessor_packet),
+                'policy_sha256': artifact.digest(artifact.encode(policy)),
+                'observation_sha256': artifact.digest(artifact.encode(state)),
+                'version_id': state['version']['id'], 'deployment_id': state['deployment']['id']}
+    planner.validate_baseline(baseline)
+    return baseline
+
+
+def engine_plan(candidate_commit, planned, message, tag):
+    """Map the planner's authoritative plan onto the engine plan contract.
+
+    The staged upload inherits every desired binding except RELEASE_SHA, which
+    is re-entered as plain text with the candidate commit: the promoted
+    version must serve its own release identity for live acceptance, and the
+    planner's desired bindings are exactly the expected staged state. Nothing
+    else in the mapping is decided here.
+    """
+    require(type(candidate_commit) is str and len(candidate_commit) == 40, 'invalid_plan')
+    desired = planned.get('desired_version') if type(planned) is dict else None
+    desired = desired.get('bindings') if type(desired) is dict else None
+    require(type(desired) is dict and 0 < len(desired) <= 32, 'invalid_plan')
+    bindings = []
+    release = None
+    for name, value in sorted(desired.items()):
+        require(type(name) is str and type(value) is dict and type(value.get('type')) is str,
+                'invalid_plan')
+        if name == 'RELEASE_SHA':
+            require(value.get('text') == candidate_commit, 'invalid_plan')
+            release = {'name': name, 'type': value['type'], 'text': value['text']}
+            bindings.append(release)
+        else:
+            bindings.append({'name': name, 'type': 'inherit'})
+    require(release is not None, 'invalid_plan')
+    runtime = planned['desired_version'].get('runtime')
+    require(type(runtime) is dict and type(runtime.get('compatibility_date')) is str, 'invalid_plan')
+    predecessor = planned.get('predecessor')
+    require(type(predecessor) is dict and type(predecessor.get('version_id')) is str
+            and predecessor['version_id'], 'invalid_plan')
+    change = planned.get('release_sha_change')
+    require(type(change) is dict and change.get('before') != candidate_commit, 'invalid_plan')
+    require(type(planned.get('plan_sha256')) is str and len(planned['plan_sha256']) == 64,
+            'invalid_plan')
+    return {'predecessor_version': predecessor['version_id'],
+            'release_sha': change['before'], 'message': message, 'tag': tag,
+            'bindings': bindings,
+            'installed_bindings': [{'name': name, **value} for name, value in sorted(desired.items())],
+            'main_module': artifact.RUNTIME['entrypoint'],
+            'compatibility_date': runtime['compatibility_date'],
+            'plan_sha256': planned['plan_sha256']}
 
 
 def find_staged(adapter, message, tag):
