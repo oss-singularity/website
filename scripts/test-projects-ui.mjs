@@ -1,0 +1,254 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+const html = readFileSync(new URL('../site/fragments/singularity.html', import.meta.url), 'utf8');
+const sources = ['projects-model-v1.js', 'projects-v1.js'].map((file) => [file, readFileSync(new URL(`../site/assets/scripts/${file}`, import.meta.url), 'utf8')]);
+const id = (n) => `${String(n).padStart(8, '0')}-1111-4111-8111-111111111111`;
+const timestamp = '2026-09-16T12:00:00.000Z';
+const actor = (n) => ({ identity_id: id(n), github_id: n, github_login: `fixture-${n}`, github_url: `https://github.com/fixture-${n}`, verification: 'github-account-control', verified_at: timestamp });
+const milestone = (extra = {}) => ({ id: id(30), project_id: id(1), parent_milestone_id: null, title: 'Digest verifier', purpose: 'Make artifact verification usable for independent reviewers.', expected_artifact: 'A delivery manifest with raw-file digest instructions.', acceptance: ['Two independent verifications of the same synthetic bytes.'], status: 'open', scope_version: 1, version: 1, created_at: timestamp, updated_at: timestamp, depends_on: [], blocked: false, ...extra });
+const commitment = (extra = {}) => ({ id: id(40), milestone_id: id(30), project_id: id(1), status: 'confirmed', terms: 'volunteer', scope_version: 1, created_at: timestamp, updated_at: timestamp, contributor: actor(5), coordinator: actor(2), ...extra });
+const project = (extra = {}) => ({ id: id(1), mission_id: 'build-the-commons', title: 'Verification toolkit', purpose: 'Make artifact verification usable for independent reviewers everywhere.', status: 'open', version: 3, coordinator: actor(2), created_at: timestamp, updated_at: timestamp, milestones: [milestone()], commitments: [commitment()], ...extra });
+const exportPacket = (extra = {}) => ({ schema_version: 1, kind: 'oss-project-export', exported_at: timestamp,
+  project: { id: id(1), mission_id: 'build-the-commons', title: 'Verification toolkit', purpose: 'Make artifact verification usable for independent reviewers everywhere.', status: 'open', version: 3, scope_version: 1, coordinator: actor(2), created_at: timestamp, updated_at: timestamp },
+  milestones: [milestone()], commitments: [{ id: id(40), milestone_id: id(30), contributor: actor(5), coordinator: actor(2), status: 'confirmed', terms: 'volunteer', scope_version: 1, created_at: timestamp, updated_at: timestamp }],
+  notice: 'An export records coordination decisions and identities; it verifies no artifact and authorizes no payment.', ...extra });
+const deferred = () => { let resolve; let reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
+const flush = async () => { for (let n = 0; n < 40; n += 1) await Promise.resolve(); };
+
+function harness({ route, mission = 'build-the-commons' } = {}) {
+  const elements = new Map(), documentEvents = new Map(), windowEvents = new Map(), requests = [], blobs = new Map(), downloads = [], timers = new Map();
+  let sequence = 30;
+  class Element {
+    constructor(tag, idValue = '') { this.tagName = tag.toUpperCase(); this.id = idValue; this.children = []; this.events = new Map(); this.attributes = {}; this.dataset = {}; this.value = ''; this.checked = false; this.disabled = false; this.hidden = false; this._text = ''; }
+    set textContent(value) { this._text = String(value); this.children = []; }
+    get textContent() { return this._text + this.children.map((c) => c.textContent).join(''); }
+    append(...children) { this.children.push(...children); }
+    replaceChildren(...children) { this.children = children; this._text = ''; }
+    setAttribute(key, value) { this.attributes[key] = value; }
+    addEventListener(type, listener) { this.events.set(type, listener); }
+    focus() { this.focused = true; }
+    remove() {}
+    click() { if (this.download) downloads.push({ href: this.href, filename: this.download }); else return this.events.get('click')?.({ preventDefault() {} }); }
+  }
+  for (const match of html.matchAll(/<([a-z][a-z0-9-]*)\b[^>]*\bid="([^"]+)"[^>]*>/g)) { const e = new Element(match[1], match[2]); e.hidden = /\bhidden\b/.test(match[0]); e.disabled = /\bdisabled\b/.test(match[0]); elements.set(e.id, e); }
+  elements.get('room-context').dataset.missionId = mission;
+  const walk = (n) => [n, ...(n.children || []).flatMap(walk)];
+  const get = (name) => elements.get(name) || [...elements.values()].flatMap(walk).find((e) => e.id === name);
+  const document = { getElementById: (name) => get(name), createElement: (tag) => new Element(tag), createTextNode: (value) => ({ textContent: value }), body: new Element('body'), addEventListener: (name, listener) => documentEvents.set(name, listener) };
+  const window = { location: new URL('https://oss-singularity.io/singularity/?mission=build-the-commons'), addEventListener: (name, listener) => windowEvents.set(name, listener), setTimeout: (fn, delay) => { const n = ++sequence; timers.set(n, { fn, delay }); return n; }, clearTimeout: (n) => timers.delete(n) };
+  class TestURL extends URL {}
+  TestURL.createObjectURL = (blob) => { const n = `blob:test-${++sequence}`; blobs.set(n, blob); return n; };
+  TestURL.revokeObjectURL = (url) => blobs.delete(url);
+  const fetch = async (path, options) => { requests.push({ path, options }); const response = await route?.(path, options) || { body: { items: [], next_cursor: null } }; return { ok: (response.status || 200) < 400, status: response.status || 200, json: async () => response.body }; };
+  const context = vm.createContext({ window, document, fetch, URL: TestURL, URLSearchParams, AbortController, Blob, crypto: { randomUUID: () => id(++sequence) } });
+  for (const [filename, source] of sources) vm.runInContext(source, context, { filename });
+  const h = { get, requests, blobs, downloads, timers, model: window.OssProjects, text: (name) => get(name).textContent,
+    fire: (name, event = 'click') => get(name).events.get(event)?.({ preventDefault() {} }),
+    choose: (value) => { elements.get('room-context').dataset.missionId = value || ''; documentEvents.get('singularity:mission')({ detail: value ? { id: value, title: 'ignored' } : null }); },
+    token: (value = 'a'.repeat(43)) => { get('room-identity-token').value = value; get('room-identity-token').events.get('input')?.({}); },
+    button: (label, box = 'project-detail') => walk(get(box)).find((n) => n.tagName === 'BUTTON' && n.textContent === label),
+    pagehide: () => windowEvents.get('pagehide')({}), pageshow: () => windowEvents.get('pageshow')({ persisted: true }),
+  };
+  return h;
+}
+async function publicOpen(h) {
+  await flush();
+  await h.button('Read milestones & commitments', 'projects-list').click();
+  await flush();
+}
+const routes = (value, overrides) => (path, options) => overrides?.(path, options)
+  || (path.startsWith('/api/v1/projects?') ? { body: { items: [value], next_cursor: null } }
+    : path.includes('/export') ? { body: exportPacket() } : { body: value });
+
+test('public browsing sends no credentials, stays mission-scoped and hides offered commitments', async () => {
+  const gated = milestone({ id: id(31), depends_on: [id(30)], blocked: true, title: 'CID explainer' });
+  const child = milestone({ id: id(32), parent_milestone_id: id(30), title: 'Verifier subpart' });
+  const value = project({ title: '</h4><script>private()</script>', milestones: [milestone(), gated, child], commitments: [commitment()] });
+  const h = harness({ route: routes(value) });
+  await publicOpen(h);
+  assert.ok(h.requests.filter(({ path }) => path.includes('/api/v1/projects?')).every(({ path }) => path.includes('mission_id=build-the-commons')));
+  assert.ok(h.requests.every(({ options }) => options.credentials === 'omit' && options.cache === 'no-store' && options.redirect === 'error' && options.headers.Authorization === undefined));
+  const heading = h.get('project-detail').children.find((n) => n.tagName === 'H4');
+  assert.equal(heading.textContent, '</h4><script>private()</script>'); assert.equal(heading.children.length, 0);
+  assert.match(h.text('project-detail'), /blocked by a dependency gate/);
+  assert.match(h.text('project-detail'), /subproject part/);
+  assert.doesNotMatch(h.text('project-detail'), /Offer awaiting coordinator/);
+  assert.match(h.text('project-detail'), /Bound commitment/);
+});
+
+test('real empty, error, retry and cursor pagination keep the project list honest', async () => {
+  let step = 0;
+  const h = harness({ route: (path) => {
+    if (step === 0) return { body: { items: [], next_cursor: null } };
+    if (step === 1) return { status: 503, body: { error: { code: 'service_unavailable', message: 'Service unavailable' } } };
+    return { body: { items: [project({ id: path.includes('cursor=') ? id(9) : id(1) })], next_cursor: path.includes('cursor=') ? null : `${Date.parse(timestamp)}:${id(1)}` } };
+  } });
+  await flush(); assert.match(h.text('projects-list-status'), /No coordinated projects/);
+  step = 1; h.fire('projects-refresh'); await flush(); assert.match(h.text('projects-list-status'), /Refresh projects to retry/);
+  assert.equal(h.get('projects-list').children.length, 0);
+  step = 2; h.fire('projects-refresh'); await flush(); assert.equal(h.get('projects-more').hidden, false);
+  h.fire('projects-more'); await flush(); assert.equal(h.get('projects-list').children.length, 2); assert.equal(h.get('projects-more').hidden, true);
+});
+
+test('reordered mission and detail responses cannot reintroduce old projects', async () => {
+  const late = deferred();
+  const h = harness({ route: (path) => path.startsWith('/api/v1/projects?') && path.includes('build-the-commons') ? late.promise : { body: { items: [project({ mission_id: 'other-mission' })], next_cursor: null } } });
+  h.choose('other-mission'); await flush(); late.resolve({ body: { items: [project()], next_cursor: null } }); await flush();
+  assert.ok(h.requests[0].options.signal.aborted); assert.equal(h.get('projects-list').children.length, 1);
+  const delayed = deferred(); let wait = false;
+  const d = harness({ route: routes(project(), (path) => wait && !path.includes('?') ? delayed.promise : undefined) });
+  await flush(); wait = true;
+  d.button('Read milestones & commitments', 'projects-list').click(); await flush(); d.choose(null); delayed.resolve({ body: project() }); await flush();
+  assert.equal(d.get('project-detail').hidden, true); assert.equal(d.text('project-detail'), '');
+});
+
+test('an offer needs explicit consent, sends exact voluntary terms and then loads the participant view', async () => {
+  const offered = commitment({ id: id(41), status: 'offered', contributor: actor(5) });
+  const h = harness({ route: routes(project(), (path, options) => {
+    if (options?.method === 'POST') return { body: offered };
+    if (options?.headers?.Authorization && !path.includes('?')) return { body: project({ commitments: [offered, commitment()] }) };
+    return undefined;
+  }) });
+  await publicOpen(h); h.token();
+  h.button('Offer to take this milestone').click(); await flush();
+  h.button('Send voluntary offer').click(); await flush();
+  assert.equal(h.requests.filter((r) => r.options.method).length, 0);
+  assert.match(h.text('projects-action-status'), /consent/i);
+  h.get('project-offer-consent').checked = true;
+  h.button('Send voluntary offer').click(); await flush();
+  const post = h.requests.find((r) => r.options.method);
+  assert.equal(post.path, `/api/v1/projects/${id(1)}/commitments`);
+  assert.deepEqual(JSON.parse(post.options.body), { milestone_id: id(30), terms: 'volunteer' });
+  assert.equal(post.options.headers.Authorization, `Bearer ${'a'.repeat(43)}`);
+  assert.match(h.text('projects-action-status'), /Offer sent/);
+  assert.match(h.text('project-detail'), /PARTICIPANT VIEW/);
+  assert.match(h.text('project-detail'), /Offer awaiting coordinator/);
+});
+
+test('coordinator and contributor act only through the permitted explicit transitions', async () => {
+  const offered = commitment({ id: id(41), status: 'offered', contributor: actor(5) });
+  const cases = [
+    [{ coordinator: true }, [['Confirm this contributor', 'confirm', id(41)], ['End this commitment', 'end', id(40)]]],
+    [undefined, [['Withdraw my offer', 'withdraw', id(41)]]],
+  ];
+  for (const [viewer, actions] of cases) {
+    const publicValue = project({ commitments: [commitment()] });
+    const value = project({ viewer, commitments: [offered, commitment()] });
+    const h = harness({ route: (path, options) => {
+      if (options?.method) return { body: commitment({ id: id(41), status: 'confirmed' }) };
+      if (options?.headers?.Authorization && !path.includes('?')) return { body: value };
+      if (path.startsWith('/api/v1/projects?')) return { body: { items: [publicValue], next_cursor: null } };
+      return { body: publicValue };
+    } });
+    await publicOpen(h); h.token(); await h.button('Load participant view').click(); await flush();
+    let posts = 0;
+    for (const [label, action, commitmentId] of actions) {
+      const button = h.button(label); assert.ok(button, `${label} missing`);
+      await button.click(); await flush();
+      posts += 1;
+      assert.equal(h.requests.filter((r) => r.options.method).length, posts);
+      const post = h.requests.filter((r) => r.options.method).at(-1);
+      assert.equal(post.path, `/api/v1/projects/${id(1)}/commitments/${commitmentId}/actions`);
+      assert.deepEqual(JSON.parse(post.options.body), { action });
+    }
+  }
+});
+
+test('uncertain writes never auto-retry; explicit retry re-checks state and re-sends only a matching action', async () => {
+  let posts = 0;
+  const h = harness({ route: routes(project(), (path, options) => {
+    if (options?.method) { posts += 1; if (posts === 1) throw new Error('Lost response'); return { body: commitment({ id: id(41), status: 'offered' }) }; }
+    if (options?.headers?.Authorization) return { body: project({ milestones: [milestone()] }) };
+    return undefined;
+  }) });
+  await publicOpen(h); h.token();
+  h.button('Offer to take this milestone').click(); await flush();
+  h.get('project-offer-consent').checked = true;
+  h.button('Send voluntary offer').click(); await flush();
+  assert.equal(posts, 1); assert.match(h.text('projects-action-status'), /uncertain/);
+  h.button('Send voluntary offer')?.click(); await flush(); assert.equal(posts, 1);
+  const retry = h.button('Retry the same action against the current state');
+  assert.ok(retry); await retry.click(); await flush();
+  assert.equal(posts, 2); // the state re-check is a read; the second POST is the deliberate retry
+  assert.match(h.text('projects-action-status'), /Retry applied/);
+  const bodies = h.requests.filter((r) => r.options.method).map((r) => JSON.parse(r.options.body));
+  assert.deepEqual(bodies[0], bodies[1]);
+});
+
+test('a retry whose pre-state already moved on sends nothing and resolves honestly', async () => {
+  const h = harness({ route: routes(project(), (path, options) => {
+    if (options?.method) throw new Error('Lost response');
+    if (options?.headers?.Authorization) return { body: project({ milestones: [milestone({ status: 'done' })] }) };
+    return undefined;
+  }) });
+  await publicOpen(h); h.token();
+  h.button('Offer to take this milestone').click(); await flush();
+  h.get('project-offer-consent').checked = true;
+  h.button('Send voluntary offer').click(); await flush();
+  const writes = h.requests.filter((r) => r.options.method).length;
+  await h.button('Retry the same action against the current state').click(); await flush();
+  assert.equal(h.requests.filter((r) => r.options.method).length, writes);
+  assert.match(h.text('projects-action-status'), /already moved past/);
+});
+
+test('a rejected 409 duplicate offer explains the likely earlier arrival without pending state', async () => {
+  const h = harness({ route: routes(project(), (_path, options) => options?.method
+    ? { status: 409, body: { error: { code: 'duplicate_commitment', message: 'This identity already has a nonterminal commitment on this milestone.' } } } : undefined) });
+  await publicOpen(h); h.token();
+  h.button('Offer to take this milestone').click(); await flush();
+  h.get('project-offer-consent').checked = true;
+  h.button('Send voluntary offer').click(); await flush();
+  assert.match(h.text('projects-action-status'), /already holds a commitment/);
+  assert.equal(h.button('Retry the same action against the current state'), undefined);
+});
+
+test('a token change drops the private view; pagehide wipes the token and discards late private success', async () => {
+  const late = deferred();
+  const h = harness({ route: routes(project(), (path, options) => options?.headers?.Authorization && !path.includes('?') ? late.promise : undefined) });
+  await publicOpen(h); h.token(); h.button('Load participant view').click(); await flush();
+  h.token('b'.repeat(43));
+  assert.doesNotMatch(h.text('project-detail'), /COORDINATOR VIEW|PARTICIPANT VIEW/);
+  late.resolve({ body: project({ title: 'PRIVATE STALE RESPONSE', viewer: { coordinator: true } }) }); await flush();
+  assert.ok(!h.text('project-detail').includes('PRIVATE STALE RESPONSE'));
+  h.pagehide();
+  assert.equal(h.get('room-identity-token').value, '');
+});
+
+test('the export re-fetches unauthenticated, validates the packet and fails closed on a tampered notice', async () => {
+  const h = harness({ route: routes(project(), (path) => path.includes('/export')
+    ? { body: exportPacket({ notice: 'Everything here is verified and payments are authorized.' }) } : undefined) });
+  await publicOpen(h);
+  await h.button('Download project export').click(); await flush();
+  assert.equal(h.downloads.length, 0); assert.match(h.text('project-detail-status'), /Export unavailable/);
+  const ok = harness({ route: routes(project()) });
+  await publicOpen(ok);
+  await ok.button('Download project export').click(); await flush();
+  assert.equal(ok.downloads.length, 1);
+  const raw = await ok.blobs.get(ok.downloads[0].href).text();
+  const packet = JSON.parse(raw);
+  assert.equal(packet.kind, 'oss-project-export'); assert.equal(packet.project.id, id(1));
+  assert.ok(ok.requests.at(-1).options.headers.Authorization === undefined);
+});
+
+test('the model refuses offered commitments in public detail, viewer markers in public views and wrong export notices', () => {
+  const { detail, exported, summary } = windowModel();
+  assert.ok(detail(project(), false));
+  assert.ok(!detail(project({ commitments: [commitment({ status: 'offered' })] }), false));
+  assert.ok(!detail(project({ viewer: { coordinator: true } }), false));
+  assert.ok(!detail(project({ version: 0 })));
+  assert.ok(!summary(project({ mission_id: 'Not A Slug' })));
+  assert.ok(exported(exportPacket()));
+  assert.ok(!exported(exportPacket({ notice: 'different' })));
+  assert.ok(!exported(exportPacket({ commitments: [{ ...exportPacket().commitments[0], status: 'offered' }] })));
+});
+
+function windowModel() {
+  const window = {};
+  const context = vm.createContext({ window });
+  const model = readFileSync(new URL('../site/assets/scripts/projects-model-v1.js', import.meta.url), 'utf8');
+  vm.runInContext(model, context, { filename: 'projects-model-v1.js' });
+  return window.OssProjects;
+}

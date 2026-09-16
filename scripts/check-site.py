@@ -119,6 +119,7 @@ def required_files(actual: set[str], read) -> set[str]:
         "singularity/index.html", "assets/styles/singularity-v1.css",
         "assets/scripts/singularity-v1.js", "assets/scripts/singularity-participation-v1.js",
         "assets/scripts/work-items-model-v1.js", "assets/scripts/work-items-v1.js",
+        "assets/scripts/projects-model-v1.js", "assets/scripts/projects-v1.js",
     }
     social_path = "assets/social/oss-singularity-social-preview.png"
     require(required <= actual, "allowlist_mismatch")
@@ -143,7 +144,7 @@ def check_product(root: Path) -> int:
         "lab/index.html": ["/assets/scripts/mission-lab-v1.js"],
         "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js", "/assets/scripts/observatory-motion-v1.js", "/assets/scripts/commons-activity-v1.js"],
         "workshop/index.html": ["/assets/scripts/workshop-v1.js", "/assets/scripts/workshop-identity-v1.js"],
-        "singularity/index.html": ["/assets/scripts/singularity-v1.js", "/assets/scripts/singularity-participation-v1.js", "/assets/scripts/work-items-model-v1.js", "/assets/scripts/work-items-v1.js"],
+        "singularity/index.html": ["/assets/scripts/singularity-v1.js", "/assets/scripts/singularity-participation-v1.js", "/assets/scripts/work-items-model-v1.js", "/assets/scripts/work-items-v1.js", "/assets/scripts/projects-model-v1.js", "/assets/scripts/projects-v1.js"],
         "guide/index.html": ["/assets/scripts/section-navigation-v1.js"],
         "help/index.html": ["/assets/scripts/section-navigation-v1.js"],
         "roadmap/index.html": ["/assets/scripts/section-navigation-v1.js"],
@@ -211,7 +212,7 @@ def check_product(root: Path) -> int:
                 if not value:
                     continue
                 target = local_target(root, document, value)
-                live_api_routes = {"/api/v1", "/api/v1/missions", "/api/v1/contributions", "/api/v1/activity", "/api/v1/participations"}
+                live_api_routes = {"/api/v1", "/api/v1/missions", "/api/v1/contributions", "/api/v1/activity", "/api/v1/participations", "/api/v1/projects"}
                 if target is not None and not target.exists() and urlsplit(value).path not in live_api_routes:
                     fail(f"broken local reference {value!r} in {document.name}")
                 fragment = urlsplit(value).fragment

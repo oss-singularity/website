@@ -6,34 +6,35 @@
   <p class="source-note">Design candidates, not a live contract: these screens bind no API schema, contain only synthetic participants and records, and describe nothing this service does today. The current API contract remains the <a href="/data/commons-openapi.json">Commons OpenAPI document</a>.</p>
 </header>
 
-<nav class="roadmap-overview" aria-labelledby="vision-overview-title">
-  <p class="micro-label" id="vision-overview-title">The three screens</p>
-  <ol role="list">
-    <li><a href="#coordination"><span class="roadmap-overview-node" aria-hidden="true">02</span><strong>Project coordination</strong><span class="roadmap-overview-status">Portable hierarchy</span></a></li>
-    <li><a href="#receipts"><span class="roadmap-overview-node" aria-hidden="true">03</span><strong>Artifact receipts</strong><span class="roadmap-overview-status">Two verification paths</span></a></li>
-    <li><a href="#acceptance"><span class="roadmap-overview-node" aria-hidden="true">04</span><strong>Acceptance &amp; QA</strong><span class="roadmap-overview-status">Bound decision trail</span></a></li>
-    <li><a href="#contract-lab"><span class="roadmap-overview-node" aria-hidden="true">05</span><strong>Solidity contract lab</strong><span class="roadmap-overview-status">Research</span></a></li>
-    <li><a href="#settlement"><span class="roadmap-overview-node" aria-hidden="true">06</span><strong>Fair settlement</strong><span class="roadmap-overview-status">Proposed · optional</span></a></li>
-  </ol>
-</nav>
+  <nav class="roadmap-overview" aria-labelledby="vision-overview-title">
+    <p class="micro-label" id="vision-overview-title">The three screens</p>
+    <ol role="list">
+      <li class="roadmap-overview-implemented"><a href="#coordination"><span class="roadmap-overview-node" aria-hidden="true">02</span><strong>Project coordination</strong><span class="roadmap-overview-status">First slice live</span></a></li>
+      <li><a href="#receipts"><span class="roadmap-overview-node" aria-hidden="true">03</span><strong>Artifact receipts</strong><span class="roadmap-overview-status">Two verification paths</span></a></li>
+      <li><a href="#acceptance"><span class="roadmap-overview-node" aria-hidden="true">04</span><strong>Acceptance &amp; QA</strong><span class="roadmap-overview-status">Bound decision trail</span></a></li>
+      <li><a href="#contract-lab"><span class="roadmap-overview-node" aria-hidden="true">05</span><strong>Solidity contract lab</strong><span class="roadmap-overview-status">Research</span></a></li>
+      <li><a href="#settlement"><span class="roadmap-overview-node" aria-hidden="true">06</span><strong>Fair settlement</strong><span class="roadmap-overview-status">Proposed · optional</span></a></li>
+    </ol>
+  </nav>
 
-<section class="hub-section vision-section" id="coordination" aria-labelledby="coordination-title">
-  <p class="section-kicker">02 · PLANNED · PORTABLE HIERARCHY</p>
-  <h2 id="coordination-title">Project coordination</h2>
-  <p class="vision-hint">One project, two dependent milestones, one explicit commitment. Every node names its scope version, expected artifact and acceptance criteria; every suggestion explains itself.</p>
-  <div class="vision-grid">
-    <article class="vision-card">
-      <h3>What the screen answers</h3>
-      <p>Who holds which role, what each node expects as an artifact, which dependency gates which milestone — and where an agreement has actually been made, versus where only an offer or a matching suggestion exists.</p>
-      <p class="vision-criteria"><b>Criteria addressed</b><br>Stable identifiers and scope versions · expected artifact and acceptance criteria per node · dependencies must not silently expand scope.</p>
-    </article>
-    <article class="vision-card">
-      <h3>Offer and commitment are different states</h3>
-      <p>An offer is one participant's input; a commitment binds participants to a scope version, review responsibility and change terms. The outline card never looks like the bound one.</p>
-      <p class="vision-criteria"><b>Criteria addressed</b><br>Offers recorded separately from commitments · publishing a card assigns no task · matching explains why it suggested, without claiming verification.</p>
-    </article>
-  </div>
-</section>
+  <section class="hub-section vision-section" id="coordination" aria-labelledby="coordination-title">
+    <p class="section-kicker">02 · FIRST SLICE LIVE · PORTABLE HIERARCHY</p>
+    <h2 id="coordination-title">Project coordination</h2>
+    <p class="vision-hint">One project, two dependent milestones, one explicit commitment. Every node names its scope version, expected artifact and acceptance criteria; every suggestion explains itself.</p>
+    <p class="source-note">The first slice of this stage is implemented and live: projects, dependent milestones, dependency gates, bound voluntary commitments and the machine-readable export exist behind the published API. The screens below explore the fuller journey — capability profiles and matching that explains itself remain design candidates.</p>
+    <div class="vision-grid">
+      <article class="vision-card">
+        <h3>What the screen answers</h3>
+        <p>Who holds which role, what each node expects as an artifact, which dependency gates which milestone — and where an agreement has actually been made, versus where only an offer or a matching suggestion exists.</p>
+        <p class="vision-criteria"><b>Criteria addressed</b><br>Stable identifiers and scope versions · expected artifact and acceptance criteria per node · dependencies must not silently expand scope.</p>
+      </article>
+      <article class="vision-card">
+        <h3>Offer and commitment are different states</h3>
+        <p>An offer is one participant's input; a commitment binds participants to a scope version, review responsibility and change terms. The outline card never looks like the bound one.</p>
+        <p class="vision-criteria"><b>Criteria addressed</b><br>Offers recorded separately from commitments · publishing a card assigns no task · matching explains why it suggested, without claiming verification.</p>
+      </article>
+    </div>
+  </section>
 
 <section class="hub-section vision-section" id="receipts" aria-labelledby="receipts-title">
   <p class="section-kicker">03 · PLANNED · TWO VERIFICATION PATHS</p>

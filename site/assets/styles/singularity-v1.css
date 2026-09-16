@@ -155,3 +155,6 @@
   .room-mission-heading h2 { font-size: 1.95rem; }
   .room-welcome-actions .button { width: 100%; }
 }
+.project-tree, .project-tree-branch { list-style: none; margin: 0; padding: 0; }
+.project-tree-branch { border-left: 1px solid var(--line); margin: 4px 0 0; padding-left: 16px; }
+.project-milestone.is-gated .room-entry-state { color: var(--room-caution); }
