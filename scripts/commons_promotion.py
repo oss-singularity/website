@@ -47,8 +47,16 @@ def open_intent(deployments):
             and item.get('production_environment') is True, 'invalid_promotion_record')
     statuses = deployments.request('GET', BASE + '/deployments/' + str(number) + '/statuses?per_page=1&page=1')
     require(type(statuses) is list and len(statuses) <= 1, 'promotion_history_unverified')
-    require(not statuses or (statuses[0].get('state'), statuses[0].get('description')) in
-            {('in_progress', IN_PROGRESS), ('error', UNRESOLVED)}, 'promotion_record_closed')
+    if not statuses:
+        return number
+    latest = (statuses[0].get('state'), statuses[0].get('description'))
+    require(latest in {('success', PROMOTED), ('failure', ROLLED_BACK),
+                       ('in_progress', IN_PROGRESS), ('error', UNRESOLVED)},
+            'promotion_record_closed')
+    if latest in {('success', PROMOTED), ('failure', ROLLED_BACK)}:
+        # A closed record keeps its evidence and never blocks the next
+        # promotion; only an open or unresolved one does.
+        return None
     return number
 
 
