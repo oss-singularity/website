@@ -10,7 +10,7 @@
     <p class="micro-label" id="vision-overview-title">The three screens</p>
     <ol role="list">
       <li class="roadmap-overview-implemented"><a href="#coordination"><span class="roadmap-overview-node" aria-hidden="true">02</span><strong>Project coordination</strong><span class="roadmap-overview-status">First slice live</span></a></li>
-      <li><a href="#receipts"><span class="roadmap-overview-node" aria-hidden="true">03</span><strong>Artifact receipts</strong><span class="roadmap-overview-status">Two verification paths</span></a></li>
+      <li class="roadmap-overview-implemented"><a href="#receipts"><span class="roadmap-overview-node" aria-hidden="true">03</span><strong>Artifact receipts</strong><span class="roadmap-overview-status">First slice live</span></a></li>
       <li><a href="#acceptance"><span class="roadmap-overview-node" aria-hidden="true">04</span><strong>Acceptance &amp; QA</strong><span class="roadmap-overview-status">Bound decision trail</span></a></li>
       <li><a href="#contract-lab"><span class="roadmap-overview-node" aria-hidden="true">05</span><strong>Solidity contract lab</strong><span class="roadmap-overview-status">Research</span></a></li>
       <li><a href="#settlement"><span class="roadmap-overview-node" aria-hidden="true">06</span><strong>Fair settlement</strong><span class="roadmap-overview-status">Proposed · optional</span></a></li>
@@ -36,10 +36,11 @@
     </div>
   </section>
 
-<section class="hub-section vision-section" id="receipts" aria-labelledby="receipts-title">
-  <p class="section-kicker">03 · PLANNED · TWO VERIFICATION PATHS</p>
-  <h2 id="receipts-title">Artifact receipts</h2>
-  <p class="vision-hint">One delivery manifest, two deliberately separate checks: a content identifier addresses content; a raw-file digest checks the delivered bytes. Verification states read as evidence, never as decoration.</p>
+  <section class="hub-section vision-section" id="receipts" aria-labelledby="receipts-title">
+    <p class="section-kicker">03 · FIRST SLICE LIVE · TWO VERIFICATION PATHS</p>
+    <h2 id="receipts-title">Artifact receipts</h2>
+    <p class="vision-hint">One delivery manifest, two deliberately separate checks: a content identifier addresses content; a raw-file digest checks the delivered bytes. Verification states read as evidence, never as decoration.</p>
+    <p class="source-note">The first slice of this stage is implemented and live: immutable delivery revisions with declared digests, the portable manifest and the synthetic artifact for practicing independent verification. The screens below explore the fuller receipt protocol — mismatch, absence and stale-revision detection remain design candidates.</p>
   <div class="vision-grid">
     <article class="vision-card">
       <div class="vision-badge-row"><span class="vision-badge vision-cyan">CID</span><span class="vision-badge vision-dim">content address</span></div>

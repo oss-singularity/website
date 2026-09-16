@@ -94,7 +94,17 @@ credentials or unapproved private evidence in a public artifact, or promise
 that unpinning removes every copy. [IPFS privacy and encryption](https://docs.ipfs.tech/concepts/privacy-and-encryption/).
 
 **First slice:** a downloadable delivery manifest, a synthetic artifact and
-independent verification instructions. **Release criteria:** detect mismatched
+independent verification instructions. **Implementation status:** the first
+slice is implemented as the `/api/v1/projects/{id}/milestones/{milestone_id}/deliveries`
+endpoints (`services/commons/receipts.mjs`, migration `0005_receipts.sql`):
+the confirmed contributor of an open milestone submits immutable,
+server-numbered revisions (at most ten) declaring the offchain artifact
+location, media type, size, a raw sha256 digest and an optional content
+identifier; every revision downloads as the portable
+`oss-delivery-manifest` with author attribution and a verification
+instruction, and the service never fetches a supplied URL. A synthetic
+artifact ships at `/data/synthetic-delivery-artifact.json`.
+**Remaining release criteria:** detect mismatched
 bytes, unsafe references, absent content and stale revisions; distinguish a CID
 from a raw-file digest; preserve the agreed access policy; validate artifact
 retrieval without letting supplied URLs become unrestricted server requests.
