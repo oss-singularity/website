@@ -13,6 +13,13 @@ routes = [
 [vars]
 PUBLIC_ORIGIN = "https://oss-singularity.io"
 
+# Optional secret (wrangler secret put GITHUB_READ_TOKEN): a read-only GitHub
+# token for the two public identity-verification reads. Without it the worker
+# shares Cloudflare's anonymous per-IP GitHub quota, which is often exhausted.
+# A rejected or absent token degrades to one anonymous retry, never to a wider
+# request.
+# GITHUB_READ_TOKEN = set as a secret, never in this file
+
 [[d1_databases]]
 binding = "DB"
 database_name = "oss-singularity-commons"
