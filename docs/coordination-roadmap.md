@@ -49,9 +49,21 @@ an opportunity was suggested; it must not claim a skill was verified when only
 an account or a self-description was checked.
 
 **First slice:** one project with two dependent milestones, one explicit
-commitment and a machine-readable export. **Release criteria:** versioned schema
-and migration rules; actor-scoped reads and changes; cycle and dependency tests;
-no unauthorized role assignment; cancellation and scope-change journeys; and
+commitment and a machine-readable export. **Implementation status:** the
+first slice is implemented as the `/api/v1/projects` endpoints
+(`services/commons/projects.mjs`, migration `0004_projects.sql`): a
+coordinator creates a project under a published mission, adds milestones
+with expected artifact and one to eight acceptance criteria, declares
+dependencies that gate offers (`dependency_blocked`) and can never form a
+cycle (dependencies reference pre-existing milestones only), a participant's
+offer becomes a bound commitment only through coordinator confirmation at
+the milestone's current scope version, either bound side can end it, the
+coordinator can close or cancel the project (cancelling dependent
+milestones and nonterminal commitments), and `GET
+/api/v1/projects/{id}/export` returns the machine-readable
+`oss-project-export`. **Release criteria:** versioned schema and migration
+rules; actor-scoped reads and changes; cycle and dependency tests; no
+unauthorized role assignment; cancellation and scope-change journeys; and
 an export that preserves the meaning of commitments outside this website.
 
 ## 2. Deliver artifacts with receipts — planned

@@ -15,12 +15,13 @@ import sqlite3
 from site_artifact import ArtifactError, TreeReader, fingerprint, open_directory, read_external, require
 
 REPOSITORY = 'oss-singularity/website'
-MODULES = {'worker.mjs', 'security.mjs', 'identity.mjs', 'participations.mjs', 'activity.mjs', 'work-items.mjs'}
+MODULES = {'worker.mjs', 'security.mjs', 'identity.mjs', 'participations.mjs', 'activity.mjs', 'work-items.mjs', 'projects.mjs'}
 LOCAL_MODULES = {'local-d1.mjs', 'dev-server.mjs'}
 MIGRATIONS = {
     '0001_commons.sql': '3832201d0a7d80c9b33e8908fc2b91354619d8326f69e8c4750363b38a98345e',
     '0002_participations.sql': '5a8f020d34c307b4fe87c66907299639c3eb6efb6b535cc0949bd96c72289ad3',
     '0003_work_items.sql': '45960c242ae7d41b5ed960724e3bdef8ef887670c32b5773c7d2e34137017fa0',
+    '0004_projects.sql': '849ed2aa549d8cdb10edd647f2d86b09f0f95ecc511d58c5e9840d8996fb455b',
 }
 RUNTIME = {'entrypoint': 'worker.mjs', 'compatibility_date': '2026-09-04', 'compatibility_flags': []}
 MAX_MODULE = 512 * 1024

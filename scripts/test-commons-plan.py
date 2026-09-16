@@ -88,7 +88,7 @@ class PlannerTests(unittest.TestCase):
         changes = {item['name']: item for item in result['module_changes']}
         self.assertEqual(set(changes), artifact.MODULES)
         self.assertEqual([name for name, item in changes.items() if item['operation'] == 'replace'], ['worker.mjs'])
-        self.assertEqual(sum(item['operation'] == 'keep' for item in changes.values()), 5)
+        self.assertEqual(sum(item['operation'] == 'keep' for item in changes.values()), 6)
         self.assertNotEqual(changes['worker.mjs']['before'], changes['worker.mjs']['after'])
         self.assertEqual(result['release_sha_change'], {'before': OLD, 'after': NEW})
         self.assertEqual(result['desired_version']['bindings']['RELEASE_SHA']['text'], NEW)
