@@ -187,26 +187,32 @@ class PromotionTests(unittest.TestCase):
         self.assertTrue(result['promoted'])
         self.assertEqual(adapter.calls.count('activate:' + result['staged_version']), 1)
 
-    def test_an_open_intent_blocks_and_start_never_runs_twice(self):
+    def test_an_open_intent_blocks_and_closed_records_free_the_next_promotion(self):
         item = {'id': 7, 'environment': promotion.ENVIRONMENT, 'task': promotion.TASK,
                 'production_environment': True, 'payload': {'kind': 'commons-promotion-intent'}}
         listed = FakeResponse([item], deployments.API + promotion.LIST)
-        in_progress = FakeResponse([{'state': 'in_progress', 'description': promotion.IN_PROGRESS}],
-                                   deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1')
-        unresolved = FakeResponse([{'state': 'error', 'description': promotion.UNRESOLVED}],
-                                  deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1')
-        for statuses in [in_progress, unresolved]:
+        statuses_url = deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1'
+        cases = [
+            ([{'state': 'in_progress', 'description': promotion.IN_PROGRESS}], 7),
+            ([{'state': 'error', 'description': promotion.UNRESOLVED}], 7),
+            ([{'state': 'success', 'description': promotion.PROMOTED}], None),
+            ([{'state': 'failure', 'description': promotion.ROLLED_BACK}], None),
+            ([{'state': 'success', 'description': 'unrelated'}], 'promotion_record_closed'),
+            ([{'state': 'failure', 'description': promotion.UNRESOLVED}], 'promotion_record_closed'),
+        ]
+        for statuses, expected in cases:
             records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
-                                              ScriptedOpener([listed, statuses]),
-                                              )
-            with self.assertRaisesRegex(ArtifactError, 'unfinished_promotion'):
-                records.start(candidate()['commit'], {'kind': 'commons-promotion-intent'})
-        for state, description in [('success', promotion.PROMOTED), ('failure', promotion.ROLLED_BACK)]:
-            closed = FakeResponse([{'state': state, 'description': description}],
-                                  deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1')
+                                                ScriptedOpener([listed, FakeResponse(statuses, statuses_url)]))
+            if expected == 'promotion_record_closed':
+                with self.assertRaisesRegex(ArtifactError, 'promotion_record_closed'):
+                    promotion.open_intent(records)
+            else:
+                self.assertEqual(promotion.open_intent(records), expected)
+        for state, description in [('in_progress', 'unrelated'), ('error', promotion.PROMOTED),
+                                   ('queued', promotion.IN_PROGRESS)]:
             records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
-                                              ScriptedOpener([listed, closed]),
-                                              )
+                                                ScriptedOpener([listed, FakeResponse(
+                                                    [{'state': state, 'description': description}], statuses_url)]))
             with self.assertRaisesRegex(ArtifactError, 'promotion_record_closed'):
                 promotion.open_intent(records)
 
