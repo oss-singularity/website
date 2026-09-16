@@ -418,7 +418,27 @@ def find_staged(adapter, message, tag):
     return matches[0] if matches else None
 
 
-def promote(adapter, intent, plan, candidate, accept):
+def accept_bounded(expected, accept, attempts=3, pause=2.0):
+    """Retry one bounded live-acceptance identity check.
+
+    The edge needs a short propagation window after an activation; a mismatch
+    inside that window is retried, and a persistently wrong identity still
+    fails after the attempts.
+    """
+    last = None
+    for attempt in range(attempts):
+        if attempt:
+            time.sleep(pause)
+        try:
+            if accept(expected):
+                return True
+            last = ArtifactError('live_acceptance_failed')
+        except ArtifactError as error:
+            last = error
+    raise last
+
+
+def promote(adapter, intent, plan, candidate, accept, pause=2.0):
     """Run one promotion against an open target; close the intent whatever happens.
 
     `plan` supplies the predecessor version, the staged content and settings,
@@ -456,7 +476,7 @@ def promote(adapter, intent, plan, candidate, accept):
             # One activation attempt only: resolve the outcome by observation.
             require(adapter.observe()['active_version'] == staged, 'promotion_unresolved')
         try:
-            require(accept(candidate['commit']), 'live_acceptance_failed')
+            accept_bounded(candidate['commit'], accept, pause=pause)
         except ArtifactError:
             # Rollback restores the predecessor exactly once, then re-accepts
             # the previous release identity.
@@ -465,7 +485,7 @@ def promote(adapter, intent, plan, candidate, accept):
                 adapter.activate_version(predecessor, plan['message'] + ' (rollback)')
             except ArtifactError:
                 require(adapter.observe()['active_version'] == predecessor, 'promotion_unresolved')
-            require(accept(plan['release_sha']), 'live_acceptance_failed')
+            accept_bounded(plan['release_sha'], accept, pause=pause)
             intent.finish(number, 'rolled_back')
             return {'promoted': False, 'staged_version': staged, 'deployment': number}
         intent.finish(number, 'promoted')

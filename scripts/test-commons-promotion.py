@@ -169,7 +169,21 @@ class PromotionTests(unittest.TestCase):
         self.assertNotIn('activate:', ' '.join(adapter.calls))
         self.assertEqual(adapter.active, VERSION_A)
 
-    def test_failed_live_acceptance_restores_predecessor_once(self):
+    def test_acceptance_retries_survive_edge_propagation(self):
+        adapter = FakeAdapter()
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('promoted')),
+                                          )
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return len(accepted) > 1
+        result = promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
+        self.assertTrue(result['promoted'])
+        self.assertEqual(accepted, [candidate()['commit'], candidate()['commit']])
+        self.assertEqual(adapter.active, result['staged_version'])
+
+    def test_permanent_acceptance_failure_restores_predecessor_once(self):
         adapter = FakeAdapter()
         records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
                                           ScriptedOpener(intent_outcomes('rolled_back')),
@@ -177,13 +191,13 @@ class PromotionTests(unittest.TestCase):
         accepted = []
         def accept(sha):
             accepted.append(sha)
-            return len(accepted) > 1
-        result = promotion.promote(adapter, records, plan(), candidate(), accept)
+            return False
+        result = promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
         self.assertFalse(result['promoted'])
         self.assertEqual(adapter.active, VERSION_A)
         self.assertEqual(adapter.calls.count('activate:' + VERSION_A), 1)
-        self.assertEqual(accepted[0], candidate()['commit'])
-        self.assertEqual(accepted[-1], plan()['release_sha'])
+        self.assertEqual(accepted.count(candidate()['commit']), 3)
+        self.assertEqual(accepted.count(plan()['release_sha']), 3)
 
     def test_lost_activation_is_observed_then_promoted(self):
         adapter = FakeAdapter(fail_activate=True)
