@@ -126,8 +126,8 @@ def expected_schema(migrations):
     return schema_hash(rows)
 
 
-def validate_code(files):
-    require(type(files) is dict and set(files) == MODULES, 'module_allowlist_mismatch')
+def validate_code(files, modules=MODULES):
+    require(type(files) is dict and set(files) == modules, 'module_allowlist_mismatch')
     total = 0
     for raw in files.values():
         require(type(raw) is bytes and 0 < len(raw) <= MAX_MODULE and b'\0' not in raw, 'invalid_module')
@@ -169,15 +169,15 @@ def source_files(root):
     return files, expected_schema(migrations)
 
 
-def metadata(files, sha, schema):
+def metadata(files, sha, schema, modules=MODULES):
     return {'schema_version': 1, 'kind': 'commons-code', 'repository': REPOSITORY, 'commit': commit(sha),
             'runtime': {**RUNTIME, 'compatibility_flags': []},
             'schema': {'profile': 1, 'migrations': dict(MIGRATIONS), 'sha256': hash_value(schema)},
-            'modules': validate_code(files)}
+            'modules': validate_code(files, modules)}
 
 
-def packet(files, sha, schema):
-    return encode({'descriptor': metadata(files, sha, schema),
+def packet(files, sha, schema, modules=MODULES):
+    return encode({'descriptor': metadata(files, sha, schema, modules),
                    'files': {name: base64.b64encode(raw).decode('ascii') for name, raw in sorted(files.items())}})
 
 
@@ -193,7 +193,11 @@ def invalid_constant(_value):
     raise ArtifactError('invalid_packet')
 
 
-def unpack(raw, sha, expected_schema_sha):
+def unpack(raw, sha, expected_schema_sha, modules=MODULES):
+    # The default is the strict full-module profile (candidates). Passing
+    # modules=None adopts the packet's own installed profile, bounded by the
+    # contract's module set: this is how the live predecessor's older profile
+    # is verified without weakening the candidate path.
     commit(sha)
     hash_value(expected_schema_sha)
     require(type(raw) is bytes and 0 < len(raw) <= MAX_PACKET, 'packet_size_limit')
@@ -201,7 +205,10 @@ def unpack(raw, sha, expected_schema_sha):
         value = json.loads(raw.decode('utf-8'), object_pairs_hook=unique, parse_constant=invalid_constant)
         require(type(value) is dict and set(value) == {'descriptor', 'files'}, 'invalid_packet')
         encoded = value['files']
-        require(type(encoded) is dict and set(encoded) == MODULES, 'module_allowlist_mismatch')
+        require(type(encoded) is dict and 0 < len(encoded) <= len(MODULES)
+                and set(encoded) <= MODULES, 'module_allowlist_mismatch')
+        profile = frozenset(encoded) if modules is None else modules
+        require(set(encoded) == profile, 'module_allowlist_mismatch')
         files = {}
         for name, content in encoded.items():
             require(type(content) is str and len(content) <= 4 * ((MAX_MODULE + 2) // 3), 'invalid_module')
@@ -213,9 +220,9 @@ def unpack(raw, sha, expected_schema_sha):
         schema = descriptor.get('schema')
         require(type(schema) is dict and type(schema.get('profile')) is int, 'invalid_descriptor')
         sizes = descriptor.get('modules')
-        require(type(sizes) is dict and set(sizes) == MODULES, 'invalid_descriptor')
+        require(type(sizes) is dict and set(sizes) == profile, 'invalid_descriptor')
         require(all(type(row) is dict and type(row.get('size')) is int for row in sizes.values()), 'invalid_descriptor')
-        require(descriptor == metadata(files, sha, expected_schema_sha), 'descriptor_mismatch')
+        require(descriptor == metadata(files, sha, expected_schema_sha, profile), 'descriptor_mismatch')
         return files, descriptor
     except (UnicodeError, json.JSONDecodeError, RecursionError, binascii.Error, ValueError) as error:
         if isinstance(error, ArtifactError):

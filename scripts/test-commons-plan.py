@@ -100,6 +100,26 @@ class PlannerTests(unittest.TestCase):
         self.assertTrue(result['plan_only'])
         self.assertFalse(result['deployment_authorized'])
 
+    def test_additive_module_change_is_planned_as_add(self):
+        case = copy.deepcopy(self.case)
+        root = Path(__file__).resolve().parents[1] / 'services/commons'
+        files, migrations = artifact.source_inputs(root)
+        reduced = {name: raw for name, raw in files.items() if name != 'projects.mjs'}
+        schema = artifact.expected_schema(migrations)
+        predecessor = artifact.packet(reduced, OLD, schema, modules=frozenset(reduced))
+        _files, old_descriptor = artifact.unpack(predecessor, OLD, planner.SCHEMA_SHA256, modules=frozenset(reduced))
+        case['predecessor_packet'] = predecessor
+        case['baseline']['packet_sha256'] = artifact.digest(predecessor)
+        case['observation']['modules'] = old_descriptor['modules']
+        state = planner.observed_state(case['observation'], case['target_policy'], old_descriptor)
+        case['baseline']['observation_sha256'] = artifact.digest(artifact.encode(state))
+        result = planner.build_plan(**case)
+        added = [item for item in result['module_changes'] if item['operation'] == 'add']
+        assert added == [{'name': 'projects.mjs', 'operation': 'add',
+                          'before': None, 'after': result['desired_version']['modules']['projects.mjs']}]
+        assert result['candidate']['modules']['projects.mjs'] == added[0]['after']
+        assert result['desired_version']['bindings']['RELEASE_SHA']['text'] == NEW
+
     def test_every_preserved_binding_and_setting(self):
         result = planner.build_plan(**self.case)
         preserved = result['preserved']

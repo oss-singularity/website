@@ -172,7 +172,9 @@ def build_plan(*, candidate_packet, expected_candidate_commit, expected_candidat
     candidate_files, candidate = unpack(candidate_packet, expected_candidate_commit, SCHEMA_SHA256)
     hash_value(expected_candidate_packet_sha256)
     require(digest(candidate_packet) == expected_candidate_packet_sha256, 'candidate_packet_mismatch')
-    _old_files, predecessor = unpack(predecessor_packet, baseline['commit'], SCHEMA_SHA256)
+    # The predecessor carries its own installed module profile; the candidate
+    # side of this function keeps the strict full-module allowlist.
+    _old_files, predecessor = unpack(predecessor_packet, baseline['commit'], SCHEMA_SHA256, modules=None)
     require(digest(predecessor_packet) == baseline['packet_sha256'], 'predecessor_packet_mismatch')
     require(candidate['commit'] != predecessor['commit'], 'candidate_commit_reused')
     require(digest(encode(target_policy)) == baseline['policy_sha256'], 'baseline_policy_mismatch')
@@ -180,14 +182,19 @@ def build_plan(*, candidate_packet, expected_candidate_commit, expected_candidat
     require(digest(encode(state)) == baseline['observation_sha256']
             and state['version']['id'] == baseline['version_id']
             and state['deployment']['id'] == baseline['deployment_id'], 'baseline_observation_mismatch')
-    missing = [name for name in candidate['modules'] if name not in predecessor['modules']]
-    # A candidate that adds a worker module ships with a schema/migration
-    # procedure, never with this code-only path.
-    require(not missing, 'installed_code_mismatch')
-    changes = [{'name': name,
-                'operation': 'keep' if candidate['modules'][name] == predecessor['modules'][name] else 'replace',
-                'before': predecessor['modules'][name], 'after': candidate['modules'][name]}
-               for name in sorted(candidate_files)]
+    # An additive module is only plannable once its migration is part of the
+    # installed schema: the caller's observation digest check (which pins the
+    # live schema profile) proves that ordering before this loop runs.
+    changes = []
+    for name in sorted(candidate_files):
+        before = predecessor['modules'].get(name)
+        if before is None:
+            changes.append({'name': name, 'operation': 'add',
+                            'before': None, 'after': candidate['modules'][name]})
+        else:
+            changes.append({'name': name,
+                            'operation': 'keep' if candidate['modules'][name] == before else 'replace',
+                            'before': before, 'after': candidate['modules'][name]})
     require({item['name'] for item in changes} == MODULES, 'module_allowlist_mismatch')
     desired_settings = settings(target_policy, candidate['commit'])
     desired_version = {'modules': candidate['modules'], 'runtime': state['version']['runtime'],

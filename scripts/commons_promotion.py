@@ -215,8 +215,16 @@ def reconstruct_predecessor(content, commit):
         require(name is not None and body.endswith(b'\r\n'), 'invalid_candidate')
         files[name] = body[:-2]
     require(0 < len(files) <= 32 and len(set(files)) == len(files), 'invalid_candidate')
-    packet = artifact.packet(files, commit, rehearsal.SCHEMA_SHA256)
-    restored, _descriptor = artifact.unpack(packet, commit, rehearsal.SCHEMA_SHA256)
+    # A well-formed provider form terminates with its closing boundary; a
+    # truncated upload or trailing junk after it refuses here.
+    require(content.endswith(b'--' + boundary + b'--'), 'invalid_candidate')
+    # The live predecessor carries the previously installed module profile: a
+    # subset of the current contract that every module digest binds to this
+    # commit. The candidate side keeps the strict full-module allowlist.
+    profile = frozenset(files)
+    require(profile <= artifact.MODULES, 'module_allowlist_mismatch')
+    packet = artifact.packet(files, commit, rehearsal.SCHEMA_SHA256, modules=profile)
+    restored, _descriptor = artifact.unpack(packet, commit, rehearsal.SCHEMA_SHA256, modules=profile)
     require(restored == files, 'invalid_candidate')
     return packet
 
