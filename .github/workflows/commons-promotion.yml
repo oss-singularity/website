@@ -1,0 +1,93 @@
+name: Commons promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Canonical Commons rehearsal run id
+        type: string
+        required: true
+      run_attempt:
+        description: Canonical Commons rehearsal run attempt
+        type: string
+        required: true
+      commit:
+        description: Candidate commit (40 hex)
+        type: string
+        required: true
+      message:
+        description: Version annotation message
+        type: string
+        required: true
+      tag:
+        description: Version annotation tag
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  deployments: write
+
+concurrency:
+  group: oss-production
+  cancel-in-progress: false
+
+jobs:
+  promotion:
+    if: >-
+      github.server_url == 'https://github.com' &&
+      github.repository == 'oss-singularity/website' &&
+      github.repository_id == '1351274990' &&
+      github.ref == 'refs/heads/main' &&
+      github.ref_protected &&
+      github.sha == github.workflow_sha &&
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: production-commons
+    steps:
+      - name: Check out only the current protected canonical source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Promote the verified candidate
+        id: promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMONS_CF_TOKEN: ${{ secrets.COMMONS_CF_TOKEN }}
+          COMMONS_ACCOUNT_ID: ${{ secrets.COMMONS_ACCOUNT_ID }}
+          COMMONS_ZONE_ID: ${{ secrets.COMMONS_ZONE_ID }}
+          COMMONS_D1_ID: ${{ secrets.COMMONS_D1_ID }}
+          STATIC_ORIGIN_IP: ${{ secrets.STATIC_ORIGIN_IP }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/commons-promotion.py \
+            --from-rehearsal "${{ inputs.run_id }}" "${{ inputs.run_attempt }}" "${{ inputs.commit }}" \
+            --message "${{ inputs.message }}" --tag "${{ inputs.tag }}" \
+            > "$RUNNER_TEMP/commons-promotion-report.json"
+      - name: Present the sanitized outcome
+        if: always() && steps.promotion.outcome != 'skipped'
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+          report = Path(os.environ["RUNNER_TEMP"]) / "commons-promotion-report.json"
+          if report.is_file() and 0 < report.stat().st_size <= 16384:
+              value = json.loads(report.read_bytes())
+              rendered = json.dumps(value, sort_keys=True, indent=2)
+              print(rendered)
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write("Commons promotion result\n\n```json\n" + rendered + "\n```\n")
+      - name: Retain only the sanitized outcome
+        if: always() && steps.promotion.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: commons-promotion-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/commons-promotion-report.json
+          if-no-files-found: ignore
+          retention-days: 14

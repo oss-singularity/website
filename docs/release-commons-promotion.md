@@ -85,14 +85,16 @@ target is not a fixed filesystem but a versioned Worker whose bindings
 | Fixed operator command (steps 3–7) | Implemented: `scripts/commons-promotion.py` derives the plan from live provider state (installed bindings become inherit entries; predecessor, compatibility date and current release identity are read from the active version), takes the candidate packet and commit as inputs, uses the same live API acceptance as publication, and reports one sanitized JSON outcome. Account identifiers and the provider token come from the environment and stay outside the repository. |
 | Live capture, baseline and engine mapping | Implemented with offline tests and live read validation: `capture_observation` composes the planner's normalized observation from bounded live reads, `plan_baseline` records the normalized state digest and refuses unowned pending versions before any intent, and `engine_plan` maps the planner output onto the engine contract (inherit bindings; `RELEASE_SHA` re-entered with the candidate commit). |
 | Candidate download and verification wiring | Implemented: `scripts/commons-promotion.py --from-rehearsal RUN_ID ATTEMPT COMMIT` locates the rehearsal's two artifacts by their exact names, downloads both through the repository's bounded transport, verifies them with the completed-run consumer against the checked-out source, rebuilds the predecessor packet from the live script bytes, plans against the live provider through `capture_observation`/`plan_baseline`/`build_plan`, and feeds the planner's output to the engine. The explicit `--packet` mode remains for operator rehearsals. |
-| CI automation | Not started. Worker promotion must not run from PR code; it follows the same protected-canonical discipline as static publication. |
+| CI automation | Implemented: `.github/workflows/commons-promotion.yml` is dispatch-only with the publication workflow's protected-canonical guards, runs the wired command in the `production-commons` environment, shares the `oss-production` concurrency group without canceling in-progress runs, and retains only the sanitized outcome. The remaining gates before the first dispatch are operational: the `production-commons` environment with its separately scoped provider token and origin binding, and a reconciled live target without unowned pending versions. |
 | Schema migration | Separate procedure; remains gated by its own backup, DDL inventory and preservation evidence. |
 
 The first implementation slices — the durable intent record, the promotion
 engine, the fixed operator command for steps 3–7, the live capture with
-baseline and engine mapping and the candidate download and verification
-wiring — are implemented with offline tests. What remains is the promotion
-workflow itself.
+baseline and engine mapping, the candidate download and verification
+wiring and the dispatch workflow — are implemented with offline tests.
+What remains before the first real promotion is operational: the
+`production-commons` environment configuration and a reconciled live
+target.
 
 ## Wiring specification for steps 1–2
 
@@ -160,8 +162,8 @@ Three contracts close the remaining open points of that wiring:
 
 ## Workflow design (after wiring)
 
-Automation follows the static publication discipline and Astra's original
-design intent:
+Implemented as `.github/workflows/commons-promotion.yml`. Automation follows
+the static publication discipline and Astra's original design intent:
 
 - `commons-promotion.yml`, **dispatch only** (no automatic trigger), protected
   canonical `main` guards identical to the publication workflow.
