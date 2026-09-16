@@ -217,7 +217,7 @@ def reconstruct_predecessor(content, commit):
     require(0 < len(files) <= 32 and len(set(files)) == len(files), 'invalid_candidate')
     # A well-formed provider form terminates with its closing boundary; a
     # truncated upload or trailing junk after it refuses here.
-    require(content.endswith(b'--' + boundary + b'--'), 'invalid_candidate')
+    require(content.rstrip(b'\r\n').endswith(b'--' + boundary + b'--'), 'invalid_candidate')
     # The live predecessor carries the previously installed module profile: a
     # subset of the current contract that every module digest binds to this
     # commit. The candidate side keeps the strict full-module allowlist.
