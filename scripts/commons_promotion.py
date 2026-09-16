@@ -439,13 +439,16 @@ def promote(adapter, intent, plan, candidate, accept):
             return {'promoted': False, 'staged_version': staged, 'deployment': number}
         intent.finish(number, 'promoted')
         return {'promoted': True, 'staged_version': staged, 'deployment': number}
-    except ArtifactError:
+    except ArtifactError as error:
         # Nothing further is attempted: close as rolled back when the
         # predecessor is the live version, otherwise the intent stays
-        # unresolved and blocks the next promotion.
+        # unresolved and blocks the next promotion. The refusal code
+        # accompanies the sanitized outcome so an operator can tell a
+        # pre-staging refusal apart from a live-acceptance rollback.
         if adapter.observe()['active_version'] == predecessor:
             intent.finish(number, 'rolled_back')
-            return {'promoted': False, 'staged_version': None, 'deployment': number}
+            return {'promoted': False, 'staged_version': None, 'deployment': number,
+                    'error': error.code}
         intent.finish(number, 'unresolved')
         raise
     except Exception:

@@ -120,7 +120,10 @@ implementation can be reviewed against a written contract.
 - **Engine feeding:** map the planner output onto the engine plan —
   predecessor version, inherit bindings over the observed installed bindings,
   compatibility date and current release sha from the active version, and the
-  packet bytes exactly as verified. One binding is deliberately not inherited:
+  staged content rebuilt from the verified packet's module bytes (the
+  provider's multipart wire format; the canonical JSON packet itself is never
+  uploaded — the provider validates module syntax and refuses it). One
+  binding is deliberately not inherited:
   `RELEASE_SHA` is re-entered as plain text with the candidate commit, so the
   promoted version serves its own release identity for live acceptance; the
   engine's staged-version verification then checks the staged state against
