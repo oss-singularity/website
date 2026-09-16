@@ -84,15 +84,15 @@ target is not a fixed filesystem but a versioned Worker whose bindings
 | Promotion engine (stage, server-side verification, single activation, rollback) | Implemented with offline tests: lost stage and activation responses are resolved by observation under the call's own annotations, changed staged bindings abort before activation, and a failed live acceptance restores the predecessor exactly once. |
 | Fixed operator command (steps 3–7) | Implemented: `scripts/commons-promotion.py` derives the plan from live provider state (installed bindings become inherit entries; predecessor, compatibility date and current release identity are read from the active version), takes the candidate packet and commit as inputs, uses the same live API acceptance as publication, and reports one sanitized JSON outcome. Account identifiers and the provider token come from the environment and stay outside the repository. |
 | Live capture, baseline and engine mapping | Implemented with offline tests and live read validation: `capture_observation` composes the planner's normalized observation from bounded live reads, `plan_baseline` records the normalized state digest and refuses unowned pending versions before any intent, and `engine_plan` maps the planner output onto the engine contract (inherit bindings; `RELEASE_SHA` re-entered with the candidate commit). |
-| Candidate download and verification wiring | Not implemented as command wiring; locating and downloading the rehearsal artifacts through `rehearsal_artifacts` and running `commons_candidate.verify` in the command's `--from-rehearsal` path remain the next slice. |
+| Candidate download and verification wiring | Implemented: `scripts/commons-promotion.py --from-rehearsal RUN_ID ATTEMPT COMMIT` locates the rehearsal's two artifacts by their exact names, downloads both through the repository's bounded transport, verifies them with the completed-run consumer against the checked-out source, rebuilds the predecessor packet from the live script bytes, plans against the live provider through `capture_observation`/`plan_baseline`/`build_plan`, and feeds the planner's output to the engine. The explicit `--packet` mode remains for operator rehearsals. |
 | CI automation | Not started. Worker promotion must not run from PR code; it follows the same protected-canonical discipline as static publication. |
 | Schema migration | Separate procedure; remains gated by its own backup, DDL inventory and preservation evidence. |
 
 The first implementation slices — the durable intent record, the promotion
-engine, the fixed operator command for steps 3–7 and the live capture with
-baseline and engine mapping — are implemented with offline tests. What
-remains is the candidate download and verification wiring inside the command
-and, afterwards, automation.
+engine, the fixed operator command for steps 3–7, the live capture with
+baseline and engine mapping and the candidate download and verification
+wiring — are implemented with offline tests. What remains is the promotion
+workflow itself.
 
 ## Wiring specification for steps 1–2
 
