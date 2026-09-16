@@ -323,7 +323,10 @@ def check_product(root: Path) -> int:
         parser.feed(document.read_text(encoding="utf-8"))
         linked_styles = {attrs.get("href") for tag, attrs in parser.attrs if tag == "link" and attrs.get("rel") == "stylesheet"}
         page_css_bytes = sum((root / href.lstrip("/")).stat().st_size for href in linked_styles)
-        if page_css_bytes > 65_000:
+        # Raised from 65 KB on 2026-09-16: the Singularity room reached 64.9 KB with the
+        # stage 02 project tree, and the stage 03 receipt cards need headroom. The budget
+        # stays a deliberate lean-page guard; raise it consciously, not silently.
+        if page_css_bytes > 70_000:
             fail(f"per-page CSS budget exceeded: {document.relative_to(root)} {page_css_bytes} bytes")
     script_bytes = sum(path.stat().st_size for path in (root / "assets/scripts").glob("*.js"))
     for script in (root / "assets/scripts").glob("*.js"):
