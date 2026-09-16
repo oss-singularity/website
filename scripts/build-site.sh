@@ -84,7 +84,7 @@ copy_file data/founding-mission.json data/founding-mission.json
 copy_file data/help-wanted.json data/help-wanted.json
 copy_file data/help-wanted.schema.json data/help-wanted.schema.json
 copy_file data/commons-openapi.json data/commons-openapi.json
-copy_file data/synthetic-delivery-artifact.txt data/synthetic-delivery-artifact.txt
+copy_file data/synthetic-delivery-artifact.json data/synthetic-delivery-artifact.json
 python3 "$repo_root/scripts/build-hub.py" "$output"
 
 (

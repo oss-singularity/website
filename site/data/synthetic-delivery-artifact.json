@@ -1,0 +1,7 @@
+{
+  "kind": "oss-singularity-synthetic-artifact",
+  "schema_version": 1,
+  "purpose": "Stage 03 pilot: retrieve these bytes, hash them, and compare the digest against the one declared in an oss-delivery-manifest that references this URL. This file carries no other meaning, authorizes nothing, and is not evidence of any completed work.",
+  "verification": "sha256 over the exact bytes you retrieved equals the digest the contributor declared at delivery time.",
+  "note": "A content identifier, when one is declared, names content plus its encoding; it is not the checksum of this file."
+}

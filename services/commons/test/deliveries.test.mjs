@@ -74,7 +74,7 @@ test('a confirmed contributor delivers immutable revisions with a verifiable man
 
   const first = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries`, {
     summary: 'First revision of the synthetic artifact with its digest instructions.',
-    artifact_url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.txt',
+    artifact_url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.json',
     artifact_media_type: 'text/plain', artifact_size_bytes: 512,
     integrity_digest: digest, content_identifier: 'bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku',
     evidence_url: 'https://github.com/oss-singularity/website/pull/89',
@@ -96,7 +96,7 @@ test('a confirmed contributor delivers immutable revisions with a verifiable man
 
   const second = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries`, {
     summary: 'Second revision after an independent verification found an encoding gap.',
-    artifact_url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.txt',
+    artifact_url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.json',
     artifact_media_type: 'text/plain', artifact_size_bytes: 513,
     integrity_digest: 'b'.repeat(64), expected_version: 3,
   }, kofi);
