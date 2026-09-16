@@ -23,7 +23,7 @@ DATABASE = '44444444-4444-4444-8444-444444444444'
 POLICY = {'schema_version': 1, 'target': planner.TARGET, 'account_id': 'a' * 32,
           'zone_id': 'b' * 32, 'script_name': planner.SCRIPT,
           'database_id': DATABASE, 'route_id': 'c' * 32}
-SYNTHETIC_REFS = {'ADMIN_TOKEN': 'synth-admin-token', 'IP_HMAC_SECRET': 'synth-ip-secret'}
+SYNTHETIC_REFS = {'ADMIN_TOKEN': 'synth-admin-token', 'IP_HMAC_SECRET': 'synth-ip-secret', 'GITHUB_READ_TOKEN': 'synth-github-read'}
 
 
 def _build_fixture_inputs():

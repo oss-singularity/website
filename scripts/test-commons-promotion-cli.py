@@ -65,7 +65,7 @@ class DeriveTests(unittest.TestCase):
     detail = {'resources': {
         'bindings': [
             {'name': 'DB', 'type': 'd1', 'id': 'd1-uuid'},
-            {'name': 'ADMIN_TOKEN', 'type': 'secret_text'},
+            {'name': 'ADMIN_TOKEN', 'type': 'secret_text'}, {'name': 'GITHUB_READ_TOKEN', 'type': 'secret_text'},
             {'name': 'RELEASE_SHA', 'type': 'plain_text', 'text': '1' * 40},
         ],
         'script': {'modules': [{'name': 'worker.mjs'}]},
@@ -77,7 +77,7 @@ class DeriveTests(unittest.TestCase):
         self.assertEqual(plan['predecessor_version'], 'v-live')
         self.assertEqual(plan['release_sha'], '1' * 40)
         self.assertEqual(plan['bindings'], [
-            {'name': 'DB', 'type': 'inherit'}, {'name': 'ADMIN_TOKEN', 'type': 'inherit'},
+            {'name': 'DB', 'type': 'inherit'}, {'name': 'ADMIN_TOKEN', 'type': 'inherit'}, {'name': 'GITHUB_READ_TOKEN', 'type': 'inherit'},
             {'name': 'RELEASE_SHA', 'type': 'inherit'}])
         self.assertEqual(plan['installed_bindings'], self.detail['resources']['bindings'])
         self.assertEqual(plan['compatibility_date'], '2026-09-04')
@@ -336,6 +336,7 @@ class FromRehearsalTests(unittest.TestCase):
         cls.installed = [
             {'name': 'ADMIN_TOKEN', 'type': 'secret_text'},
             {'database_id': DATABASE, 'id': DATABASE, 'name': 'DB', 'type': 'd1'},
+            {'name': 'GITHUB_READ_TOKEN', 'type': 'secret_text'},
             {'name': 'IP_HMAC_SECRET', 'type': 'secret_text'},
             {'name': 'PUBLIC_ORIGIN', 'text': 'https://oss-singularity.io', 'type': 'plain_text'},
             {'name': 'RELEASE_SHA', 'text': LIVE_SHA, 'type': 'plain_text'},
@@ -422,7 +423,7 @@ class FromRehearsalTests(unittest.TestCase):
         self.assertEqual(by_name['IP_HMAC_SECRET'], {'name': 'IP_HMAC_SECRET', 'type': 'secret_text'})
         self.assertEqual(by_name['PUBLIC_ORIGIN'],
                          {'name': 'PUBLIC_ORIGIN', 'text': 'https://oss-singularity.io', 'type': 'plain_text'})
-        self.assertEqual(len(staged_bindings), 5)
+        self.assertEqual(len(staged_bindings), 6)
 
     def test_unowned_pending_versions_refuse_before_the_intent(self):
         provider = self.provider(latest='99999999-9994-9999-8999-999999999999')

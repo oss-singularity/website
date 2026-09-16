@@ -112,6 +112,7 @@ def settings(policy, sha):
             'RELEASE_SHA': {'type': 'plain_text', 'text': sha},
             'ADMIN_TOKEN': {'type': 'secret_text'},
             'IP_HMAC_SECRET': {'type': 'secret_text'},
+            'GITHUB_READ_TOKEN': {'type': 'secret_text'},
         },
         'compatibility_date': RUNTIME['compatibility_date'], 'compatibility_flags': [],
         'usage_model': 'standard', 'logpush': False, 'observability': {'enabled': False},

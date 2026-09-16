@@ -212,7 +212,7 @@ def _decide_stage(state, captured_candidate_packet, opaque_handles, operation_ke
     require(type(captured_candidate_packet) is bytes, 'invalid_packet')
     require(digest(captured_candidate_packet) == state['candidate_packet_sha256'], 'packet_mismatch')
     require(type(opaque_handles) is dict and 'ADMIN_TOKEN' in opaque_handles
-            and 'IP_HMAC_SECRET' in opaque_handles, 'invalid_handles')
+            and 'IP_HMAC_SECRET' in opaque_handles and 'GITHUB_READ_TOKEN' in opaque_handles, 'invalid_handles')
     intent = {'effect_kind': 'stage', 'operation_id': operation_key.operation_id,
               'plan_sha256': operation_key.plan_sha256, 'fence_epoch': state['fence_epoch'],
               'expected_revision': state['revision'] + 1, 'dispatch_id': state['dispatch_count'] + 1,
