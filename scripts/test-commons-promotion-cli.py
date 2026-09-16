@@ -229,7 +229,8 @@ class FakeProvider:
     def stage_version(self, content, commit, message, tag, bindings=None,
                       main_module='worker.mjs', compatibility_date=None):
         self.calls.append('stage')
-        _files, descriptor = artifact.unpack(content, commit, rehearsal.SCHEMA_SHA256)
+        names = cli.packet_modules(content)
+        assert set(names) == set(artifact.MODULES)
         self.staged = 'staged-' + commit[:4]
         resolved = []
         for binding in bindings:
@@ -240,7 +241,7 @@ class FakeProvider:
                 resolved.append(dict(binding))
         self.staged_detail = {'resources': {
             'bindings': resolved,
-            'script': {'modules': [{'name': name} for name in sorted(descriptor['modules'])]},
+            'script': {'modules': [{'name': name} for name in names]},
             'script_runtime': {'compatibility_date': compatibility_date}}}
         return self.staged
 
@@ -276,6 +277,31 @@ class _IntentOpener:
         if method == 'GET' and url.endswith('/statuses?per_page=1&page=1'):
             return _FakeResponse([self.confirmations.pop(0)], url)
         raise AssertionError(method + ' ' + url)
+
+
+class StageFormTests(unittest.TestCase):
+    def setUp(self):
+        packet = Path(tempfile.mkdtemp(prefix='oss-stage-form-')) / 'commons.json'
+        self.addCleanup(shutil.rmtree, packet.parent, ignore_errors=True)
+        artifact.create(ROOT / 'services/commons', SHA, packet)
+        self.packet = packet.read_bytes()
+
+    def test_stage_form_carries_one_real_module_part_per_module(self):
+        form = cli.stage_form(self.packet, SHA)
+        names = cli.packet_modules(form)
+        self.assertEqual(set(names), set(artifact.MODULES))
+        for name in names:
+            marker = (f'Content-Disposition: form-data; name="{name}"; filename="{name}"'
+                      f'\r\nContent-Type: application/javascript+module').encode()
+            self.assertIn(marker, form)
+        (files, _migrations) = artifact.source_inputs(ROOT / 'services/commons')
+        for name, raw in files.items():
+            self.assertIn(raw, form)
+        self.assertNotIn(b'"descriptor"', form)
+
+    def test_stage_form_refuses_a_packet_bound_to_another_commit(self):
+        with self.assertRaisesRegex(ArtifactError, 'descriptor_mismatch'):
+            cli.stage_form(self.packet, 'b' * 40)
 
 
 class FromRehearsalTests(unittest.TestCase):

@@ -86,6 +86,26 @@ def packet_modules(content):
     return names
 
 
+def stage_form(packet, commit):
+    """Rebuild the provider's multipart upload form from a verified JSON packet.
+
+    The engine stages the provider's own wire format: one module part per
+    packet module. The canonical packet itself is never uploaded — the
+    provider validates module syntax and refuses a JSON document. Unpack
+    re-binds the packet to the candidate commit before any byte is used.
+    """
+    files, _descriptor = artifact.unpack(packet, commit, planner.SCHEMA_SHA256)
+    require(set(files) == set(artifact.MODULES), 'invalid_candidate')
+    boundary = '----CfWorkerStage' + artifact.digest(packet)[:16]
+    parts = b''
+    for name in sorted(files):
+        parts += (
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{name}"'
+            f'\r\nContent-Type: application/javascript+module\r\n\r\n'
+        ).encode() + files[name] + b'\r\n'
+    return parts + f'--{boundary}--'.encode()
+
+
 def derive_plan(observation, active_detail, message, tag):
     """Build the engine plan from live state: inherit bindings, current identity."""
     require(type(observation) is dict and observation.get('active_version'),
@@ -173,7 +193,7 @@ def consume_and_plan(commit, run_id, attempt, message, tag, environ, provider, g
                                      predecessor_packet=predecessor_packet, baseline=baseline,
                                      observation=captured['observation'], target_policy=policy)
         plan = engine.engine_plan(commit, planned, message, tag)
-        return {'commit': commit, 'content': packet,
+        return {'commit': commit, 'content': stage_form(packet, commit),
                 'modules': sorted(report['descriptor']['modules'])}, plan
 
 
