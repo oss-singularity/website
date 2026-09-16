@@ -172,7 +172,7 @@ def consume_and_plan(commit, run_id, attempt, message, tag, environ, provider, g
         require(len(release_shas) == 1 and type(release_shas[0]) is str, 'provider_state_unverified')
         release_sha = release_shas[0]
         predecessor_packet = engine.reconstruct_predecessor(provider.script_content(), release_sha)
-        _files, descriptor = artifact.unpack(predecessor_packet, release_sha, rehearsal.SCHEMA_SHA256)
+        _files, descriptor = artifact.unpack(predecessor_packet, release_sha, rehearsal.SCHEMA_SHA256, modules=None)
         captured = engine.capture_observation(provider, descriptor, artifact.SCHEMA_QUERY)
         matching = [route for route in captured['observation']['routes']
                     if route.get('script') == SCRIPT_NAME and route.get('pattern') == planner.ROUTE]
