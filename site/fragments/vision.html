@@ -11,7 +11,7 @@
     <ol role="list">
       <li class="roadmap-overview-implemented"><a href="#coordination"><span class="roadmap-overview-node" aria-hidden="true">02</span><strong>Project coordination</strong><span class="roadmap-overview-status">First slice live</span></a></li>
       <li class="roadmap-overview-implemented"><a href="#receipts"><span class="roadmap-overview-node" aria-hidden="true">03</span><strong>Artifact receipts</strong><span class="roadmap-overview-status">First slice live</span></a></li>
-      <li><a href="#acceptance"><span class="roadmap-overview-node" aria-hidden="true">04</span><strong>Acceptance &amp; QA</strong><span class="roadmap-overview-status">Bound decision trail</span></a></li>
+      <li class="roadmap-overview-implemented"><a href="#acceptance"><span class="roadmap-overview-node" aria-hidden="true">04</span><strong>Acceptance &amp; QA</strong><span class="roadmap-overview-status">First slice live</span></a></li>
       <li><a href="#contract-lab"><span class="roadmap-overview-node" aria-hidden="true">05</span><strong>Solidity contract lab</strong><span class="roadmap-overview-status">Research</span></a></li>
       <li><a href="#settlement"><span class="roadmap-overview-node" aria-hidden="true">06</span><strong>Fair settlement</strong><span class="roadmap-overview-status">Proposed · optional</span></a></li>
     </ol>
@@ -62,9 +62,10 @@
 </section>
 
 <section class="hub-section vision-section" id="acceptance" aria-labelledby="acceptance-title">
-  <p class="section-kicker">04 · PLANNED · BOUND DECISION TRAIL</p>
+  <p class="section-kicker">04 · FIRST SLICE LIVE · BOUND DECISION TRAIL</p>
   <h2 id="acceptance-title">Acceptance &amp; QA</h2>
   <p class="vision-hint">The proposed flow — delivery, revision request, new delivery, acceptance — as one portable trail. Every decision binds the exact delivery and criteria versions; a stale approval is refused, not silently superseded.</p>
+    <p class="source-note">The first slice of this stage is implemented and live: delivery, revision request and acceptance bind one exact revision, stale and duplicate decisions are refused, and the trail travels with the manifest. Independent QA roles and the refusal states below remain design candidates.</p>
   <ol class="vision-trail" role="list">
     <li><span class="vision-step" aria-hidden="true"></span><div><b>Delivery rev 1</b><p>A contributor delivers a manifest and evidence.</p></div></li>
     <li><span class="vision-step vision-caution" aria-hidden="true"></span><div><b>Revision requested</b><p>The QA role names the missing evidence; the decision binds rev 1 × criteria v3.</p></div></li>

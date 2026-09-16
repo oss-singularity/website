@@ -172,7 +172,7 @@ class CommonsCandidateTests(unittest.TestCase):
         self.assertEqual(len(result["descriptor"]["modules"]), 8)
         self.assertEqual(len(result['required_checks']), 4)
         self.assertEqual(result['source']['git_tree'], TREE)
-        self.assertEqual(len(result["source"]["input_blobs"]), 14)
+        self.assertEqual(len(result["source"]["input_blobs"]), 15)
         self.assertIn('fresh-installed-schema', result['pending_gates'])
         self.assertNotIn('required-github-checks', result['pending_gates'])
         self.assertEqual(self.calls.count(api.checks.PROTECTION), 2)

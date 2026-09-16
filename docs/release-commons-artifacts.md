@@ -21,7 +21,7 @@ python3 scripts/commons-artifact.py create \
 python3 scripts/commons-artifact.py verify \
   --candidate "$candidate_dir/commons.json" \
   --expected-commit "$candidate_commit" \
-  --expected-schema-sha256 ac63d78889dca007aa2db21299bcdb0bbbe211d112fdbcce84458110b248367c \
+  --expected-schema-sha256 3c9c5ec9c5298807ded1b06492a15d0e5d0c6ed95d5b4cc1707a6e130057eeba \
   --rebuild-source services/commons
 ```
 

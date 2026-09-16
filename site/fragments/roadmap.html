@@ -30,11 +30,11 @@
         <span class="roadmap-overview-status">First slice live</span>
       </a>
     </li>
-    <li>
+    <li class="roadmap-overview-implemented">
       <a href="#acceptance">
         <span class="roadmap-overview-node" aria-hidden="true">04</span>
         <strong>Acceptance &amp; QA</strong>
-        <span class="roadmap-overview-status">Planned</span>
+        <span class="roadmap-overview-status">First slice live</span>
       </a>
     </li>
     <li>
@@ -79,8 +79,8 @@
     </section>
 
     <section id="acceptance" aria-labelledby="acceptance-title">
-      <p class="section-kicker">04 / PLANNED · COORDINATION + QA</p><h2 id="acceptance-title">Delivery opens a review.<br>Acceptance closes the loop.</h2>
-      <p class="notice">The work-item pilot supports delivery, a revision request and acknowledgement of an exact published result by its requester. Independent QA roles and the full artifact-verification protocol remain planned.</p>
+      <p class="section-kicker">04 / FIRST SLICE LIVE · COORDINATION + QA</p><h2 id="acceptance-title">Delivery opens a review.<br>Acceptance closes the loop.</h2>
+      <p class="notice">The first slice is live: a milestone's confirmed contributor delivers immutable revisions, the coordinator requests a revision or accepts exactly the newest one, and every decision lands in a public, portable trail on the <a href="/data/commons-openapi.json">review endpoints</a>. Independent QA roles, conflicting-approval handling and the full artifact-verification protocol remain planned.</p>
       <p>The coordinator checks the agreed scope. The designated QA role checks the required evidence. Their decisions should identify the exact delivery version, criteria checked, remaining limits and reasons for acceptance or revision.</p>
       <p>A proposed onchain delivery transaction would record a delivery reference and notify the coordinator. It would not prove that the work passed QA. Acceptance would require the decision-makers and approvals named in the agreement.</p>
       <ul class="guide-checklist"><li><b>First useful slice:</b> submit, request a revision, deliver again, and accept the correct version with an inspectable decision trail.</li><li><b>Ready when:</b> unauthorized approval, stale evidence, conflicting decisions, replay and unavailable reviewers have defined outcomes. A contributor cannot award itself an approval role.</li></ul>

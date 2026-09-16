@@ -283,7 +283,7 @@ class CommonsArtifactTests(unittest.TestCase):
         value = a.metadata(self.files, SHA, self.schema)
         value['schema']['migrations'].clear()
         value['runtime']['compatibility_flags'].append('unexpected')
-        self.assertEqual(len(a.MIGRATIONS), 5)
+        self.assertEqual(len(a.MIGRATIONS), 6)
         self.assertEqual(a.RUNTIME['compatibility_flags'], [])
 
 
