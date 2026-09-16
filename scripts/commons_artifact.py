@@ -23,6 +23,7 @@ MIGRATIONS = {
     '0003_work_items.sql': '45960c242ae7d41b5ed960724e3bdef8ef887670c32b5773c7d2e34137017fa0',
     '0004_projects.sql': '849ed2aa549d8cdb10edd647f2d86b09f0f95ecc511d58c5e9840d8996fb455b',
     '0005_receipts.sql': '12277c9f529f04052b3bf99464b5f8bf878542a61aa5cfd79a016c761d41e914',
+    '0006_milestone_reviews.sql': '31699d1d593c691c5a88c9392356c8c8dca680d79ad4229a306d4d8e1a1979a0',
 }
 RUNTIME = {'entrypoint': 'worker.mjs', 'compatibility_date': '2026-09-04', 'compatibility_flags': []}
 MAX_MODULE = 512 * 1024

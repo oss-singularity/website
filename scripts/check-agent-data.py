@@ -239,6 +239,7 @@ def validate_openapi(spec: dict) -> None:
         "/api/v1/projects/{id}/actions": ("post",),
         "/api/v1/projects/{id}/milestones/{milestone_id}/deliveries": ("get", "post"),
         "/api/v1/projects/{id}/milestones/{milestone_id}/deliveries/{revision}": ("get",),
+        "/api/v1/projects/{id}/milestones/{milestone_id}/reviews": ("get", "post"),
     }
     require(set(spec.get("paths", {})) == set(operations), "Commons OpenAPI public route set differs")
     require(spec.get("security") == [], "Commons public reads must not claim account authentication")
@@ -263,6 +264,7 @@ def validate_openapi(spec: dict) -> None:
         ("/api/v1/projects/{id}/commitments/{commitment_id}/actions", "post"): [{"IdentityBearer": []}],
         ("/api/v1/projects/{id}/actions", "post"): [{"IdentityBearer": []}],
         ("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries", "post"): [{"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/milestones/{milestone_id}/reviews", "post"): [{"IdentityBearer": []}],
     }
     names = set()
     for path, methods in operations.items():
@@ -401,8 +403,14 @@ def validate_openapi(spec: dict) -> None:
     require(schemas.get("DeliveryManifest", {}).get("properties", {}).get("notice", {}).get("const") ==
             "A manifest records a delivery and its declared integrity metadata; the service fetches and verifies no artifact bytes, establishes no quality, authorship or acceptance, and authorizes no payment.",
             "Delivery manifests must keep their honest fetch-and-verify boundary notice")
+    review_request = schemas.get("MilestoneReviewRequest", {})
+    require(review_request.get("additionalProperties") is False and
+            set(review_request.get("properties", {})) == {"delivery_revision", "decision", "note", "expected_version"} and
+            set(review_request.get("required", [])) == {"delivery_revision", "decision", "expected_version"} and
+            set(review_request.get("properties", {}).get("decision", {}).get("enum", [])) == {"accept", "revision_requested"},
+            "Reviews must bind one exact revision with an explicit decision, without client-supplied roles")
     for name in ("ProjectSummary", "MilestoneView", "CommitmentView", "ProjectExport",
-                 "DeliveryView", "DeliveryArtifact", "DeliveryManifest"):
+                 "DeliveryView", "DeliveryArtifact", "DeliveryManifest", "MilestoneReview"):
         public_schema = schemas.get(name, {})
         require(public_schema.get("additionalProperties") is False and
                 set(public_schema.get("properties", {})).isdisjoint(private_fields),
@@ -610,12 +618,14 @@ def self_test() -> int:
     invalid = copy.deepcopy(openapi)
     invalid["paths"]["/api/v1/projects/{id}/matching"] = {"post": {}}
     rejected(lambda: validate_openapi(invalid))
-    for path, method in (("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries", "post"),):
+    for path, method in (("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries", "post"),
+                         ("/api/v1/projects/{id}/milestones/{milestone_id}/reviews", "post")):
         invalid = copy.deepcopy(openapi)
         invalid["paths"][path][method]["security"] = []
         rejected(lambda: validate_openapi(invalid))
     for schema, field in (("DeliveryRequest", "author_identity_id"), ("DeliveryRequest", "accepted"),
-                          ("DeliveryArtifact", "verified_bytes"), ("DeliveryManifest", "receipt_token")):
+                          ("DeliveryArtifact", "verified_bytes"), ("DeliveryManifest", "receipt_token"),
+                          ("MilestoneReviewRequest", "reviewer_identity_id"), ("MilestoneReview", "token_hash")):
         invalid = copy.deepcopy(openapi)
         invalid["components"]["schemas"][schema]["properties"][field] = {"type": "string"}
         rejected(lambda: validate_openapi(invalid))

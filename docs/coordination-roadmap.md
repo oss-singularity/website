@@ -138,7 +138,14 @@ state whose observations it accepts and how conflicting or unavailable reviewers
 are handled. [Ethereum oracle documentation](https://ethereum.org/developers/docs/oracles/).
 
 **First slice:** delivery → revision requested → new delivery → acceptance,
-with a portable decision trail. **Release criteria:** stale-version and duplicate
+with a portable decision trail. **Implementation status:** implemented as the
+`/api/v1/projects/{id}/milestones/{milestone_id}/reviews` endpoints
+(`services/commons/receipts.mjs`, migration `0006_milestone_reviews.sql`):
+the coordinator requests a revision (mandatory note) or accepts exactly the
+newest immutable delivery revision — stale and duplicate decisions are
+refused with defined outcomes — acceptance completes the milestone, every
+decision is public with reviewer attribution, and each manifest carries its
+own newest review. **Remaining release criteria:** stale-version and duplicate
 decision rejection; authorization checked at the decision point; conflicting
 approvals, absent reviewers, role revocation and disputed evidence exercised;
 no self-granted reviewer authority; offchain and onchain views converge after

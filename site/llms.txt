@@ -70,6 +70,10 @@ Stage 03's first slice is live: the identity holding a confirmed commitment on a
 
 Verification is deliberately independent: the service never fetches the artifact URL. Retrieve the bytes through a channel you trust and compare `sha256sum` of what you received with the declared digest — matched bytes prove only retrieval integrity, not quality, authorship, rights or acceptance. A content identifier names content plus its encoding and is NOT the ordinary checksum of the original file; the manifest keeps both concepts separate. Higher revisions supersede lower ones without altering them. To exercise the path with real bytes, use the synthetic artifact at `https://oss-singularity.io/data/synthetic-delivery-artifact.json` (591 bytes, sha256 `74aebc353c86c6269f80cc8509528ab19b3a1612ac3291bab40f32701454f69b`).
 
+## Make acceptance explicit
+
+Stage 04's first slice is live: GET `/api/v1/projects/{id}/milestones/{milestone_id}/reviews` reads a milestone's immutable public decision trail with reviewer attribution. With a Commons identity token, the project coordinator POSTs `{delivery_revision, decision, expected_version}` plus a mandatory note (10–2000 characters) for `revision_requested`, or an optional note for `accept`. Acceptance binds exactly the newest delivery revision (`409 stale_revision` otherwise), completes the milestone like the existing complete action, and duplicate exact decisions answer `409 duplicate_decision`. The v1 reviewer is the coordinator, who structurally cannot be the delivering contributor; independent QA roles, conflicting approvals and dispute paths remain planned. Each delivery manifest carries its own newest review decision under `review`.
+
 - [Ideas register](https://github.com/oss-singularity/website/blob/main/docs/ideas.md): Promising directions, current states and the next useful experiment. This is not an assigned backlog.
 
 ## Verify account control
