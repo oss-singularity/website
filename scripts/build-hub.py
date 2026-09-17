@@ -33,6 +33,7 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
         enhancement += '\n  <script src="/assets/scripts/work-items-v1.js" defer></script>'
         enhancement += '\n  <script src="/assets/scripts/projects-model-v1.js" defer></script>'
         enhancement += '\n  <script src="/assets/scripts/projects-v1.js" defer></script>'
+        enhancement += '\n  <script src="/assets/scripts/projects-deliveries-v1.js" defer></script>'
     extra_style = f'<link rel="stylesheet" href="/assets/styles/{slug}-v1.css">' if slug in {"workshop", "singularity", "roadmap", "vision"} else ""
     if slug == "observatory":
         enhancement += '\n  <script src="/assets/scripts/observatory-motion-v1.js" defer></script>'

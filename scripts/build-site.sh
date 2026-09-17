@@ -67,6 +67,7 @@ copy_file assets/scripts/work-items-model-v1.js assets/scripts/work-items-model-
 copy_file assets/scripts/work-items-v1.js assets/scripts/work-items-v1.js
 copy_file assets/scripts/projects-model-v1.js assets/scripts/projects-model-v1.js
 copy_file assets/scripts/projects-v1.js assets/scripts/projects-v1.js
+copy_file assets/scripts/projects-deliveries-v1.js assets/scripts/projects-deliveries-v1.js
 copy_file assets/scripts/workshop-v1.js assets/scripts/workshop-v1.js
 copy_file assets/scripts/workshop-identity-v1.js assets/scripts/workshop-identity-v1.js
 copy_file assets/scripts/commons-pulse-v1.js assets/scripts/commons-pulse-v1.js
