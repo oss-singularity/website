@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('../site/fragments/singularity.html', import.meta.url), 'utf8');
-const sources = ['projects-model-v1.js', 'projects-v1.js'].map((file) => [file, readFileSync(new URL(`../site/assets/scripts/${file}`, import.meta.url), 'utf8')]);
+const sources = ['projects-model-v1.js', 'projects-v1.js', 'projects-deliveries-v1.js'].map((file) => [file, readFileSync(new URL(`../site/assets/scripts/${file}`, import.meta.url), 'utf8')]);
 const id = (n) => `${String(n).padStart(8, '0')}-1111-4111-8111-111111111111`;
 const timestamp = '2026-09-16T12:00:00.000Z';
 const actor = (n) => ({ identity_id: id(n), github_id: n, github_login: `fixture-${n}`, github_url: `https://github.com/fixture-${n}`, verification: 'github-account-control', verified_at: timestamp });
@@ -23,6 +23,8 @@ function harness({ route, mission = 'build-the-commons' } = {}) {
   let sequence = 30;
   class Element {
     constructor(tag, idValue = '') { this.tagName = tag.toUpperCase(); this.id = idValue; this.children = []; this.events = new Map(); this.attributes = {}; this.dataset = {}; this.value = ''; this.checked = false; this.disabled = false; this.hidden = false; this._text = ''; }
+    querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
+    querySelectorAll(selector) { const cls = selector.startsWith('.') ? selector.slice(1) : null; return walk(this).filter((n) => cls ? (n.className || '').split(/\s+/).includes(cls) : false); }
     set textContent(value) { this._text = String(value); this.children = []; }
     get textContent() { return this._text + this.children.map((c) => c.textContent).join(''); }
     append(...children) { this.children.push(...children); }
@@ -37,13 +39,14 @@ function harness({ route, mission = 'build-the-commons' } = {}) {
   elements.get('room-context').dataset.missionId = mission;
   const walk = (n) => [n, ...(n.children || []).flatMap(walk)];
   const get = (name) => elements.get(name) || [...elements.values()].flatMap(walk).find((e) => e.id === name);
-  const document = { getElementById: (name) => get(name), createElement: (tag) => new Element(tag), createTextNode: (value) => ({ textContent: value }), body: new Element('body'), addEventListener: (name, listener) => documentEvents.set(name, listener) };
+  const document = { getElementById: (name) => get(name), createElement: (tag) => new Element(tag), createTextNode: (value) => ({ textContent: value }), body: new Element('body'), addEventListener: (name, listener) => documentEvents.set(name, listener), dispatchEvent: (event) => { const listener = documentEvents.get(event.type); if (listener) listener(event); }, querySelectorAll: (selector) => selector === '#project-detail article[data-milestone-id]' ? walk(get('project-detail')).filter((n) => n.tagName === 'ARTICLE' && n.dataset?.milestoneId) : [] };
   const window = { location: new URL('https://oss-singularity.io/singularity/?mission=build-the-commons'), addEventListener: (name, listener) => windowEvents.set(name, listener), setTimeout: (fn, delay) => { const n = ++sequence; timers.set(n, { fn, delay }); return n; }, clearTimeout: (n) => timers.delete(n) };
   class TestURL extends URL {}
   TestURL.createObjectURL = (blob) => { const n = `blob:test-${++sequence}`; blobs.set(n, blob); return n; };
   TestURL.revokeObjectURL = (url) => blobs.delete(url);
   const fetch = async (path, options) => { requests.push({ path, options }); const response = await route?.(path, options) || { body: { items: [], next_cursor: null } }; return { ok: (response.status || 200) < 400, status: response.status || 200, json: async () => response.body }; };
-  const context = vm.createContext({ window, document, fetch, URL: TestURL, URLSearchParams, AbortController, Blob, crypto: { randomUUID: () => id(++sequence) } });
+  class TestCustomEvent { constructor(type, init) { this.type = type; this.detail = init?.detail; } }
+  const context = vm.createContext({ window, document, fetch, URL: TestURL, URLSearchParams, AbortController, Blob, CustomEvent: TestCustomEvent, crypto: { randomUUID: () => id(++sequence) } });
   for (const [filename, source] of sources) vm.runInContext(source, context, { filename });
   const h = { get, requests, blobs, downloads, timers, model: window.OssProjects, text: (name) => get(name).textContent,
     fire: (name, event = 'click') => get(name).events.get(event)?.({ preventDefault() {} }),
@@ -243,6 +246,52 @@ test('the model refuses offered commitments in public detail, viewer markers in 
   assert.ok(exported(exportPacket()));
   assert.ok(!exported(exportPacket({ notice: 'different' })));
   assert.ok(!exported(exportPacket({ commitments: [{ ...exportPacket().commitments[0], status: 'offered' }] })));
+});
+
+const artifactDigest = 'a'.repeat(64);
+const deliveryFixture = (extra = {}) => ({ id: id(50), project_id: id(1), milestone_id: id(30), revision: 1, scope_version: 1,
+  summary: 'First revision of the delivered artifact with honest limits.', artifact: { url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.json',
+  media_type: 'application/json', size_bytes: 591, integrity: { algorithm: 'sha256', digest: artifactDigest }, content_identifier: null },
+  evidence_url: null, author: actor(5), created_at: timestamp, ...extra });
+const reviewFixture = (extra = {}) => ({ id: id(51), project_id: id(1), milestone_id: id(30), delivery_revision: 1,
+  decision: 'accept', note: null, reviewer: actor(2), created_at: timestamp, ...extra });
+
+test('a milestone detail offers deliveries and reviews rendered as an inspectable trail', async () => {
+  const hostile = '</h4><script>steal()</script>';
+  const value = project({ milestones: [milestone({ title: hostile })], commitments: [] });
+  const h = harness({ route: (path, options) => {
+    if (path.includes('/deliveries/')) throw new Error('not requested');
+    if (path.endsWith('/deliveries')) return { body: { items: [deliveryFixture({ summary: hostile })], next_cursor: null } };
+    if (path.endsWith('/reviews')) return { body: { items: [reviewFixture({ decision: 'revision_requested', note: 'The manifest must also state who retains the artifact bytes and for how long they stay retrievable.' })], next_cursor: null } };
+    if (path.startsWith('/api/v1/projects?')) return { body: { items: [value], next_cursor: null } };
+    return { body: value };
+  } });
+  await publicOpen(h);
+  const all = (n) => [n, ...n.children.flatMap(all)];
+  const toggle = h.button('Deliveries & reviews', 'project-detail');
+  assert.ok(toggle, 'toggle injected after detail render');
+  await toggle.click(); await flush();
+  const detailText = h.text('project-detail');
+  assert.match(detailText, /Delivery revision 1/);
+  assert.match(detailText, /Revision requested · revision 1/);
+  const heading = all(h.get('project-detail')).find((n) => n.tagName === 'H4' && n.textContent === hostile);
+  assert.equal(heading.children.length, 0, 'hostile text stays literal');
+  const manifestLinks = all(h.get('project-detail')).filter((n) => n.tagName === 'A' && /\/deliveries\/1$/.test(n.href));
+  assert.equal(manifestLinks.length, 1, 'versioned manifest link rendered');
+});
+
+test('invalid delivery responses fail closed without rendering a trail', async () => {
+  const value = project({ milestones: [milestone()], commitments: [] });
+  const h = harness({ route: (path) => {
+    if (path.endsWith('/deliveries')) return { body: { items: [{ id: 'not-a-uuid' }], next_cursor: null } };
+    if (path.endsWith('/reviews')) return { body: { items: [], next_cursor: null } };
+    if (path.startsWith('/api/v1/projects?')) return { body: { items: [value], next_cursor: null } };
+    return { body: value };
+  } });
+  await publicOpen(h);
+  await h.button('Deliveries & reviews', 'project-detail').click(); await flush();
+  assert.match(h.text('project-detail'), /unexpected response/);
+  assert.doesNotMatch(h.text('project-detail'), /Delivery revision/);
 });
 
 function windowModel() {

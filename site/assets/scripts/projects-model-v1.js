@@ -41,5 +41,20 @@
     && Array.isArray(v.commitments) && v.commitments.length <= 60 && v.commitments.every((c) => commitment(c, true)
       && ["confirmed", "ended"].includes(c.status))
     && v.notice === "An export records coordination decisions and identities; it verifies no artifact and authorizes no payment.";
-  window.OssProjects = Object.freeze({ uuid, missionId, text, date, shortDate, profile, projectLabels, milestoneLabels, commitmentLabels, commitmentActions, summary, milestone, commitment, detail, exported });
+  const delivery = (v) => v && uuid(v.id) && uuid(v.project_id) && uuid(v.milestone_id)
+    && Number.isSafeInteger(v.revision) && v.revision >= 1 && v.revision <= 10
+    && v.scope_version === 1 && text(v.summary, 2000)
+    && v.artifact && text(v.artifact.url, 2048) && typeof v.artifact.media_type === "string"
+    && Number.isSafeInteger(v.artifact.size_bytes) && v.artifact.size_bytes >= 1
+    && v.artifact.integrity && v.artifact.integrity.algorithm === "sha256"
+    && /^[a-f0-9]{64}$/.test(v.artifact.integrity.digest)
+    && (v.artifact.content_identifier === null || /^[a-zA-Z0-9]{9,128}$/.test(v.artifact.content_identifier))
+    && (v.evidence_url === null || text(v.evidence_url, 2048))
+    && profile(v.author) && date(v.created_at);
+  const review = (v) => v && uuid(v.id) && uuid(v.project_id) && uuid(v.milestone_id)
+    && Number.isSafeInteger(v.delivery_revision) && v.delivery_revision >= 1 && v.delivery_revision <= 10
+    && ["accept", "revision_requested"].includes(v.decision)
+    && (v.note === null || (text(v.note, 2000) && [...v.note].length >= 10))
+    && profile(v.reviewer) && date(v.created_at);
+  window.OssProjects = Object.freeze({ uuid, missionId, text, date, shortDate, profile, projectLabels, milestoneLabels, commitmentLabels, commitmentActions, summary, milestone, commitment, detail, exported, delivery, review });
 })();

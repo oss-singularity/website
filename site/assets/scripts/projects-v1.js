@@ -95,6 +95,7 @@
   };
   const renderMilestone = (m, children, offerable) => {
     const article = node("article", undefined, `room-entry project-milestone${m.blocked && m.status === "open" ? " is-gated" : ""}`);
+    article.dataset.milestoneId = m.id;
     article.append(p(`${milestoneLabels[m.status]}${m.blocked && m.status === "open" ? " · blocked by a dependency gate" : ""}${m.parent_milestone_id ? " · subproject part" : ""}`, "room-entry-state"), node("h4", m.title));
     article.append(p(m.purpose, "room-description"), node("h5", "Expected artifact"), p(m.expected_artifact, "room-description"), node("h5", "Acceptance criteria"));
     const criteria = node("ol"); m.acceptance.forEach((entry) => criteria.append(node("li", entry))); article.append(criteria);
@@ -160,6 +161,7 @@
     box.append(button("Download project export", () => exportProject(view)));
     if (pending) box.append(p("The last write has an uncertain outcome. Retry re-checks the server state and re-sends only if that action is still possible.", "room-work-notice"),
       button("Retry the same action against the current state", () => resolvePending(), writeBusy));
+    document.dispatchEvent(new CustomEvent("projects:detail", { detail: { projectId: view.id, milestones: view.milestones.map((m) => m.id), live: !writeBusy && !pending } }));
   };
   const openDetail = async (id, keepPrivate = false) => {
     if (!alive || !uuid(id) || writeBusy) return;
