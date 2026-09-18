@@ -114,6 +114,25 @@ test('the project list filters by status without refetching and keeps entries in
   assert.equal(h.get('projects-list').querySelectorAll('.room-entry').length, 2);
 });
 
+test('closed projects fold into one history group; the open work and the closed filter stay visible', async () => {
+  const openOne = project({ id: id(1), status: 'open', title: 'Open one' });
+  const closedOne = project({ id: id(2), status: 'closed', title: 'Closed one' });
+  const closedTwo = project({ id: id(3), status: 'closed', title: 'Closed two' });
+  const h = harness({ route: (path) => path.startsWith('/api/v1/projects?') ? { body: { items: [openOne, closedOne, closedTwo], next_cursor: null } } : { body: openOne } });
+  await flush();
+  const directEntries = h.get('projects-list').children.filter((n) => (n.className || '').split(/\s+/).includes('room-entry'));
+  assert.equal(directEntries.length, 1); // only the open project is a card at rest
+  assert.match(directEntries[0].textContent, /Open one/); assert.doesNotMatch(directEntries[0].textContent, /Closed one/);
+  const history = h.get('projects-list').querySelectorAll('.project-history');
+  assert.equal(history.length, 1);
+  assert.match(history[0].textContent, /Closed history \(2\)/);
+  history[0].click(); await flush(); // open the folded history
+  assert.match(h.text('projects-list'), /Closed one/); assert.match(h.text('projects-list'), /Closed two/);
+  h.get('projects-list').querySelectorAll('.chip').find((n) => n.textContent === 'Closed (2)').click(); await flush();
+  assert.equal(h.get('projects-list').querySelectorAll('.room-entry').length, 2); // explicit filter shows the closed cards directly
+  assert.equal(h.get('projects-list').querySelectorAll('.project-history').length, 0);
+});
+
 test('delivered milestones collapse to their headline but keep the record inspectable', async () => {
   const done = milestone({ id: id(31), status: 'done', title: 'Shipped slice', purpose: 'The delivered purpose line.' });
   const h = harness({ route: routes(project({ milestones: [done] })) });

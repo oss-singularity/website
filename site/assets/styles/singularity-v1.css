@@ -181,3 +181,7 @@
 .project-milestone-reveal > summary:hover { border-color: var(--room-accent); border-style: solid; }
 .project-milestone-reveal[open] > summary { margin-bottom: .5rem; }
 @media (prefers-reduced-motion: reduce) { .project-milestone:not(.is-done) > .room-entry-state::before { animation: none; } }
+.project-history { margin: .4rem 0 0; }
+.project-history > summary { cursor: pointer; color: var(--room-accent); font-size: .85rem; font-weight: 600; padding: .4rem .7rem; border: 1px dashed var(--room-border); border-radius: 8px; display: block; }
+.project-history > summary:hover { border-color: var(--room-accent); border-style: solid; }
+.project-history[open] > summary { margin-bottom: .6rem; }
