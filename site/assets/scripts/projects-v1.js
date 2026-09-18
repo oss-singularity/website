@@ -80,6 +80,7 @@
       chip.addEventListener("click", () => { listFilter = key; listPages.clear(); renderList(); });
       bar.append(chip);
     });
+    bar.append(node("span", "Per page", "project-size-label"));
     const size = node("select", undefined, "project-size");
     size.setAttribute("aria-label", "Projects per page");
     for (const value of [6, 12, 24, 48]) {

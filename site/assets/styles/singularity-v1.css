@@ -161,8 +161,11 @@
 
 /* --- UX pass 2026-09-18: filter the list, feel the actions --- */
 .project-filter { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 .8rem; align-items: center; }
-.project-size { background: color-mix(in srgb, var(--room-accent) 4%, var(--room-surface)); border: 1px solid var(--room-border); border-radius: 999px; color: var(--room-muted); cursor: pointer; font: inherit; font-size: .72rem; margin-left: .35rem; min-height: 44px; padding: 0 .7rem; transition: border-color .15s, color .15s; }
-.project-size:hover, .project-size:focus { border-color: var(--room-accent); color: var(--room-text); outline: none; }
+/* Chip-sized pill, not the hub-wide form select — .project-filter lifts this
+   above the hub rule (.hub-page select { width:100%; min-height:48px; … }). */
+.project-size-label { color: var(--room-dim); font-size: .62rem; letter-spacing: .04em; margin-left: .55rem; }
+.project-filter .project-size { appearance: none; background-color: color-mix(in srgb, var(--room-accent) 4%, var(--room-surface)); background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237d99a8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-position: right .55rem center; background-repeat: no-repeat; border: 1px solid var(--room-border); border-radius: 999px; color: var(--room-muted); cursor: pointer; flex: 0 0 auto; font: inherit; font-size: .74rem; min-height: 44px; padding: .2rem 1.55rem .2rem .78rem; transition: border-color .15s, color .15s; width: auto; }
+.project-filter .project-size:hover, .project-filter .project-size:focus { border-color: var(--room-accent); color: var(--room-text); outline: none; }
 .chip { font: inherit; font-size: .78rem; padding: .22rem .7rem; border-radius: 999px; border: 1px solid var(--room-border); background: transparent; color: var(--room-muted); cursor: pointer; transition: color .15s, border-color .15s, background-color .15s; }
 .chip:not(:disabled):hover { color: var(--room-text); border-color: var(--room-accent); }
 .chip.is-active { background: var(--room-accent); border-color: var(--room-accent); color: var(--room-ink, #06101d); font-weight: 600; }
