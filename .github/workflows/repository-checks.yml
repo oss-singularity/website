@@ -28,6 +28,8 @@ jobs:
         run: node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs scripts/test-work-items-ui.mjs scripts/test-projects-ui.mjs
       - name: Check machine contract rejection cases
         run: python3 scripts/check-agent-data.py --self-test
+      - name: Validate the delivery receipt verifier
+        run: python3 scripts/test-verify-receipt.py
       - name: Validate static release artifacts and rejection cases
         run: python3 scripts/test-release-artifact.py
       - name: Validate Commons code artifacts and existing schema profiles
