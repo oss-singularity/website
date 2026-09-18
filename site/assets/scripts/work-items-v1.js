@@ -60,10 +60,16 @@
   };
   const attribution = (role, actor) => p(`${role}: @${actor.github_login} · GitHub account control`, "room-attribution");
   const card = (item, privateView) => {
-    const a = node("article", undefined, "room-entry"); a.append(p(`${labels[item.state]} · ${item.moderation}`, "room-entry-state"), node("h4", item.title));
-    a.append(p(`Scope ${item.scope_version} · version ${item.version} · expires ${shortDate(item.expires_at)}`, "room-meta"));
-    if (privateView) a.append(p(`Mission: ${item.mission_id}`, "room-meta"));
-    a.append(button(privateView ? "Open my work & decisions" : "Read scope & decisions", () => openDetail(item.id, privateView)));
+    // same two-column panel as the project cards: title on the left, the
+    // action and its scope/version line beside it instead of stacked below
+    const a = node("article", undefined, "room-entry project-card");
+    const body = node("div", undefined, "project-card-body");
+    body.append(p(`${labels[item.state]} · ${item.moderation}`, "room-entry-state"), node("h4", item.title));
+    if (privateView) body.append(p(`Mission: ${item.mission_id}`, "room-meta"));
+    const side = node("div", undefined, "project-card-side");
+    side.append(button(privateView ? "Open my work & decisions" : "Read scope & decisions", () => openDetail(item.id, privateView)));
+    side.append(p(`Scope ${item.scope_version} · version ${item.version} · expires ${shortDate(item.expires_at)}`, "room-meta"));
+    a.append(body, side);
     return a;
   };
   const renderList = (privateView) => { const box = el(privateView ? "mine" : "list"); box.replaceChildren(...(privateView ? privateItems : publicItems).map((item) => card(item, privateView))); };
