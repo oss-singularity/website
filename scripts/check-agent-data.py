@@ -387,9 +387,17 @@ def validate_openapi(spec: dict) -> None:
     require(schemas.get("ProjectExport", {}).get("properties", {}).get("notice", {}).get("const") ==
             "An export records coordination decisions and identities; it verifies no artifact and authorizes no payment.",
             "Project exports must keep their honest boundary notice")
+    retention = schemas.get("DeliveryRetention", {}).get("properties", {})
+    require(set(retention) == {"retained_by", "retained_until", "access", "on_unavailable"} and
+            set(retention.get("retained_by", {}).get("enum", [])) == {"contributor", "coordinator", "third-party"} and
+            retention.get("access", {}).get("const") == "public",
+            "Delivery retention must stay a declared intent object without storage guarantees")
+    require("superseded_by_revision" in schemas.get("DeliveryManifest", {}).get("properties", {}) and
+            "retention" in schemas.get("DeliveryManifest", {}).get("properties", {}),
+            "Delivery manifests must name their superseder and retention declaration")
     delivery_request = schemas.get("DeliveryRequest", {})
     delivery_fields = {"summary", "artifact_url", "artifact_media_type", "artifact_size_bytes", "integrity_digest",
-                       "content_identifier", "evidence_url", "expected_version"}
+                       "content_identifier", "evidence_url", "retention", "expected_version"}
     require(delivery_request.get("additionalProperties") is False and
             set(delivery_request.get("properties", {})) == delivery_fields and
             set(delivery_request.get("required", [])) == {"summary", "artifact_url", "artifact_media_type", "artifact_size_bytes", "integrity_digest", "expected_version"},
@@ -623,7 +631,7 @@ def self_test() -> int:
         invalid = copy.deepcopy(openapi)
         invalid["paths"][path][method]["security"] = []
         rejected(lambda: validate_openapi(invalid))
-    for schema, field in (("DeliveryRequest", "author_identity_id"), ("DeliveryRequest", "accepted"),
+    for schema, field in (("DeliveryRetention", "storage_guarantee"), ("DeliveryManifest", "payload_hash"), ("DeliveryRequest", "author_identity_id"), ("DeliveryRequest", "accepted"),
                           ("DeliveryArtifact", "verified_bytes"), ("DeliveryManifest", "receipt_token"),
                           ("MilestoneReviewRequest", "reviewer_identity_id"), ("MilestoneReview", "token_hash")):
         invalid = copy.deepcopy(openapi)

@@ -260,7 +260,9 @@ export async function projectAction(request, env, projectId, now) {
     env.DB.prepare(`UPDATE milestones SET status = 'cancelled', version = version + 1, updated_at = ?
       WHERE project_id = ? AND status = 'open'`).bind(now, projectId),
     env.DB.prepare(`UPDATE commitments SET status = 'cancelled', updated_at = ?
-      WHERE project_id = ? AND status IN ('offered','confirmed')`).bind(now, projectId),
+      WHERE project_id = ? AND status IN ('offered','confirmed')
+        AND milestone_id IN (SELECT id FROM milestones WHERE project_id = ? AND status != 'done')`)
+      .bind(now, projectId, projectId),
     env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
       SELECT ${sqlUuid}, id, version + 1, ?, 'identity', ?, ? FROM projects WHERE id = ?`).bind(body.action, actor.id, now, projectId),
   ]);
@@ -399,7 +401,7 @@ export async function projectExport(request, env, id, now) {
       status: row.status, scope_version: 1, version: row.version,
       coordinator: profile(row, row.coordinator_identity_id), created_at: iso(row.created_at), updated_at: iso(row.updated_at) },
     milestones: milestones.rows.map(milestone => milestoneView(milestone, milestones.dependencies, milestones.blocked, true)),
-    commitments: commitments.filter(view => ['confirmed', 'ended'].includes(view.status))
+    commitments: commitments.filter(view => ['confirmed', 'ended', 'completed'].includes(view.status))
       .map(({ id: commitmentId, milestone_id, contributor, coordinator, status, terms, scope_version, created_at, updated_at }) =>
         ({ id: commitmentId, milestone_id, contributor, coordinator, status, terms, scope_version, created_at, updated_at })),
     notice: 'An export records coordination decisions and identities; it verifies no artifact and authorizes no payment.',

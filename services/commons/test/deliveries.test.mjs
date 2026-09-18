@@ -220,3 +220,38 @@ test('unknown revisions fail closed and the revision cap holds', async t => {
   assert.equal(over.status, 409, JSON.stringify(over.body ?? '').slice(0, 200));
   assert.equal(over.body.error.code, 'revision_limit');
 });
+
+test('declared retention validates honestly and manifests name their superseder', async t => {
+  const env = await environment(t);
+  const aria = await enroll(env, 'aria');
+  const kofi = await enroll(env, 'kofi');
+  const { projectId, milestoneId } = await coordinatedMilestone(env, aria, kofi);
+  const base = {
+    artifact_url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.json',
+    artifact_media_type: 'application/json', artifact_size_bytes: 591, integrity_digest: digest, expected_version: 2,
+  };
+  for (const bad of [
+    { retained_by: 'nobody' },
+    { retained_by: 'contributor', retained_until: '2027-02-30' },
+    { retained_by: 'contributor', access: 'private' },
+    { retained_by: 'contributor', on_unavailable: 'too short' },
+  ]) {
+    const attempt = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries`,
+      { summary: 'A delivery whose declared retention rules must be rejected.', ...base, retention: bad }, kofi);
+    assert.equal(attempt.status, 400, JSON.stringify({ bad, body: attempt.body }).slice(0, 220));
+  }
+  const first = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries`,
+    { summary: 'A delivery declaring who keeps the artifact and for how long.', ...base,
+      retention: { retained_by: 'contributor', retained_until: '2027-09-17', on_unavailable: 'Treat the delivery as historical; rely on the project export for the trail.' } }, kofi);
+  assert.equal(first.status, 201, JSON.stringify(first.body).slice(0, 220));
+  assert.equal(first.body.retention.retained_by, 'contributor');
+  assert.equal(first.body.retention.access, 'public');
+  const second = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries`,
+    { summary: 'A second revision making the first one superseded.', ...base, expected_version: 3 }, kofi);
+  assert.equal(second.body.retention, null);
+  const stale = await call(env, 'GET', `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries/1`);
+  assert.equal(stale.body.superseded_by_revision, 2, 'a superseded manifest names its superseder');
+  assert.equal(stale.body.retention.retained_until, '2027-09-17');
+  const newest = await call(env, 'GET', `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries/2`);
+  assert.equal(newest.body.superseded_by_revision, null);
+});

@@ -17,7 +17,7 @@ spec.loader.exec_module(shared)
 REPOSITORY = 'oss-singularity/website'
 REPOSITORY_ID = 1351274990
 WORKFLOW_REF = REPOSITORY + '/.github/workflows/commons-release-rehearsal.yml@refs/heads/main'
-SCHEMA_SHA256 = '3c9c5ec9c5298807ded1b06492a15d0e5d0c6ed95d5b4cc1707a6e130057eeba'
+SCHEMA_SHA256 = '529375020eebba9e06c823fa2616bfed7c0f8ea22bb45c3ccc87683167fa493c'
 PENDING = ['successful-github-run', 'required-github-checks', 'trusted-provenance-consumption',
            'fresh-protected-head-at-promotion', 'fresh-installed-schema', 'scoped-provider-access',
            'serialized-promotion', 'durable-recovery', 'live-verification']

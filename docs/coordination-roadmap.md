@@ -103,7 +103,7 @@ location, media type, size, a raw sha256 digest and an optional content
 identifier; every revision downloads as the portable
 `oss-delivery-manifest` with author attribution and a verification
 instruction, and the service never fetches a supplied URL. A synthetic
-artifact ships at `/data/synthetic-delivery-artifact.json`.
+artifact ships at `/data/synthetic-delivery-artifact.json`. The completion slice adds the accepted design notes: every manifest names its superseder (`superseded_by_revision`) and may carry a declared `retention` object; acceptance completes confirmed commitments and closing spares commitments on done milestones (migration `0007_receipt_completion.sql`).
 **Remaining release criteria:** detect mismatched
 bytes, unsafe references, absent content and stale revisions; distinguish a CID
 from a raw-file digest; preserve the agreed access policy; validate artifact
