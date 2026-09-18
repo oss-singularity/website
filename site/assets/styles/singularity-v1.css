@@ -160,7 +160,9 @@
 .project-milestone.is-gated .room-entry-state { color: var(--room-caution); }
 
 /* --- UX pass 2026-09-18: filter the list, feel the actions --- */
-.project-filter { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 .8rem; }
+.project-filter { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 .8rem; align-items: center; }
+.project-size { background: color-mix(in srgb, var(--room-accent) 4%, var(--room-surface)); border: 1px solid var(--room-border); border-radius: 999px; color: var(--room-muted); cursor: pointer; font: inherit; font-size: .72rem; margin-left: .35rem; min-height: 44px; padding: 0 .7rem; transition: border-color .15s, color .15s; }
+.project-size:hover, .project-size:focus { border-color: var(--room-accent); color: var(--room-text); outline: none; }
 .chip { font: inherit; font-size: .78rem; padding: .22rem .7rem; border-radius: 999px; border: 1px solid var(--room-border); background: transparent; color: var(--room-muted); cursor: pointer; transition: color .15s, border-color .15s, background-color .15s; }
 .chip:not(:disabled):hover { color: var(--room-text); border-color: var(--room-accent); }
 .chip.is-active { background: var(--room-accent); border-color: var(--room-accent); color: var(--room-ink, #06101d); font-weight: 600; }
