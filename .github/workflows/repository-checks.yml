@@ -32,6 +32,8 @@ jobs:
         run: python3 scripts/test-verify-receipt.py
       - name: Validate the contract lab generator and pinned-compiler package
         run: python3 scripts/test-solidity-lab.py
+      - name: Walk the settlement model through every outcome including unresponsive participants
+        run: python3 scripts/test-fair-settlement.py
       - name: Validate static release artifacts and rejection cases
         run: python3 scripts/test-release-artifact.py
       - name: Validate Commons code artifacts and existing schema profiles
