@@ -37,11 +37,11 @@
         <span class="roadmap-overview-status">First slice live</span>
       </a>
     </li>
-    <li>
+    <li class="roadmap-overview-implemented">
       <a href="#contract-lab">
         <span class="roadmap-overview-node" aria-hidden="true">05</span>
         <strong>Solidity contract lab</strong>
-        <span class="roadmap-overview-status">Research</span>
+        <span class="roadmap-overview-status">First slice live</span>
       </a>
     </li>
     <li>
@@ -87,10 +87,11 @@
     </section>
 
     <section id="contract-lab" aria-labelledby="contract-lab-title">
-      <p class="section-kicker">05 / RESEARCH · SOLIDITY + TESTNET TARGET</p><h2 id="contract-lab-title">A guided contract lab.<br>Understand before signing.</h2>
+      <p class="section-kicker">05 / FIRST SLICE LIVE · SOLIDITY + TESTNET TARGET</p><h2 id="contract-lab-title">A guided contract lab.<br>Understand before signing.</h2>
       <p>Explore a guided smart-contract generator that starts from a milestone agreement: roles, delivery references, acceptance policy, deadlines and optional settlement rules. It should produce readable Solidity, a clear explanation and a reproducible test package.</p>
+      <p class="notice">The first slice is live: the <a href="https://github.com/oss-singularity/website/tree/main/design/solidity-lab">contract lab</a> generates a readable delivery-and-acceptance example from a synthetic agreement, explains every requested signature, pins the exact compiler so a pinned commit reproduces the artifacts, and exercises role, replay and failure behaviour without any chain. Guided generation over real agreements and any testnet exercise remain planned — the latter only with separate, explicit authorization.</p>
       <p>Established libraries and tools such as OpenZeppelin Contracts Wizard are building blocks to evaluate. A generated contract still needs its own threat model and tests. The first experiment should run locally, followed by an explicitly authorized testnet exercise.</p>
-      <ul class="guide-checklist"><li><b>First useful slice:</b> generate and inspect a delivery-and-acceptance example using synthetic artifacts and no real funds.</li><li><b>Ready when:</b> pinned source and compiler versions reproduce the output; role, replay and failure tests pass; the interface explains every requested signature. Nothing signs or deploys merely because code was generated.</li></ul>
+      <ul class="guide-checklist"><li><b>First useful slice (shipped):</b> generate and inspect a delivery-and-acceptance example using synthetic artifacts and no real funds, reproducible from pinned source and compiler versions.</li><li><b>Ready when:</b> pinned source and compiler versions reproduce the output; role, replay and failure tests pass; the interface explains every requested signature. Nothing signs or deploys merely because code was generated.</li></ul>
     </section>
 
     <section id="settlement" aria-labelledby="settlement-title">
