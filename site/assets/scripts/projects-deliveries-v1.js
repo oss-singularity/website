@@ -44,13 +44,24 @@
           li.append(p("No delivery revisions yet. The confirmed contributor delivers immutable revisions through the public API.", "source-note"));
           list.append(li);
         }
+        // The list is served newest revision first; any strictly higher revision
+        // means this delivery is historical (superseded), shown without needing
+        // the manifest-only superseded_by_revision field.
+        const latestRevision = deliveriesData.items.reduce((max, item) => Math.max(max, item.revision), 0);
         for (const item of deliveriesData.items) {
+          const supersededBy = item.revision < latestRevision ? latestRevision : null;
           const li = node("li");
           const entry = node("article", undefined, "room-entry");
           const badge = reviewBadge(reviewsData.items, item.revision);
-          entry.append(p(`Delivery revision ${item.revision} · delivered ${new Date(item.created_at).toLocaleDateString()}${badge ? ` · ${badge}` : ""}`, badge === "Accepted" ? "room-entry-state" : badge ? "room-work-notice" : "room-meta"), node("h4", item.summary), p(`Artifact: ${item.artifact.url}`, "room-meta"), p(`sha256 ${item.artifact.integrity.digest.slice(0, 16)}… over ${item.artifact.size_bytes} bytes${item.artifact.content_identifier ? ` · CID ${item.artifact.content_identifier.slice(0, 12)}…` : ""}`, "room-meta"), p(`Delivered by @${item.author.github_login} · GitHub account control`, "room-attribution"));
+          entry.append(p(`Delivery revision ${item.revision} · delivered ${new Date(item.created_at).toLocaleDateString()}${badge ? ` · ${badge}` : ""}`, badge === "Accepted" ? "room-entry-state" : badge ? "room-work-notice" : "room-meta"), node("h4", item.summary), p(`Artifact: ${item.artifact.url}`, "room-meta"), p(`sha256 ${item.artifact.integrity.digest.slice(0, 16)}… over ${item.artifact.size_bytes} bytes${item.artifact.content_identifier ? ` · CID ${item.artifact.content_identifier.slice(0, 12)}…` : ""}`, "room-meta"));
+          if (item.retention) {
+            entry.append(p(item.retention.retained_until ? `Retained by ${item.retention.retained_by} until ${item.retention.retained_until} · access ${item.retention.access}` : `Retained by ${item.retention.retained_by} · no end date declared · access ${item.retention.access}`, "room-meta"));
+            if (item.retention.on_unavailable) entry.append(p(`If unavailable: ${item.retention.on_unavailable}`, "source-note"));
+          }
+          entry.append(p(`Delivered by @${item.author.github_login} · GitHub account control`, "room-attribution"));
+          if (supersededBy) entry.append(p(`Superseded by revision ${supersededBy}`, "room-work-notice"));
           const actions = node("div", undefined, "room-actions");
-          const manifest = node("a", "Open the versioned manifest ↗");
+          const manifest = node("a", supersededBy ? "Open the versioned manifest (historical) ↗" : "Open the versioned manifest ↗");
           manifest.href = `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries/${item.revision}`;
           manifest.target = "_blank"; manifest.rel = "noopener noreferrer";
           actions.append(manifest);

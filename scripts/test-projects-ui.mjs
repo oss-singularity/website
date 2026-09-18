@@ -252,7 +252,9 @@ const artifactDigest = 'a'.repeat(64);
 const deliveryFixture = (extra = {}) => ({ id: id(50), project_id: id(1), milestone_id: id(30), revision: 1, scope_version: 1,
   summary: 'First revision of the delivered artifact with honest limits.', artifact: { url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.json',
   media_type: 'application/json', size_bytes: 591, integrity: { algorithm: 'sha256', digest: artifactDigest }, content_identifier: null },
-  evidence_url: null, author: actor(5), created_at: timestamp, ...extra });
+  evidence_url: null, retention: { retained_by: 'contributor', retained_until: '2027-09-17', access: 'public',
+  on_unavailable: 'The contributor keeps a mirror and the coordinator can restore the artifact bytes on request.' },
+  author: actor(5), created_at: timestamp, ...extra });
 const reviewFixture = (extra = {}) => ({ id: id(51), project_id: id(1), milestone_id: id(30), delivery_revision: 1,
   decision: 'accept', note: null, reviewer: actor(2), created_at: timestamp, ...extra });
 
@@ -292,6 +294,66 @@ test('invalid delivery responses fail closed without rendering a trail', async (
   await h.button('Deliveries & reviews', 'project-detail').click(); await flush();
   assert.match(h.text('project-detail'), /unexpected response/);
   assert.doesNotMatch(h.text('project-detail'), /Delivery revision/);
+});
+
+test('retention declarations render and older revisions are marked superseded', async () => {
+  const value = project({ milestones: [milestone()], commitments: [] });
+  const h = harness({ route: (path) => {
+    if (path.endsWith('/deliveries')) return { body: { items: [deliveryFixture({ revision: 2, id: id(52) }), deliveryFixture({ retention: undefined })], next_cursor: null } };
+    if (path.endsWith('/reviews')) return { body: { items: [], next_cursor: null } };
+    if (path.startsWith('/api/v1/projects?')) return { body: { items: [value], next_cursor: null } };
+    return { body: value };
+  } });
+  await publicOpen(h);
+  await h.button('Deliveries & reviews', 'project-detail').click(); await flush();
+  const all = (n) => [n, ...n.children.flatMap(all)];
+  const entries = all(h.get('project-detail')).filter((n) => n.className === 'room-entry');
+  assert.equal(entries.length, 2, 'two delivery entries rendered');
+  assert.match(entries[0].textContent, /Delivery revision 2/);
+  assert.match(entries[0].textContent, /Retained by contributor until 2027-09-17 · access public/);
+  assert.match(entries[0].textContent, /If unavailable: The contributor keeps a mirror/);
+  assert.doesNotMatch(entries[0].textContent, /Superseded by/);
+  const currentLink = all(entries[0]).filter((n) => n.tagName === 'A')[0];
+  assert.equal(currentLink.textContent, 'Open the versioned manifest ↗');
+  assert.match(currentLink.href, /\/deliveries\/2$/);
+  assert.match(entries[1].textContent, /Delivery revision 1/);
+  assert.doesNotMatch(entries[1].textContent, /Retained by/);
+  assert.match(entries[1].textContent, /Superseded by revision 2/);
+  const historicalLink = all(entries[1]).filter((n) => n.tagName === 'A')[0];
+  assert.equal(historicalLink.textContent, 'Open the versioned manifest (historical) ↗');
+  assert.match(historicalLink.href, /\/deliveries\/1$/);
+});
+
+test('deliveries without retention keep rendering the plain trail', async () => {
+  const value = project({ milestones: [milestone()], commitments: [] });
+  const h = harness({ route: (path) => {
+    if (path.endsWith('/deliveries')) return { body: { items: [deliveryFixture({ retention: undefined })], next_cursor: null } };
+    if (path.endsWith('/reviews')) return { body: { items: [reviewFixture()], next_cursor: null } };
+    if (path.startsWith('/api/v1/projects?')) return { body: { items: [value], next_cursor: null } };
+    return { body: value };
+  } });
+  await publicOpen(h);
+  await h.button('Deliveries & reviews', 'project-detail').click(); await flush();
+  const detailText = h.text('project-detail');
+  assert.match(detailText, /Delivery revision 1/);
+  assert.match(detailText, /Open the versioned manifest ↗/);
+  assert.doesNotMatch(detailText, /Retained by/);
+  assert.doesNotMatch(detailText, /If unavailable:/);
+  assert.doesNotMatch(detailText, /Superseded by/);
+});
+
+test('the model accepts optional retention and the completed commitment status', () => {
+  const { delivery: deliveryModel, commitment: commitmentModel } = windowModel();
+  assert.ok(deliveryModel(deliveryFixture()));
+  assert.ok(deliveryModel(deliveryFixture({ retention: null })));
+  assert.ok(deliveryModel(deliveryFixture({ retention: undefined })));
+  assert.ok(deliveryModel(deliveryFixture({ retention: { retained_by: 'third-party', retained_until: null, access: 'public', on_unavailable: null } })));
+  assert.ok(commitmentModel(commitment({ status: 'completed' })));
+  assert.ok(!deliveryModel(deliveryFixture({ retention: { retained_by: 'nobody', retained_until: '2027-09-17', access: 'public', on_unavailable: null } })));
+  assert.ok(!deliveryModel(deliveryFixture({ retention: { retained_by: 'third-party', retained_until: '17-09-2027', access: 'public', on_unavailable: null } })));
+  assert.ok(!deliveryModel(deliveryFixture({ retention: { retained_by: 'third-party', retained_until: null, access: 'private', on_unavailable: null } })));
+  assert.ok(!deliveryModel(deliveryFixture({ retention: { retained_by: 'third-party', retained_until: null, access: 'public', on_unavailable: 'too short' } })));
+  assert.ok(!deliveryModel(deliveryFixture({ retention: { retained_by: 'third-party', retained_until: null, access: 'public', on_unavailable: 'x'.repeat(301) } })));
 });
 
 function windowModel() {
