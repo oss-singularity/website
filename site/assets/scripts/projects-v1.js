@@ -104,10 +104,17 @@
         .some((value) => typeof value === "string" && value.toLowerCase().includes(listQuery));
       const shown = items.filter((item) => (listFilter === "all" || item.status === listFilter) && matches(item));
       const card = (item) => {
-        const article = node("article", undefined, "room-entry");
-        article.append(p(`${projectLabels[item.status]} · mission ${item.mission_id}`, "room-entry-state"), node("h4", item.title));
-        article.append(p(`Version ${item.version} · updated ${shortDate(item.updated_at)}`, "room-meta"), attribution("Coordinator", item.coordinator));
-        article.append(button("Read milestones & commitments", () => openDetail(item.id)));
+        const article = node("article", undefined, "room-entry project-card");
+        const body = node("div", undefined, "project-card-body");
+        body.append(p(`${projectLabels[item.status]} · mission ${item.mission_id}`, "room-entry-state"), node("h4", item.title));
+        const purpose = p(item.purpose, "room-description project-card-purpose");
+        body.append(purpose, attribution("Coordinator", item.coordinator));
+        // the wide right side earns its keep: action and version live beside the
+        // description instead of stacking another row under every card
+        const side = node("div", undefined, "project-card-side");
+        side.append(button("Read milestones & commitments", () => openDetail(item.id)));
+        side.append(p(`Version ${item.version} · updated ${shortDate(item.updated_at)}`, "room-meta"));
+        article.append(body, side);
         return article;
       };
       // keep the room short at any project count: open work stays visible,
