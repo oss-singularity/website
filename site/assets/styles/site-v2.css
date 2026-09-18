@@ -154,9 +154,16 @@ a { color: inherit; }
 .header-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; }
 .theme-toggle { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--text); cursor: pointer; font-family: inherit; font-size: .76rem; font-weight: 600; line-height: 1.4; min-height: 44px; padding: 10px 14px; white-space: nowrap; }
 .theme-toggle { inline-size: calc(7em + 30px); flex-shrink: 0; }
-/* Reserve the same header space before wiring, including with a saved theme.
-   Visibility keeps this one hidden control out of focus and accessibility. */
-.hub-page .theme-toggle[hidden], .theme-toggle[hidden] { display: inline-block !important; visibility: hidden; }
+/* The control reserves its header space from the first frame and is painted
+   correct immediately: the early head script sets html[data-theme] before the
+   first paint, and the icon/label pair below is selected by CSS, not scripted.
+   Without JavaScript no data-theme attribute is ever set, so the inert control
+   stays invisible (and unfocusable) while keeping its space. */
+.theme-toggle { visibility: hidden; }
+html[data-theme] .theme-toggle { visibility: visible; }
+.theme-toggle .theme-icon-bright, .theme-toggle .theme-text-bright { display: none; }
+html[data-theme="bright"] .theme-toggle .theme-icon-bright, html[data-theme="bright"] .theme-toggle .theme-text-bright { display: inline; }
+html[data-theme="bright"] .theme-toggle .theme-icon-dark, html[data-theme="bright"] .theme-toggle .theme-text-dark { display: none; }
 .theme-toggle:hover { background: var(--surface-raised); border-color: var(--cyan); }
 .error-header { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; margin-bottom: 36px; position: relative; width: 100%; z-index: 1; }
 .error-header .error-wordmark { position: static; }
