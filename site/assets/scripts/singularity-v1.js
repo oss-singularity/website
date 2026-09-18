@@ -164,27 +164,36 @@
     return line;
   };
   const participation = (item) => {
-    const article = nodes("article", undefined, `room-entry${item.state === "closed" ? " is-closed" : ""}`);
+    // same two-column panel as the project and work-item cards: what is sought
+    // or offered on the left, who and on which terms beside it on the right
+    const closed = item.state === "closed";
+    const article = nodes("article", undefined, `room-entry project-card${closed ? " is-closed" : ""}`);
     article.id = `participation-${item.id}`;
-    article.append(nodes("p", item.state === "closed" ? `Closed · ${item.intent === "need" ? "no longer seeking support" : "offer no longer available"}` : item.intent === "need" ? "Open need" : "Open offer", "room-entry-state"));
-    article.append(nodes("h4", item.title), nodes("p", item.summary, "room-description"), attribution(item.author));
+    const body = nodes("div", undefined, "project-card-body");
+    body.append(nodes("p", closed ? `Closed · ${item.intent === "need" ? "no longer seeking support" : "offer no longer available"}` : item.intent === "need" ? "Open need" : "Open offer", "room-entry-state"));
+    body.append(nodes("h4", item.title), nodes("p", item.summary, "room-description"), attribution(item.author));
     const type = { human: "Human", agent: "Agent", team: "Team", other: "Other / unspecified" }[item.participant_type];
-    article.append(nodes("p", `${type} · self-declared`, "room-meta"));
-    article.append(nodes("p", item.collaboration === "volunteer" ? "Voluntary" : "Compensation to agree · agree terms before work begins", "room-terms"));
-    article.append(nodes("p", `Published ${formatDate(item.published_at)} · Expires ${formatDate(item.expires_at)}`, "room-meta"));
+    const side = nodes("div", undefined, "project-card-side");
     const url = safeUrl(item.url);
-    if (url) { const actions = nodes("div", undefined, "room-actions"); actions.append(external("Explore the source ↗", url)); article.append(actions); }
+    if (url) side.append(external("Explore the source ↗", url));
+    side.append(nodes("p", `${type} · self-declared`, "room-meta"));
+    side.append(nodes("p", item.collaboration === "volunteer" ? "Voluntary" : "Compensation to agree · agree terms before work begins", "room-terms"));
+    side.append(nodes("p", `Published ${formatDate(item.published_at)}`, "room-meta"));
+    side.append(nodes("p", `Expires ${formatDate(item.expires_at)}`, "room-meta"));
+    article.append(body, side);
     return article;
   };
   const evidence = (item) => {
-    const article = nodes("article", undefined, "room-entry");
-    article.append(nodes("p", item.kind === "field-note" ? "Field note" : "Project", "room-entry-state"), nodes("h4", item.title), nodes("p", item.summary, "room-description"), attribution(item.author));
-    const actions = nodes("div", undefined, "room-actions");
+    const article = nodes("article", undefined, "room-entry project-card");
+    const body = nodes("div", undefined, "project-card-body");
+    body.append(nodes("p", item.kind === "field-note" ? "Field note" : "Project", "room-entry-state"), nodes("h4", item.title), nodes("p", item.summary, "room-description"), attribution(item.author));
+    const side = nodes("div", undefined, "project-card-side");
     const source = safeUrl(item.url);
-    if (source) actions.append(external("Explore the source ↗", source));
+    if (source) side.append(external("Explore the source ↗", source));
     const link = nodes("a", "View in the Workshop →");
     link.href = `/workshop/?signal=${encodeURIComponent(item.id)}#signal-${encodeURIComponent(item.id)}`;
-    actions.append(link); article.append(actions);
+    side.append(link);
+    article.append(body, side);
     return article;
   };
   const renderFeed = (name) => {
