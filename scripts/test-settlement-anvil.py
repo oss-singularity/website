@@ -245,7 +245,9 @@ class AnvilSettlementTests(unittest.TestCase):
     def test_dispute_fallback_refuses_inside_window_and_refunds_after(self) -> None:
         self._deliver()
         self._send_ok(KEYS["contributor"], "openDispute(string)", "evidence unclear")
-        self._jump_to(self.AGREEMENT_DATA["dispute_deadline"])
+        # a real chain never guarantees an exact block time, so assert clearly
+        # inside the window; the exact-boundary case lives in the model tests
+        self._jump_to(self.AGREEMENT_DATA["dispute_deadline"] - 60)
         self._send_reverts(KEYS["contributor"], "applyDisputeFallback()",
                            naming="DisputeWindowStillOpen")  # window still open
         self._jump_to(self.AGREEMENT_DATA["dispute_deadline"] + 1)
