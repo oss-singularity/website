@@ -78,13 +78,26 @@
     if (items.length) {
       box.append(projectFilter());
       const shown = items.filter((item) => listFilter === "all" || item.status === listFilter);
-      box.append(...shown.map((item) => {
-      const article = node("article", undefined, "room-entry");
-      article.append(p(`${projectLabels[item.status]} · mission ${item.mission_id}`, "room-entry-state"), node("h4", item.title));
-      article.append(p(`Version ${item.version} · updated ${shortDate(item.updated_at)}`, "room-meta"), attribution("Coordinator", item.coordinator));
-      article.append(button("Read milestones & commitments", () => openDetail(item.id)));
-      return article;
-      }));
+      const card = (item) => {
+        const article = node("article", undefined, "room-entry");
+        article.append(p(`${projectLabels[item.status]} · mission ${item.mission_id}`, "room-entry-state"), node("h4", item.title));
+        article.append(p(`Version ${item.version} · updated ${shortDate(item.updated_at)}`, "room-meta"), attribution("Coordinator", item.coordinator));
+        article.append(button("Read milestones & commitments", () => openDetail(item.id)));
+        return article;
+      };
+      // keep the room short at any project count: open work stays visible,
+      // the closed history folds into one inspectable group
+      const active = shown.filter((item) => item.status !== "closed");
+      const archived = shown.filter((item) => item.status === "closed");
+      if (listFilter !== "closed") {
+        box.append(...active.map(card));
+        if (archived.length) {
+          const history = node("details", undefined, "project-history");
+          history.append(node("summary", `Closed history (${archived.length}) — show finished projects`));
+          history.append(...archived.map(card));
+          box.append(history);
+        }
+      } else box.append(...shown.map(card));
     }
     else if (mission && loaded) {
       const empty = node("div", undefined, "room-empty");
