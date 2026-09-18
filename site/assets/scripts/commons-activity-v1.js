@@ -41,13 +41,22 @@
       group.append(element("dt", label), element("dd", data.totals[key].toLocaleString("en")));
       totals.append(group);
     });
+    if (data.coordination) {
+      [["projects_total", "Coordinated projects"], ["milestones_done", "Milestones done"],
+       ["commitments_completed", "Completed commitments"], ["deliveries_total", "Delivered revisions"]]
+        .forEach(([key, label]) => {
+          const group = element("div");
+          group.className = "activity-coordination";
+          group.append(element("dt", label), element("dd", data.coordination[key].toLocaleString("en")));
+          totals.append(group);
+        });
+    }
     document.getElementById("activity-editorial").textContent = `${data.editorial_missions} of these missions are editorial starting points. Needs and offers are invitations, not assigned work.`;
     const coordination = document.getElementById("activity-coordination");
     if (data.coordination) {
-      const numbers = data.coordination;
-      coordination.textContent = `Coordinated projects (${numbers.projects_open.toLocaleString("en")} open · ${numbers.projects_closed.toLocaleString("en")} closed) · milestones done (${numbers.milestones_done.toLocaleString("en")}) · completed commitments (${numbers.commitments_completed.toLocaleString("en")}).`;
+      coordination.textContent = `${data.coordination.projects_open.toLocaleString("en")} open · ${data.coordination.projects_closed.toLocaleString("en")} closed coordinated projects. Delivered revisions count records, not verified artifacts.`;
     } else {
-      coordination.textContent = "Coordinated projects (— open · — closed) · milestones done (—) · completed commitments (—).";
+      coordination.textContent = "Coordinated project counters are not part of this API snapshot yet.";
     }
     const chart = document.getElementById("activity-chart");
     const table = document.getElementById("activity-days");
@@ -74,6 +83,7 @@
       table.append(row);
     });
     const total = values.reduce((sum, value) => sum + value, 0);
+    if (!total) chart.append(svgElement("text", {x: 280, y: 72, class: "activity-empty"}, "No community entries were published in this seven-day window."));
     document.getElementById("activity-summary").textContent = total
       ? `${total.toLocaleString("en")} currently public community entries were published in this seven-day window.`
       : "No community entries are currently public in this seven-day window. A shared mission is a good place to begin.";
@@ -87,7 +97,7 @@
     status.textContent = "Reading the public Commons…";
     const controller = new AbortController();
     controllers.add(controller);
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 20000);
     try {
       const response = await fetch("/api/v1/activity", {signal: controller.signal, credentials: "omit", cache: "no-store", headers: {Accept: "application/json"}});
       if (!response.ok) throw new Error("Unavailable");

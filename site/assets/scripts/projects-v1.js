@@ -3,6 +3,7 @@
   const $ = (id) => document.getElementById(id);
   if (!$("projects-list")) return;
   const tokenInput = $("room-identity-token");
+  const searchInput = $("projects-search");
   const { uuid, missionId, text, date, shortDate, projectLabels, milestoneLabels, commitmentLabels, commitmentActions, summary, milestone, commitment, detail, exported } = window.OssProjects;
   const node = (tag, value, className) => { const n = document.createElement(tag); if (value !== undefined) n.textContent = value; if (className) n.className = className; return n; };
   const p = (value, className) => node("p", value, className);
@@ -56,6 +57,10 @@
     sync(); renderDetail();
   };
   let listFilter = "all";
+  let listQuery = "";
+  let listExpanded = false;
+  // How many cards each group shows at rest; Show-all and search lift the cap.
+  const VISIBLE_CARDS = 6;
   const projectFilter = () => {
     const bar = node("div", undefined, "project-filter");
     bar.setAttribute("role", "group");
@@ -68,7 +73,7 @@
       chip.type = "button";
       chip.setAttribute("aria-pressed", listFilter === key ? "true" : "false");
       if (!(key in counts) && key !== "all") chip.disabled = true;
-      chip.addEventListener("click", () => { listFilter = key; renderList(); });
+      chip.addEventListener("click", () => { listFilter = key; listExpanded = false; renderList(); });
       bar.append(chip);
     });
     return bar;
@@ -77,7 +82,9 @@
     const box = $("projects-list"); box.replaceChildren();
     if (items.length) {
       box.append(projectFilter());
-      const shown = items.filter((item) => listFilter === "all" || item.status === listFilter);
+      const matches = (item) => !listQuery || [item.title, item.mission_id, item.coordinator?.github_login]
+        .some((value) => typeof value === "string" && value.toLowerCase().includes(listQuery));
+      const shown = items.filter((item) => (listFilter === "all" || item.status === listFilter) && matches(item));
       const card = (item) => {
         const article = node("article", undefined, "room-entry");
         article.append(p(`${projectLabels[item.status]} · mission ${item.mission_id}`, "room-entry-state"), node("h4", item.title));
@@ -86,18 +93,38 @@
         return article;
       };
       // keep the room short at any project count: open work stays visible,
-      // the closed history folds into one inspectable group
+      // the closed history folds into one inspectable group, and each group
+      // shows a bounded first page until the reader asks for all of it
+      const capped = !listQuery && !listExpanded;
+      const showAllButton = (count) => {
+        const more = node("button", `Show all ${count} (another ${count - VISIBLE_CARDS})`, "text-button");
+        more.type = "button";
+        more.addEventListener("click", () => { listExpanded = true; renderList(); });
+        return more;
+      };
       const active = shown.filter((item) => item.status !== "closed");
       const archived = shown.filter((item) => item.status === "closed");
-      if (listFilter !== "closed") {
-        box.append(...active.map(card));
+      if (listQuery && !shown.length) {
+        const none = node("div", undefined, "room-empty");
+        none.append(p(`No projects match "${searchInput.value.trim()}".`));
+        none.append(p("Search looks at titles, mission ids and coordinator handles. Clear the search to see the full list."));
+        box.append(none);
+      } else if (listFilter !== "closed") {
+        box.append(...(capped ? active.slice(0, VISIBLE_CARDS) : active).map(card));
+        if (capped && active.length > VISIBLE_CARDS) box.append(showAllButton(active.length));
         if (archived.length) {
           const history = node("details", undefined, "project-history");
           history.append(node("summary", `Closed history (${archived.length}) — show finished projects`));
-          history.append(...archived.map(card));
+          history.append(...(capped ? archived.slice(0, VISIBLE_CARDS) : archived).map(card));
+          if (capped && archived.length > VISIBLE_CARDS) history.append(showAllButton(archived.length));
+          if (listQuery) history.open = true; // a search reaches the closed work directly
           box.append(history);
         }
-      } else box.append(...shown.map(card));
+      } else {
+        box.append(...(capped ? shown.slice(0, VISIBLE_CARDS) : shown).map(card));
+        if (capped && shown.length > VISIBLE_CARDS) box.append(showAllButton(shown.length));
+      }
+      if (listQuery) box.append(p(`${shown.length} of ${items.length} projects match the search.`, "room-subtle"));
     }
     else if (mission && loaded) {
       const empty = node("div", undefined, "room-empty");
@@ -112,7 +139,8 @@
     const n = ++seq.list, gen = generation;
     const next = more ? cursor : null;
     if (more && !next) return;
-    if (!more) { items = []; cursor = null; loaded = false; renderList(); }
+    // No pre-fetch wipe: the current cards stay visible while page one reloads,
+    // so a refresh or filter toggle never collapses the page and jumps the reader.
     const query = new URLSearchParams({ mission_id: mission, limit: "20" });
     if (next) query.set("cursor", next);
     status("projects-list-status", "Reading coordinated projects…"); $("projects-list").setAttribute("aria-busy", "true"); $("projects-more").hidden = true;
@@ -121,11 +149,16 @@
       if (!current(gen) || n !== seq.list) return;
       if (!data || !Array.isArray(data.items) || data.items.length > 100 || !data.items.every((item) => summary(item) && item.mission_id === mission)
         || !(data.next_cursor === null || (typeof data.next_cursor === "string" && data.next_cursor.length <= 256))) throw unexpected();
-      const map = new Map([...items, ...data.items].map((item) => [item.id, item]));
+      const map = new Map([...(next ? items : []), ...data.items].map((item) => [item.id, item]));
       items = [...map.values()]; cursor = data.next_cursor; loaded = true;
       renderList(); status("projects-list-status", items.length ? `${items.length} project${items.length === 1 ? "" : "s"} loaded. Choose one to inspect its milestones.` : "No coordinated projects here yet. This mission can grow its first one through the public API.");
       $("projects-more").hidden = !cursor;
-    } catch (error) { if (current(gen) && n === seq.list) { status("projects-list-status", `${error.message} Choose Refresh projects to retry.`); $("projects-more").hidden = !next; } }
+    } catch (error) {
+      if (current(gen) && n === seq.list) {
+        if (!next) { items = []; cursor = null; loaded = false; renderList(); }
+        status("projects-list-status", `${error.message} Choose Refresh projects to retry.`); $("projects-more").hidden = !next;
+      }
+    }
     finally { if (current(gen) && n === seq.list) $("projects-list").setAttribute("aria-busy", "false"); }
   };
   const renderMilestone = (m, children, offerable) => {
@@ -311,6 +344,8 @@
   const setMission = (id) => {
     generation += 1; abort(); mission = missionId(id) ? id : null;
     publicDetail = null; privateDetail = null; items = []; cursor = null; loaded = false; offerMilestone = null; pending = null; writeBusy = false;
+    listFilter = "all"; listQuery = ""; listExpanded = false;
+    if (searchInput) searchInput.value = "";
     $("projects-list").replaceChildren(); $("projects-list").setAttribute("aria-busy", "false");
     $("project-detail").replaceChildren(); $("project-detail").hidden = true; $("projects-more").hidden = true;
     status("projects-list-status", mission ? "Reading coordinated projects…" : "Open a published mission to browse its coordinated projects.");
@@ -318,6 +353,7 @@
     if (alive && mission) readList();
   };
   tokenInput.addEventListener("input", () => clearPrivate());
+  if (searchInput) searchInput.addEventListener("input", () => { listQuery = searchInput.value.trim().toLowerCase(); listExpanded = false; renderList(); });
   document.addEventListener("singularity:mission", (event) => setMission(event.detail?.id));
   $("projects-refresh").addEventListener("click", () => readList());
   $("projects-more").addEventListener("click", () => readList(true));

@@ -39,7 +39,7 @@
       <section id="projects" class="room-work" aria-labelledby="projects-title">
         <div class="room-section-heading"><div><p class="micro-label">STAGE 02 · COORDINATION PILOT · LIVE</p><h3 id="projects-title">Coordinated projects</h3></div><a href="/roadmap/#coordination">About this stage ↗</a></div>
         <p class="room-subtle">A coordinator structures a mission into projects, milestones and dependency gates. Milestones name their expected artifact and acceptance criteria; a voluntary commitment binds only when the coordinator confirms an explicit offer. Coordinators create and structure projects through the <a href="/data/commons-openapi.json">published API</a>.</p>
-        <div class="room-view-controls"><span>Published projects · refreshed when you choose</span><button id="projects-refresh" class="text-button" type="button" disabled>Refresh projects</button></div>
+        <div class="room-view-controls"><label class="room-search"><input id="projects-search" type="search" placeholder="Search projects…" autocomplete="off" aria-label="Search coordinated projects by title, mission or coordinator"></label><span>Published projects · refreshed when you choose</span><button id="projects-refresh" class="text-button" type="button" disabled>Refresh projects</button></div>
         <p id="projects-list-status" class="room-status" role="status">Open a published mission to browse its coordinated projects.</p>
         <div id="projects-list" class="room-list" aria-busy="false"></div>
         <button id="projects-more" class="text-button" type="button" hidden>Load more projects</button>

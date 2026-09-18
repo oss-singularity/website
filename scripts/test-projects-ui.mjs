@@ -133,6 +133,47 @@ test('closed projects fold into one history group; the open work and the closed 
   assert.equal(h.get('projects-list').querySelectorAll('.project-history').length, 0);
 });
 
+test('searching reaches open and closed projects without paging caps', async () => {
+  const openOne = project({ id: id(1), status: 'open', title: 'Verifier toolkit' });
+  const closedOne = project({ id: id(2), status: 'closed', title: 'Receipt protocol' });
+  const h = harness({ route: (path) => path.startsWith('/api/v1/projects?') ? { body: { items: [openOne, closedOne], next_cursor: null } } : { body: openOne } });
+  await flush();
+  h.get('projects-search').value = 'receipt';
+  h.fire('projects-search', 'input'); await flush();
+  const entries = h.get('projects-list').querySelectorAll('.room-entry');
+  assert.equal(entries.length, 1); // the closed match is found without unfolding by hand
+  assert.match(entries[0].textContent, /Receipt protocol/);
+  assert.match(h.text('projects-list'), /1 of 2 projects match the search/);
+  assert.equal(h.get('projects-list').querySelectorAll('.project-history')[0].open, true);
+  h.get('projects-search').value = 'nothing-matches-this';
+  h.fire('projects-search', 'input'); await flush();
+  assert.match(h.text('projects-list'), /No projects match/);
+  assert.equal(h.get('projects-list').querySelectorAll('.room-entry').length, 0);
+  h.get('projects-search').value = '';
+  h.fire('projects-search', 'input'); await flush();
+  assert.equal(h.get('projects-list').querySelectorAll('.room-entry').length, 2); // clearing restores the full list
+  assert.ok(!h.get('projects-list').querySelectorAll('.project-history')[0].open); // the history folds again
+});
+
+test('long lists page in place and one show-all lifts every cap until the next view change', async () => {
+  const many = Array.from({ length: 8 }, (_, n) => project({ id: id(n + 1), status: 'open', title: `Open project ${n + 1}` }));
+  const closedMany = Array.from({ length: 7 }, (_, n) => project({ id: id(20 + n), status: 'closed', title: `Closed project ${n + 1}` }));
+  const h = harness({ route: (path) => path.startsWith('/api/v1/projects?') ? { body: { items: [...many, ...closedMany], next_cursor: null } } : { body: many[0] } });
+  await flush();
+  const direct = () => h.get('projects-list').children.filter((n) => (n.className || '').split(/\s+/).includes('room-entry'));
+  const history = () => h.get('projects-list').querySelectorAll('.project-history')[0];
+  assert.equal(direct().length, 6); // first page at rest
+  assert.equal(history().querySelectorAll('.room-entry').length, 6); // the closed group pages too
+  assert.match(h.text('projects-list'), /Show all 8 \(another 2\)/);
+  assert.match(history().textContent, /Show all 7 \(another 1\)/);
+  const showAll = h.walk(h.get('projects-list')).filter((n) => n.tagName === 'BUTTON' && /Show all 8/.test(n.textContent))[0];
+  showAll.click(); await flush();
+  assert.equal(direct().length, 8);
+  assert.equal(history().querySelectorAll('.room-entry').length, 7); // one toggle lifts every cap
+  h.get('projects-list').querySelectorAll('.chip').find((n) => n.textContent === 'Open (8)').click(); await flush();
+  assert.equal(direct().length, 6); // a view change returns the bounded first page
+});
+
 test('delivered milestones collapse to their headline but keep the record inspectable', async () => {
   const done = milestone({ id: id(31), status: 'done', title: 'Shipped slice', purpose: 'The delivered purpose line.' });
   const h = harness({ route: routes(project({ milestones: [done] })) });

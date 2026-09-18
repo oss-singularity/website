@@ -309,7 +309,14 @@
   byId("missions-retry").addEventListener("click", () => loadDirectory());
   byId("missions-more").addEventListener("click", () => loadDirectory(true));
   byId("refresh").addEventListener("click", () => loadRoom(requested()));
-  byId("include-closed").addEventListener("change", () => { if (current) loadRoom(current.id); });
+  byId("include-closed").addEventListener("change", () => {
+    // Refresh only the affected feeds in place. A full room reload collapses
+    // the page height and the browser slams the scroll position to the end.
+    if (!current) return;
+    renderFeed("evidence");
+    loadFeed("needs");
+    loadFeed("offers");
+  });
   Object.keys(feeds).forEach((name) => { byId(`${name}-more`).addEventListener("click", () => loadFeed(name, true)); byId(`${name}-retry`).addEventListener("click", () => loadFeed(name, feeds[name].retryAppend || false)); });
   document.querySelectorAll("[data-room-intent]").forEach((button) => button.addEventListener("click", () => compose(button.dataset.roomIntent)));
   document.addEventListener("singularity:changed", (event) => { if (current?.id === event.detail?.mission_id) loadRoom(current.id); });
