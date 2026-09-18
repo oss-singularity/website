@@ -185,3 +185,12 @@
 .project-history > summary { cursor: pointer; color: var(--room-accent); font-size: .85rem; font-weight: 600; padding: .4rem .7rem; border: 1px dashed var(--room-border); border-radius: 8px; display: block; }
 .project-history > summary:hover { border-color: var(--room-accent); border-style: solid; }
 .project-history[open] > summary { margin-bottom: .6rem; }
+
+/* --- UX pass 2: make the work sections felt, not just readable --- */
+#work-public > .room-section-heading { border-left: 3px solid var(--room-positive); padding-left: .75rem; }
+#work-public .micro-label { color: var(--room-positive); }
+#work-public .room-entry { border-left: 3px solid var(--room-positive); }
+#projects > .room-section-heading { border-left: 3px solid var(--room-accent); padding-left: .75rem; }
+#projects .micro-label { color: var(--room-accent); }
+#projects .room-entry { border-left: 3px solid var(--room-accent); }
+.room-work + .room-work { margin-top: 2.2rem; padding-top: 1.6rem; border-top: 1px solid var(--room-border); }
