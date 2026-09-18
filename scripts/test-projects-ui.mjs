@@ -48,7 +48,7 @@ function harness({ route, mission = 'build-the-commons' } = {}) {
   class TestCustomEvent { constructor(type, init) { this.type = type; this.detail = init?.detail; } }
   const context = vm.createContext({ window, document, fetch, URL: TestURL, URLSearchParams, AbortController, Blob, CustomEvent: TestCustomEvent, crypto: { randomUUID: () => id(++sequence) } });
   for (const [filename, source] of sources) vm.runInContext(source, context, { filename });
-  const h = { get, requests, blobs, downloads, timers, model: window.OssProjects, text: (name) => get(name).textContent,
+  const h = { get, walk, requests, blobs, downloads, timers, model: window.OssProjects, text: (name) => get(name).textContent,
     fire: (name, event = 'click') => get(name).events.get(event)?.({ preventDefault() {} }),
     choose: (value) => { elements.get('room-context').dataset.missionId = value || ''; documentEvents.get('singularity:mission')({ detail: value ? { id: value, title: 'ignored' } : null }); },
     token: (value = 'a'.repeat(43)) => { get('room-identity-token').value = value; get('room-identity-token').events.get('input')?.({}); },
@@ -93,14 +93,44 @@ test('real empty, error, retry and cursor pagination keep the project list hones
   step = 1; h.fire('projects-refresh'); await flush(); assert.match(h.text('projects-list-status'), /Refresh projects to retry/);
   assert.equal(h.get('projects-list').children.length, 0);
   step = 2; h.fire('projects-refresh'); await flush(); assert.equal(h.get('projects-more').hidden, false);
-  h.fire('projects-more'); await flush(); assert.equal(h.get('projects-list').children.length, 2); assert.equal(h.get('projects-more').hidden, true);
+  h.fire('projects-more'); await flush(); assert.equal(h.get('projects-list').querySelectorAll('.room-entry').length, 2); assert.equal(h.get('projects-more').hidden, true);
+});
+
+test('the project list filters by status without refetching and keeps entries intact', async () => {
+  const openProject = project({ id: id(1), status: 'open', title: 'Open one' });
+  const closedProject = project({ id: id(2), status: 'closed', title: 'Closed one' });
+  const h = harness({ route: (path) => path.startsWith('/api/v1/projects?') ? { body: { items: [openProject, closedProject], next_cursor: null } } : { body: openProject } });
+  await flush();
+  const chips = () => h.get('projects-list').querySelectorAll('.chip');
+  assert.equal(chips().length, 3);
+  assert.equal(h.get('projects-list').querySelectorAll('.room-entry').length, 2);
+  const closedChip = chips().find((n) => n.textContent === 'Closed (1)');
+  assert.equal(closedChip.attributes['aria-pressed'], 'false');
+  closedChip.click(); await flush();
+  assert.equal(h.get('projects-list').querySelectorAll('.room-entry').length, 1);
+  assert.match(h.text('projects-list'), /Closed one/); assert.doesNotMatch(h.text('projects-list'), /Open one/);
+  assert.equal(chips().find((n) => n.textContent === 'Closed (1)').attributes['aria-pressed'], 'true');
+  chips().find((n) => n.textContent === 'All (2)').click(); await flush();
+  assert.equal(h.get('projects-list').querySelectorAll('.room-entry').length, 2);
+});
+
+test('delivered milestones collapse to their headline but keep the record inspectable', async () => {
+  const done = milestone({ id: id(31), status: 'done', title: 'Shipped slice', purpose: 'The delivered purpose line.' });
+  const h = harness({ route: routes(project({ milestones: [done] })) });
+  await publicOpen(h);
+  const detail = h.get('project-detail');
+  const details = h.walk(detail).filter((n) => n.tagName === 'DETAILS');
+  assert.equal(details.length, 1);
+  assert.match(details[0].textContent, /Show the delivered record/);
+  assert.match(details[0].textContent, /The delivered purpose line./);
+  assert.match(h.text('project-detail'), /Acceptance criteria/); // record stays in the DOM
 });
 
 test('reordered mission and detail responses cannot reintroduce old projects', async () => {
   const late = deferred();
   const h = harness({ route: (path) => path.startsWith('/api/v1/projects?') && path.includes('build-the-commons') ? late.promise : { body: { items: [project({ mission_id: 'other-mission' })], next_cursor: null } } });
   h.choose('other-mission'); await flush(); late.resolve({ body: { items: [project()], next_cursor: null } }); await flush();
-  assert.ok(h.requests[0].options.signal.aborted); assert.equal(h.get('projects-list').children.length, 1);
+  assert.ok(h.requests[0].options.signal.aborted); assert.equal(h.get('projects-list').querySelectorAll('.room-entry').length, 1);
   const delayed = deferred(); let wait = false;
   const d = harness({ route: routes(project(), (path) => wait && !path.includes('?') ? delayed.promise : undefined) });
   await flush(); wait = true;

@@ -55,15 +55,37 @@
     status("projects-action-status", "Private view cleared. Choose an action to authenticate it.");
     sync(); renderDetail();
   };
+  let listFilter = "all";
+  const projectFilter = () => {
+    const bar = node("div", undefined, "project-filter");
+    bar.setAttribute("role", "group");
+    bar.setAttribute("aria-label", "Filter projects by status");
+    const counts = items.reduce((acc, item) => { acc[item.status] = (acc[item.status] ?? 0) + 1; return acc; }, {});
+    const all = items.length;
+    const chips = [["all", `All (${all})`], ["open", `Open (${counts.open ?? 0})`], ["closed", `Closed (${counts.closed ?? 0})`]];
+    chips.forEach(([key, label]) => {
+      const chip = node("button", label, `chip${listFilter === key ? " is-active" : ""}`);
+      chip.type = "button";
+      chip.setAttribute("aria-pressed", listFilter === key ? "true" : "false");
+      if (!(key in counts) && key !== "all") chip.disabled = true;
+      chip.addEventListener("click", () => { listFilter = key; renderList(); });
+      bar.append(chip);
+    });
+    return bar;
+  };
   const renderList = () => {
     const box = $("projects-list"); box.replaceChildren();
-    if (items.length) box.append(...items.map((item) => {
+    if (items.length) {
+      box.append(projectFilter());
+      const shown = items.filter((item) => listFilter === "all" || item.status === listFilter);
+      box.append(...shown.map((item) => {
       const article = node("article", undefined, "room-entry");
       article.append(p(`${projectLabels[item.status]} · mission ${item.mission_id}`, "room-entry-state"), node("h4", item.title));
       article.append(p(`Version ${item.version} · updated ${shortDate(item.updated_at)}`, "room-meta"), attribution("Coordinator", item.coordinator));
       article.append(button("Read milestones & commitments", () => openDetail(item.id)));
       return article;
-    }));
+      }));
+    }
     else if (mission && loaded) {
       const empty = node("div", undefined, "room-empty");
       empty.append(p("No coordinated projects are published for this mission yet."));
@@ -94,11 +116,20 @@
     finally { if (current(gen) && n === seq.list) $("projects-list").setAttribute("aria-busy", "false"); }
   };
   const renderMilestone = (m, children, offerable) => {
-    const article = node("article", undefined, `room-entry project-milestone${m.blocked && m.status === "open" ? " is-gated" : ""}`);
+    const done = m.status === "done";
+    const article = node("article", undefined, `room-entry project-milestone${m.blocked && m.status === "open" ? " is-gated" : ""}${done ? " is-done" : ""}`);
     article.dataset.milestoneId = m.id;
     article.append(p(`${milestoneLabels[m.status]}${m.blocked && m.status === "open" ? " · blocked by a dependency gate" : ""}${m.parent_milestone_id ? " · subproject part" : ""}`, "room-entry-state"), node("h4", m.title));
-    article.append(p(m.purpose, "room-description"), node("h5", "Expected artifact"), p(m.expected_artifact, "room-description"), node("h5", "Acceptance criteria"));
-    const criteria = node("ol"); m.acceptance.forEach((entry) => criteria.append(node("li", entry))); article.append(criteria);
+    const body = node("div", undefined, "project-milestone-body");
+    body.append(p(m.purpose, "room-description"), node("h5", "Expected artifact"), p(m.expected_artifact, "room-description"), node("h5", "Acceptance criteria"));
+    const criteria = node("ol"); m.acceptance.forEach((entry) => criteria.append(node("li", entry))); body.append(criteria);
+    if (done) {
+      // finished milestones collapse to their headline; the record stays inspectable
+      const reveal = node("details", undefined, "project-milestone-reveal");
+      reveal.append(node("summary", "Show the delivered record"));
+      reveal.append(body);
+      article.append(reveal);
+    } else article.append(body);
     if (m.depends_on.length) article.append(p(`Depends on ${m.depends_on.length} earlier milestone${m.depends_on.length === 1 ? "" : "s"} · offers stay closed until each is done`, "room-meta"));
     article.append(p(`Scope ${m.scope_version} · version ${m.version} · updated ${shortDate(m.updated_at)}`, "room-meta"));
     if (offerable && m.status === "open" && !m.blocked && !privateDetail) article.append(button("Offer to take this milestone", () => { offerMilestone = m.id; renderDetail(); }, writeBusy || !!pending));
