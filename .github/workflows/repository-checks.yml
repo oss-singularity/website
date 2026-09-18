@@ -36,6 +36,15 @@ jobs:
         run: python3 scripts/test-fair-settlement.py
       - name: Exercise the independent QA role model with dispute paths
         run: python3 scripts/test-qa-model.py
+      - name: Install pinned Foundry for the local-chain settlement exercise
+        run: |
+          set -eu
+          mkdir -p "$HOME/.foundry/bin"
+          curl -fsSL "https://github.com/foundry-rs/foundry/releases/download/v1.8.3/foundry_v1.8.3_linux_amd64.tar.gz" \
+            | tar -xz -C "$HOME/.foundry/bin"
+          echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
+      - name: Run the settlement exercise against a local chain
+        run: python3 scripts/test-settlement-anvil.py
       - name: Validate static release artifacts and rejection cases
         run: python3 scripts/test-release-artifact.py
       - name: Validate Commons code artifacts and existing schema profiles
