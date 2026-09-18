@@ -11,6 +11,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 LAB = REPO / "scripts" / "solidity-lab.py"
 AGREEMENT = REPO / "design" / "solidity-lab" / "agreement.json"
+SETTLEMENT_AGREEMENT = REPO / "design" / "solidity-lab" / "settlement-agreement.json"
 COMMITTED = REPO / "design" / "solidity-lab" / "generated"
 
 
@@ -19,6 +20,13 @@ def generate(out: Path) -> tuple[bytes, bytes]:
                             capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stderr
     return (out / "DeliveryAcceptance.sol").read_bytes(), (out / "DeliveryAcceptance.explained.md").read_bytes()
+
+
+def generate_settlement(out: Path) -> tuple[bytes, bytes]:
+    result = subprocess.run([sys.executable, str(LAB), "--agreement", str(SETTLEMENT_AGREEMENT), "--out", str(out)],
+                            capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stderr
+    return (out / "FairSettlement.sol").read_bytes(), (out / "FairSettlement.explained.md").read_bytes()
 
 
 class LabTests(unittest.TestCase):
@@ -139,39 +147,133 @@ class ModelTests(unittest.TestCase):
             self.model.accept(COORDINATOR, 1)
 
 
+class SettlementLabTests(unittest.TestCase):
+    """The stage 06 settlement generator: same determinism and honesty bars."""
+
+    def test_generation_is_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as one, tempfile.TemporaryDirectory() as two:
+            first = generate_settlement(Path(one))
+            second = generate_settlement(Path(two))
+            self.assertEqual(first, second, "same agreement must produce byte-identical output")
+
+    def test_committed_example_reproduces_from_this_pinned_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            fresh = generate_settlement(Path(folder))
+        committed_sol = (COMMITTED / "FairSettlement.sol").read_bytes()
+        committed_md = (COMMITTED / "FairSettlement.explained.md").read_bytes()
+        self.assertEqual(fresh[0], committed_sol, "the committed contract must match a fresh generation")
+        self.assertEqual(fresh[1], committed_md, "the committed explanation must match a fresh generation")
+
+    def test_agreement_inputs_appear_and_stay_synthetic(self) -> None:
+        agreement = json.loads(SETTLEMENT_AGREEMENT.read_text())
+        source = (COMMITTED / "FairSettlement.sol").read_text()
+        for field in ("contributor", "coordinator", "holder", "delivery_digest"):
+            self.assertIn(agreement[field], source)
+        for field in ("review_deadline", "dispute_deadline", "outer_deadline"):
+            self.assertIn(str(agreement[field]), source)
+        self.assertIn("SYNTHETIC EXAMPLE", source)
+        self.assertIn("not payable", source)
+        self.assertIn("never", source.lower())
+        self.assertEqual(len({agreement["contributor"], agreement["coordinator"], agreement["holder"]}), 3)
+
+    def test_contract_names_every_state_timeout_and_path_of_the_design_note(self) -> None:
+        source = (COMMITTED / "FairSettlement.sol").read_text()
+        for state in ("none", "funded", "delivered", "accepted", "disputed", "resolved", "released", "refunded"):
+            self.assertIn(state, source, f"design-note state {state} must be named")
+        for deadline in ("REVIEW_DEADLINE", "DISPUTE_DEADLINE", "OUTER_DEADLINE", "DISPUTE_FALLBACK_RELEASES"):
+            self.assertIn(deadline, source, f"design-note policy {deadline} must be named")
+        for name in ("recordFunding", "recordDelivery", "accept", "release", "openDispute",
+                     "resolveDispute", "executeResolution", "applyDisputeFallback",
+                     "refundAfterOuterDeadline", "refundOnCancellation"):
+            self.assertIn(f"function {name}(", source, f"design-note path {name} must exist")
+
+    def test_explanation_covers_every_external_function_and_signature(self) -> None:
+        source = (COMMITTED / "FairSettlement.sol").read_text()
+        explained = (COMMITTED / "FairSettlement.explained.md").read_text()
+        import re
+        functions = re.findall(r"function (\w+)\(([^)]*)\)", source)
+        self.assertEqual(len(functions), 10)
+        for name, signature in functions:
+            self.assertIn(name, explained, f"explanation must cover {name}")
+            self.assertIn(signature.replace(" ", ""), explained.replace(" ", ""),
+                          f"explanation must show the exact signature of {name}")
+        for failure in re.findall(r"error (\w+)\(", source):
+            self.assertIn(failure, explained, f"explanation must name the failure {failure}")
+
+    def test_explanation_never_claims_custody(self) -> None:
+        explained = (COMMITTED / "FairSettlement.explained.md").read_text()
+        self.assertIn("never holds funds", explained)
+        self.assertIn("not payable", explained)
+
+    def test_invalid_agreements_are_refused(self) -> None:
+        base = json.loads(SETTLEMENT_AGREEMENT.read_text())
+        cases = [
+            {**base, "kind": "something-else"},
+            {**base, "delivery_digest": "zz" * 32},
+            {k: v for k, v in base.items() if k != "holder"},
+            {**base, "holder": "0x123"},
+            {**base, "holder": COORDINATOR},
+            {**base, "review_deadline": base["outer_deadline"]},
+            {**base, "dispute_deadline": base["review_deadline"]},
+            {**base, "outer_deadline": 0},
+            {**base, "dispute_fallback": "keep"},
+            {**base, "review_deadline": True},
+        ]
+        for case in cases:
+            with tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / "settlement-agreement.json"
+                path.write_text(json.dumps(case))
+                result = subprocess.run([sys.executable, str(LAB), "--agreement", str(path), "--out", folder],
+                                        capture_output=True, text=True, timeout=60)
+                self.assertEqual(result.returncode, 1, f"must refuse: {case}")
+
+
 class CompilerTests(unittest.TestCase):
-    """The pinned compiler must accept the committed example; output is reproducible."""
+    """The pinned compiler must accept the committed examples; output is reproducible."""
 
     SOLC_VERSION = "0.8.37"
 
-    def _compile(self) -> tuple[bytes, bytes]:
-        import subprocess
-        import tempfile
+    EXPECTED_ABI_NAMES = {
+        "DeliveryAcceptance": ("recordDelivery", "accept", "NotNewestRevision"),
+        "FairSettlement": (
+            "recordFunding", "recordDelivery", "accept", "release", "openDispute",
+            "resolveDispute", "executeResolution", "applyDisputeFallback",
+            "refundAfterOuterDeadline", "refundOnCancellation",
+            "WrongState", "DisputeWindowStillOpen", "OuterDeadlineNotPassed",
+        ),
+    }
+
+    def _compile(self, stem: str) -> tuple[bytes, bytes]:
         with tempfile.TemporaryDirectory() as folder:
             result = subprocess.run(
                 ["npx", "--yes", f"solc@{self.SOLC_VERSION}", "--bin", "--abi",
-                 str(COMMITTED / "DeliveryAcceptance.sol")],
+                 str(COMMITTED / f"{stem}.sol")],
                 capture_output=True, text=True, timeout=300, cwd=folder)
             if result.returncode != 0:
                 self.skipTest(f"pinned solc unavailable in this environment: {result.stderr[:120]}")
-            binaries = sorted(Path(folder).glob("*_DeliveryAcceptance.bin"))
-            abis = sorted(Path(folder).glob("*_DeliveryAcceptance.abi"))
+            binaries = sorted(Path(folder).glob(f"*_{stem}.bin"))
+            abis = sorted(Path(folder).glob(f"*_{stem}.abi"))
             if not binaries or not abis:
                 self.fail(f"pinned solc wrote no artifacts: {result.stdout[:160]}")
             return binaries[0].read_bytes(), abis[0].read_bytes()
 
-    def test_pinned_compiler_compiles_with_stable_bytecode(self) -> None:
+    def _assert_stable_compile(self, stem: str) -> None:
         import hashlib
-        binary, abi = self._compile()
+        binary, abi = self._compile(stem)
         self.assertGreater(len(binary), 60, "compiled binary is implausibly small")
-        self.assertIn(b'"name":"accept"', abi)
-        self.assertIn(b'"name":"recordDelivery"', abi)
-        self.assertIn(b'"name":"NotNewestRevision"', abi)
-        again_binary, again_abi = self._compile()
+        for name in self.EXPECTED_ABI_NAMES[stem]:
+            self.assertIn(f'"name":"{name}"'.encode(), abi, f"abi must expose {name}")
+        again_binary, again_abi = self._compile(stem)
         self.assertEqual(hashlib.sha256(binary).hexdigest(), hashlib.sha256(again_binary).hexdigest(),
                          "same pinned compiler and source must reproduce identical bytecode")
         self.assertEqual(hashlib.sha256(abi).hexdigest(), hashlib.sha256(again_abi).hexdigest(),
-                         "same pinned compiler and source must reproduce identical ABI")
+                         "same pinned compiler and source must reproduce identical abi")
+
+    def test_pinned_compiler_compiles_delivery_acceptance_with_stable_bytecode(self) -> None:
+        self._assert_stable_compile("DeliveryAcceptance")
+
+    def test_pinned_compiler_compiles_fair_settlement_with_stable_bytecode(self) -> None:
+        self._assert_stable_compile("FairSettlement")
 
 
 if __name__ == "__main__":
