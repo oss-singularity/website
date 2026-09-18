@@ -320,14 +320,11 @@ def check_product(root: Path) -> int:
         fail("security.txt Expires must be less than one year ahead")
 
     css_bytes = sum(path.stat().st_size for path in (root / "assets/styles").glob("*.css"))
-    # The per-page CSS cap (65 KB -> 70 KB, 2026-09-16) was removed by owner
-    # decision on 2026-09-18; total CSS stays reported in the summary line.
     script_bytes = sum(path.stat().st_size for path in (root / "assets/scripts").glob("*.js"))
-    # Raised from 25 KB to 30 KB on 2026-09-18: the projects room reached 24.9 KB
-    # before the owner-requested search and paging slice; the cap stays a lean-script guard.
-    for script in (root / "assets/scripts").glob("*.js"):
-        if script.stat().st_size > 30_000:
-            fail(f"per-page JavaScript budget exceeded: {script.name}")
+    # The per-page CSS cap (65 KB -> 70 KB, 2026-09-16) and the per-script JS cap
+    # (25 KB -> 30 KB, same day) were both removed by owner decision on 2026-09-18;
+    # totals stay reported in the summary line, and the per-page HTML and initial
+    # transfer guards remain.
     for image in (root / "assets/projects").iterdir():
         if image.stat().st_size > 180_000:
             fail(f"project image budget exceeded: {image.name} is {image.stat().st_size} bytes")

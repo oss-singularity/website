@@ -58,8 +58,9 @@
   };
   let listFilter = "all";
   let listQuery = "";
-  let listExpanded = false;
-  // How many cards each group shows at rest; Show-all and search lift the cap.
+  // Each group (open cards, closed history, closed filter) pages on its own;
+  // search and filter changes reset every group to its first page.
+  const listPages = new Map();
   const VISIBLE_CARDS = 6;
   const projectFilter = () => {
     const bar = node("div", undefined, "project-filter");
@@ -73,7 +74,7 @@
       chip.type = "button";
       chip.setAttribute("aria-pressed", listFilter === key ? "true" : "false");
       if (!(key in counts) && key !== "all") chip.disabled = true;
-      chip.addEventListener("click", () => { listFilter = key; listExpanded = false; renderList(); });
+      chip.addEventListener("click", () => { listFilter = key; listPages.clear(); renderList(); });
       bar.append(chip);
     });
     return bar;
@@ -93,14 +94,33 @@
         return article;
       };
       // keep the room short at any project count: open work stays visible,
-      // the closed history folds into one inspectable group, and each group
-      // shows a bounded first page until the reader asks for all of it
-      const capped = !listQuery && !listExpanded;
-      const showAllButton = (count) => {
-        const more = node("button", `Show all ${count} (another ${count - VISIBLE_CARDS})`, "text-button");
-        more.type = "button";
-        more.addEventListener("click", () => { listExpanded = true; renderList(); });
-        return more;
+      // the closed history folds into one inspectable group, and every group
+      // pages in place — the list never grows exorbitantly long
+      const pager = (group, count, anchorSelector) => {
+        const pages = Math.max(1, Math.ceil(count / VISIBLE_CARDS));
+        if (pages <= 1) return null;
+        const page = Math.min(Math.max(1, listPages.get(group) ?? 1), pages);
+        listPages.set(group, page);
+        const bar = node("div", undefined, "project-pager");
+        bar.setAttribute("role", "navigation");
+        bar.setAttribute("aria-label", "Project pages");
+        const turn = (delta) => {
+          listPages.set(group, Math.min(pages, Math.max(1, page + delta)));
+          renderList();
+          // keep the reader anchored: the fresh page starts at the top of its group
+          const anchor = document.querySelectorAll(anchorSelector)[0];
+          if (anchor && typeof anchor.scrollIntoView === "function") anchor.scrollIntoView({ block: "start" });
+        };
+        const back = node("button", "‹ Previous page", "text-button");
+        back.type = "button"; back.disabled = page === 1;
+        back.addEventListener("click", () => turn(-1));
+        const next = node("button", "Next page ›", "text-button");
+        next.type = "button"; next.disabled = page === pages;
+        next.addEventListener("click", () => turn(1));
+        const label = node("span", `Page ${page} of ${pages}`, "room-subtle");
+        label.setAttribute("aria-current", "page");
+        bar.append(back, label, next);
+        return { bar, slice: (entries) => entries.slice((page - 1) * VISIBLE_CARDS, page * VISIBLE_CARDS) };
       };
       const active = shown.filter((item) => item.status !== "closed");
       const archived = shown.filter((item) => item.status === "closed");
@@ -110,19 +130,22 @@
         none.append(p("Search looks at titles, mission ids and coordinator handles. Clear the search to see the full list."));
         box.append(none);
       } else if (listFilter !== "closed") {
-        box.append(...(capped ? active.slice(0, VISIBLE_CARDS) : active).map(card));
-        if (capped && active.length > VISIBLE_CARDS) box.append(showAllButton(active.length));
+        const openPager = pager("open", active.length, "#projects-list > .room-entry");
+        box.append(...(openPager ? openPager.slice(active) : active).map(card));
+        if (openPager) box.append(openPager.bar);
         if (archived.length) {
           const history = node("details", undefined, "project-history");
           history.append(node("summary", `Closed history (${archived.length}) — show finished projects`));
-          history.append(...(capped ? archived.slice(0, VISIBLE_CARDS) : archived).map(card));
-          if (capped && archived.length > VISIBLE_CARDS) history.append(showAllButton(archived.length));
+          const closedPager = pager("closed", archived.length, "#projects-list .project-history");
+          history.append(...(closedPager ? closedPager.slice(archived) : archived).map(card));
+          if (closedPager) history.append(closedPager.bar);
           if (listQuery) history.open = true; // a search reaches the closed work directly
           box.append(history);
         }
       } else {
-        box.append(...(capped ? shown.slice(0, VISIBLE_CARDS) : shown).map(card));
-        if (capped && shown.length > VISIBLE_CARDS) box.append(showAllButton(shown.length));
+        const closedPager = pager("closed", shown.length, "#projects-list > .room-entry");
+        box.append(...(closedPager ? closedPager.slice(shown) : shown).map(card));
+        if (closedPager) box.append(closedPager.bar);
       }
       if (listQuery) box.append(p(`${shown.length} of ${items.length} projects match the search.`, "room-subtle"));
     }
@@ -344,7 +367,7 @@
   const setMission = (id) => {
     generation += 1; abort(); mission = missionId(id) ? id : null;
     publicDetail = null; privateDetail = null; items = []; cursor = null; loaded = false; offerMilestone = null; pending = null; writeBusy = false;
-    listFilter = "all"; listQuery = ""; listExpanded = false;
+    listFilter = "all"; listQuery = ""; listPages.clear();
     if (searchInput) searchInput.value = "";
     $("projects-list").replaceChildren(); $("projects-list").setAttribute("aria-busy", "false");
     $("project-detail").replaceChildren(); $("project-detail").hidden = true; $("projects-more").hidden = true;
@@ -353,7 +376,7 @@
     if (alive && mission) readList();
   };
   tokenInput.addEventListener("input", () => clearPrivate());
-  if (searchInput) searchInput.addEventListener("input", () => { listQuery = searchInput.value.trim().toLowerCase(); listExpanded = false; renderList(); });
+  if (searchInput) searchInput.addEventListener("input", () => { listQuery = searchInput.value.trim().toLowerCase(); listPages.clear(); renderList(); });
   document.addEventListener("singularity:mission", (event) => setMission(event.detail?.id));
   $("projects-refresh").addEventListener("click", () => readList());
   $("projects-more").addEventListener("click", () => readList(true));

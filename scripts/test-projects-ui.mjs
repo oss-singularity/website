@@ -155,23 +155,32 @@ test('searching reaches open and closed projects without paging caps', async () 
   assert.ok(!h.get('projects-list').querySelectorAll('.project-history')[0].open); // the history folds again
 });
 
-test('long lists page in place and one show-all lifts every cap until the next view change', async () => {
+test('long lists page in place with per-group page controls that reset on view change', async () => {
   const many = Array.from({ length: 8 }, (_, n) => project({ id: id(n + 1), status: 'open', title: `Open project ${n + 1}` }));
   const closedMany = Array.from({ length: 7 }, (_, n) => project({ id: id(20 + n), status: 'closed', title: `Closed project ${n + 1}` }));
   const h = harness({ route: (path) => path.startsWith('/api/v1/projects?') ? { body: { items: [...many, ...closedMany], next_cursor: null } } : { body: many[0] } });
   await flush();
   const direct = () => h.get('projects-list').children.filter((n) => (n.className || '').split(/\s+/).includes('room-entry'));
   const history = () => h.get('projects-list').querySelectorAll('.project-history')[0];
-  assert.equal(direct().length, 6); // first page at rest
-  assert.equal(history().querySelectorAll('.room-entry').length, 6); // the closed group pages too
-  assert.match(h.text('projects-list'), /Show all 8 \(another 2\)/);
-  assert.match(history().textContent, /Show all 7 \(another 1\)/);
-  const showAll = h.walk(h.get('projects-list')).filter((n) => n.tagName === 'BUTTON' && /Show all 8/.test(n.textContent))[0];
-  showAll.click(); await flush();
-  assert.equal(direct().length, 8);
-  assert.equal(history().querySelectorAll('.room-entry').length, 7); // one toggle lifts every cap
+  const pageLabel = (root) => h.walk(root).filter((n) => (n.className || '').split(/\s+/).includes('project-pager')).flatMap((bar) => bar.children).find((n) => n.tagName === 'SPAN')?.textContent;
+  const pagerButtons = (root, pattern) => h.walk(root).filter((n) => n.tagName === 'BUTTON' && pattern.test(n.textContent));
+  assert.equal(direct().length, 6); // the open group pages in place
+  assert.equal(history().querySelectorAll('.room-entry').length, 6); // so does the closed history
+  assert.equal(pageLabel(h.get('projects-list')), 'Page 1 of 2');
+  assert.equal(pageLabel(history()), 'Page 1 of 2');
+  assert.equal(pagerButtons(h.get('projects-list'), /Previous page/)[0].disabled, true); // no way back from page one
+  pagerButtons(h.get('projects-list'), /Next page/)[0].click(); await flush();
+  assert.equal(direct().length, 2); // page two carries the remaining open cards
+  assert.match(h.text('projects-list'), /Open project 7/); assert.match(h.text('projects-list'), /Open project 8/);
+  assert.doesNotMatch(h.text('projects-list'), /Open project 1/);
+  assert.equal(pageLabel(h.get('projects-list')), 'Page 2 of 2');
+  assert.equal(pagerButtons(h.get('projects-list'), /Next page/)[0].disabled, true);
+  pagerButtons(history(), /Next page/)[0].click(); await flush(); // the history keeps its own page
+  assert.equal(history().querySelectorAll('.room-entry').length, 1);
+  assert.match(history().textContent, /Closed project 7/);
   h.get('projects-list').querySelectorAll('.chip').find((n) => n.textContent === 'Open (8)').click(); await flush();
-  assert.equal(direct().length, 6); // a view change returns the bounded first page
+  assert.equal(direct().length, 6); // a view change returns to the bounded first page
+  assert.equal(pageLabel(h.get('projects-list')), 'Page 1 of 2');
 });
 
 test('delivered milestones collapse to their headline but keep the record inspectable', async () => {

@@ -213,4 +213,7 @@
 .room-search input { background: color-mix(in srgb, var(--room-accent) 4%, var(--room-surface)); border: 1px solid var(--room-border); border-radius: 999px; color: var(--room-text); font: inherit; font-size: .78rem; min-height: 44px; padding: 0 .9rem; transition: border-color .15s, box-shadow .15s; width: clamp(160px, 22vw, 240px); }
 .room-search input::placeholder { color: var(--room-dim); }
 .room-search input:focus { border-color: var(--room-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--room-accent) 25%, transparent); outline: none; }
+.project-pager { align-items: center; display: flex; flex-wrap: wrap; gap: 6px 16px; margin-block: 2px 8px; }
+.project-pager .room-subtle { color: var(--room-dim); font-size: .72rem; letter-spacing: .03em; }
+.project-pager button:disabled { cursor: default; opacity: .45; }
 .room-work + .room-work { margin-top: 2.2rem; padding-top: 1.6rem; border-top: 1px solid var(--room-border); }
