@@ -320,16 +320,8 @@ def check_product(root: Path) -> int:
         fail("security.txt Expires must be less than one year ahead")
 
     css_bytes = sum(path.stat().st_size for path in (root / "assets/styles").glob("*.css"))
-    for document in root.rglob("*.html"):
-        parser = Document()
-        parser.feed(document.read_text(encoding="utf-8"))
-        linked_styles = {attrs.get("href") for tag, attrs in parser.attrs if tag == "link" and attrs.get("rel") == "stylesheet"}
-        page_css_bytes = sum((root / href.lstrip("/")).stat().st_size for href in linked_styles)
-        # Raised from 65 KB on 2026-09-16: the Singularity room reached 64.9 KB with the
-        # stage 02 project tree, and the stage 03 receipt cards need headroom. The budget
-        # stays a deliberate lean-page guard; raise it consciously, not silently.
-        if page_css_bytes > 70_000:
-            fail(f"per-page CSS budget exceeded: {document.relative_to(root)} {page_css_bytes} bytes")
+    # The per-page CSS cap (65 KB -> 70 KB, 2026-09-16) was removed by owner
+    # decision on 2026-09-18; total CSS stays reported in the summary line.
     script_bytes = sum(path.stat().st_size for path in (root / "assets/scripts").glob("*.js"))
     for script in (root / "assets/scripts").glob("*.js"):
         if script.stat().st_size > 25_000:
