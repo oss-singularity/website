@@ -217,6 +217,14 @@
 .project-milestone-reveal > summary:hover, .project-history > summary:hover { background: color-mix(in srgb, var(--room-accent) 13%, transparent); }
 .project-milestone-reveal[open] > summary, .project-history[open] > summary { border-color: color-mix(in srgb, var(--room-accent) 40%, transparent); border-style: solid; }
 .chip.is-active { box-shadow: 0 0 0 1px color-mix(in srgb, var(--room-accent) 40%, transparent), 0 4px 16px color-mix(in srgb, var(--room-accent) 25%, transparent); }
+/* Project cards use their width: description on the left, action and version
+   beside it — one row shorter than stacking the button under every card. */
+.project-card { align-items: center; column-gap: 1.3rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.project-card-body { min-width: 0; }
+.project-card-purpose { -webkit-box-orient: vertical; -webkit-line-clamp: 2; display: -webkit-box; font-size: .78rem; line-height: 1.6; margin-block: 2px 8px; overflow: hidden; }
+.project-card-side { align-items: flex-end; display: flex; flex-direction: column; gap: .45rem; max-width: 300px; text-align: right; }
+.project-card-side .room-meta { margin: 0; }
+@media (max-width: 700px) { .project-card { grid-template-columns: 1fr; } .project-card-side { align-items: flex-start; max-width: none; text-align: left; } }
 .room-search input { background: color-mix(in srgb, var(--room-accent) 4%, var(--room-surface)); border: 1px solid var(--room-border); border-radius: 999px; color: var(--room-text); font: inherit; font-size: .78rem; min-height: 44px; padding: 0 .9rem; transition: border-color .15s, box-shadow .15s; width: clamp(160px, 22vw, 240px); }
 .room-search input::placeholder { color: var(--room-dim); }
 .room-search input:focus { border-color: var(--room-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--room-accent) 25%, transparent); outline: none; }
