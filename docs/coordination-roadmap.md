@@ -6,6 +6,12 @@ criteria, not dates or promised functionality. The public counterpart is
 `/roadmap/`. Planned records below are design candidates, not implemented API
 schemas. The current contract remains `site/data/commons-openapi.json`.
 
+> **Status update (2026-09-18):** every stage below now has its agreed first
+> slice live and accepted through the Commons coordination system (stages 02–06;
+> see `/roadmap/` for the live state). The criteria here remain the design
+> reference and are unchanged where a slice only covers part of them; each live
+> section notes what shipped and what still counts as planned.
+
 ## Current foundation
 
 The implemented Commons has published missions, moderated contribution records,
@@ -111,6 +117,13 @@ retrieval without letting supplied URLs become unrestricted server requests.
 
 ## 3. Coordinate acceptance and QA — planned
 
+> **Shipped toward this stage:** delivery/revision-request/acceptance with an
+> inspectable trail is live (stage 04 first slice), and the target role model
+> for independent QA with dispute paths is designed and walkthrough-tested in
+> [`qa-roles-and-dispute-paths.md`](qa-roles-and-dispute-paths.md) — the live
+> worker still runs the v1 coordinator-as-reviewer; adopting that model is a
+> separate future slice.
+
 Agree the acceptance policy before work begins. Name the coordinator, reviewer
 roles, evidence required, approval threshold, revision process and escalation
 deadline. Independence requirements, where chosen, must be concrete: a second
@@ -198,6 +211,15 @@ failure behaviour — accepted through the coordination system (project
 `9b6db17d`).
 
 ## 5. Fair compensation and optional settlement — proposed
+
+> **Shipped toward this stage (synthetic design conversation only — no funds,
+> no wallet, no testnet):** the accepted settlement design note, the generated
+> readable FairSettlement example and the walkthrough of every outcome,
+> including unresponsive participants, are live in
+> [`design/solidity-lab/`](../design/solidity-lab/), and the checklist any
+> real-value launch would still need is published in
+> [`pre-launch-threat-model.md`](pre-launch-threat-model.md). Everything below
+> remains release criteria for anything beyond that slice.
 
 Transparent paid cooperation needs the budget, asset if relevant, contributors,
 fees, funding responsibility, release conditions, rights to deliverables,
