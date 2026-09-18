@@ -7,27 +7,23 @@ const script = readFileSync(new URL('../site/assets/scripts/theme-v1.js', import
 const key = 'oss-singularity-theme';
 
 // Exercise the public controller with unavailable browser storage and real
-// preference transitions. Layout and keyboard activation need browser checks.
+// preference transitions. Layout, paint timing and keyboard activation need
+// browser checks; the icon/label pair is CSS-driven by contract.
 function page({ saved = null, accessError = false, readError = false, writeError = false, ready = 'loading', metas = true } = {}) {
   const reads = [], writes = [], changes = [], documentEvents = new Map(), windowEvents = new Map();
   const root = { dataset: { theme: 'bright' } };
   const buttons = Array.from({ length: 2 }, () => ({
-    hidden: true, attributes: {}, events: new Map(),
-    icon: { textContent: '', attributes: { 'aria-hidden': 'true' } },
-    label: { textContent: '' },
+    attributes: {},
+    closest(selector) { return selector === 'button[data-theme-toggle]' ? this : null; },
     setAttribute(name, value) { this.attributes[name] = value; },
-    addEventListener(name, listener) { this.events.set(name, listener); },
-    querySelector(selector) {
-      if (selector === '[data-theme-icon]') return this.icon;
-      if (selector === '[data-theme-label]') return this.label;
-      throw new Error(`Unexpected button access: ${selector}`);
-    },
   }));
   for (const button of buttons) {
-    for (const element of [button, button.icon, button.label]) {
-      Object.defineProperty(element, 'innerHTML', { set() { throw new Error('Unexpected HTML injection'); } });
-      Object.defineProperty(element, 'style', { get() { throw new Error('Unexpected inline style access'); } });
-    }
+    Object.defineProperty(button, 'innerHTML', { set() { throw new Error('Unexpected HTML injection'); } });
+    Object.defineProperty(button, 'style', { get() { throw new Error('Unexpected inline style access'); } });
+    Object.defineProperty(button, 'hidden', {
+      get() { return false; },
+      set() { throw new Error('Visibility is CSS-driven; the script must not toggle the hidden state'); },
+    });
   }
   const themeColor = { setAttribute(name, value) { this[name] = value; } };
   const colorScheme = { setAttribute(name, value) { this[name] = value; } };
@@ -74,9 +70,9 @@ function page({ saved = null, accessError = false, readError = false, writeError
   class CustomEvent { constructor(type, { detail }) { this.type = type; this.detail = detail; } }
   vm.runInNewContext(script, { document, window, CustomEvent }, { filename: 'theme-v1.js' });
   return {
-    root, buttons, themeColor, colorScheme, reads, writes, changes,
+    root, buttons, themeColor, colorScheme, reads, writes, changes, documentEvents,
     ready() { documentEvents.get('DOMContentLoaded')?.(); },
-    click(index = 0) { buttons[index].events.get('click')(); },
+    click(index = 0) { documentEvents.get('click')({ target: buttons[index] }); },
     store(value) { saved = value; },
     blockStorage({ access = false, read = false } = {}) { accessError = access; readError = read; },
     pageshow(persisted = false) { windowEvents.get('pageshow')({ persisted }); },
@@ -86,11 +82,8 @@ function page({ saved = null, accessError = false, readError = false, writeError
   };
 }
 
-function assertAction(p, icon, label, accessibleName) {
+function assertAction(p, accessibleName) {
   for (const button of p.buttons) {
-    assert.equal(button.icon.textContent, icon);
-    assert.equal(button.icon.attributes['aria-hidden'], 'true');
-    assert.equal(button.label.textContent, label);
     assert.equal(button.attributes['aria-label'], accessibleName);
     assert.equal('aria-pressed' in button.attributes, false, 'A destination action has no toggle state');
   }
@@ -103,12 +96,26 @@ test('first visit synchronously selects dark and never writes a preference', () 
   assert.equal(p.colorScheme.content, 'dark');
   assert.deepEqual(p.reads, [key]);
   assert.deepEqual(p.writes, []);
-  assert.ok(p.buttons.every((button) => button.hidden));
+  // Buttons exist unhidden in the markup; only the scripted accessible name
+  // arrives once the buttons are parsed.
   p.ready();
-  assert.ok(p.buttons.every((button) => !button.hidden));
-  assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
+  assertAction(p, 'Switch to bright mode');
   assert.deepEqual(p.reads, [key]);
   assert.deepEqual(p.writes, []);
+});
+
+test('delegated toggles respond before the buttons are wired to the parser', () => {
+  const p = page();
+  assert.equal(p.root.dataset.theme, 'dark');
+  p.changes.length = 0;
+  p.click();
+  assert.equal(p.root.dataset.theme, 'bright');
+  assertAction(p, 'Switch to dark mode');
+  assert.deepEqual(p.writes, [[key, 'bright']]);
+  p.click(1);
+  assert.equal(p.root.dataset.theme, 'dark');
+  assertAction(p, 'Switch to bright mode');
+  assert.deepEqual(p.changes, ['bright', 'dark']);
 });
 
 test('a saved bright preference applies before buttons are activated', () => {
@@ -116,9 +123,8 @@ test('a saved bright preference applies before buttons are activated', () => {
   assert.equal(p.root.dataset.theme, 'bright');
   assert.equal(p.themeColor.content, '#f4f7fb');
   assert.equal(p.colorScheme.content, 'light');
-  assert.ok(p.buttons.every((button) => button.hidden));
   p.ready();
-  assertAction(p, '☾', 'Dark mode', 'Switch to dark mode');
+  assertAction(p, 'Switch to dark mode');
   assert.deepEqual(p.reads, [key]);
   assert.deepEqual(p.writes, []);
 });
@@ -127,21 +133,33 @@ test('invalid saved preferences fall back to dark without repairing storage', ()
   for (const saved of ['dark', '', 'light', 'system', 'BRIGHT', ' bright ', '{"theme":"bright"}']) {
     const p = page({ saved, ready: 'complete' });
     assert.equal(p.root.dataset.theme, 'dark', `Preference: ${saved}`);
-    assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
+    assertAction(p, 'Switch to bright mode');
     assert.deepEqual(p.writes, []);
   }
 });
 
-test('explicit toggles update every button, emit palette changes, and save only the theme', () => {
+test('clicks outside the toggle and non-element targets are ignored', () => {
+  const p = page({ ready: 'complete' });
+  const listener = p.documentEvents.get('click');
+  assert.doesNotThrow(() => listener({ target: { closest: () => null } }));
+  assert.doesNotThrow(() => listener({ target: 'just text' }));
+  assert.doesNotThrow(() => listener({}));
+  assert.equal(p.root.dataset.theme, 'dark');
+  assert.deepEqual(p.writes, []);
+  p.click();
+  assert.equal(p.root.dataset.theme, 'bright');
+});
+
+test('explicit toggles update the accessible name, emit palette changes, and save only the theme', () => {
   const p = page({ ready: 'complete' });
   p.changes.length = 0;
   p.click();
   assert.equal(p.root.dataset.theme, 'bright');
-  assertAction(p, '☾', 'Dark mode', 'Switch to dark mode');
+  assertAction(p, 'Switch to dark mode');
   assert.equal(p.colorScheme.content, 'light');
   p.click(1);
   assert.equal(p.root.dataset.theme, 'dark');
-  assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
+  assertAction(p, 'Switch to bright mode');
   assert.deepEqual(p.changes, ['bright', 'dark']);
   assert.deepEqual(p.writes, [[key, 'bright'], [key, 'dark']]);
   assert.deepEqual(p.reads, [key]);
@@ -153,7 +171,7 @@ test('blocked storage access, reads or writes leave a working page-local toggle'
     assert.equal(p.root.dataset.theme, 'dark');
     p.click();
     assert.equal(p.root.dataset.theme, 'bright');
-    assertAction(p, '☾', 'Dark mode', 'Switch to dark mode');
+    assertAction(p, 'Switch to dark mode');
     p.external('dark');
     assert.equal(p.root.dataset.theme, failure === 'accessError' ? 'bright' : 'dark');
     p.click();
@@ -167,43 +185,43 @@ test('cross-tab updates affect only this local preference and never write back',
   p.external('bright', 'unrelated-private-key');
   p.external('bright', key, {});
   assert.equal(p.root.dataset.theme, 'dark');
-  assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
+  assertAction(p, 'Switch to bright mode');
   assert.deepEqual(p.changes, []);
   p.external('bright');
   assert.equal(p.root.dataset.theme, 'bright');
-  assertAction(p, '☾', 'Dark mode', 'Switch to dark mode');
+  assertAction(p, 'Switch to dark mode');
   p.external('bright');
   assert.deepEqual(p.changes, ['bright']);
   p.external('invalid');
   assert.equal(p.root.dataset.theme, 'dark');
-  assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
+  assertAction(p, 'Switch to bright mode');
   p.external('bright');
   p.external(null);
   assert.equal(p.root.dataset.theme, 'dark');
-  assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
+  assertAction(p, 'Switch to bright mode');
   p.external('bright');
   p.external(null, null);
   assert.equal(p.root.dataset.theme, 'dark');
-  assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
+  assertAction(p, 'Switch to bright mode');
   assert.deepEqual(p.writes, []);
   assert.deepEqual(p.reads, [key]);
 });
 
-test('back/forward restoration catches missed preferences without rewiring buttons or writing storage', () => {
+test('back/forward restoration catches missed preferences without rewiring or writing storage', () => {
   const p = page({ ready: 'complete' });
-  const listeners = p.buttons.map((button) => button.events.get('click'));
+  const listener = p.documentEvents.get('click');
   p.changes.length = 0;
   p.store('bright');
   p.pageshow();
   assert.equal(p.root.dataset.theme, 'dark', 'Ordinary pageshow does not reload preferences');
-  assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
+  assertAction(p, 'Switch to bright mode');
   assert.deepEqual(p.reads, [key]);
   assert.deepEqual(p.changes, []);
   p.pageshow(true);
   assert.equal(p.root.dataset.theme, 'bright');
   assert.equal(p.themeColor.content, '#f4f7fb');
   assert.equal(p.colorScheme.content, 'light');
-  assertAction(p, '☾', 'Dark mode', 'Switch to dark mode');
+  assertAction(p, 'Switch to dark mode');
   assert.deepEqual(p.reads, [key, key]);
   assert.deepEqual(p.changes, ['bright']);
   for (const value of [null, 'invalid']) {
@@ -212,7 +230,7 @@ test('back/forward restoration catches missed preferences without rewiring butto
     assert.equal(p.root.dataset.theme, 'dark');
     assert.equal(p.themeColor.content, '#07111f');
     assert.equal(p.colorScheme.content, 'dark');
-    assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
+    assertAction(p, 'Switch to bright mode');
     p.store('bright');
     p.pageshow(true);
   }
@@ -224,17 +242,14 @@ test('back/forward restoration catches missed preferences without rewiring butto
     assert.equal(p.root.dataset.theme, 'bright', 'Blocked access preserves the restored page theme');
     assert.equal(p.themeColor.content, '#f4f7fb');
     assert.equal(p.colorScheme.content, 'light');
-    assertAction(p, '☾', 'Dark mode', 'Switch to dark mode');
+    assertAction(p, 'Switch to dark mode');
     assert.equal(p.changes.length, changesBefore);
     p.blockStorage();
   }
-  for (const [index, button] of p.buttons.entries()) {
-    assert.equal(button.events.get('click'), listeners[index]);
-    assert.equal(button.hidden, false);
-  }
+  assert.equal(p.documentEvents.get('click'), listener, 'The delegated listener survives restoration');
   assert.deepEqual(p.writes, []);
   p.click();
   assert.equal(p.root.dataset.theme, 'dark');
-  assertAction(p, '☀', 'Bright mode', 'Switch to bright mode');
-  assert.deepEqual(p.writes, [[key, 'dark']], 'The existing listener still handles one explicit toggle');
+  assertAction(p, 'Switch to bright mode');
+  assert.deepEqual(p.writes, [[key, 'dark']], 'The delegated listener still handles one explicit toggle');
 });

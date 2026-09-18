@@ -3,7 +3,6 @@
 
   const preferenceKey = "oss-singularity-theme";
   const root = document.documentElement;
-  let buttons = [];
 
   function applyTheme(value) {
     const theme = value === "bright" ? "bright" : "dark";
@@ -15,15 +14,19 @@
     for (const meta of document.querySelectorAll('meta[name="color-scheme"]')) {
       meta.setAttribute("content", theme === "bright" ? "light" : "dark");
     }
-    for (const button of buttons) {
-      button.setAttribute("aria-label", theme === "bright" ? "Switch to dark mode" : "Switch to bright mode");
-      const icon = button.querySelector("[data-theme-icon]");
-      const label = button.querySelector("[data-theme-label]");
-      if (icon) icon.textContent = theme === "bright" ? "☾" : "☀";
-      if (label) label.textContent = theme === "bright" ? "Dark mode" : "Bright mode";
-    }
+    syncActions();
     // Palette consumers read dataset.theme at startup, then listen on document.
     if (changed) document.dispatchEvent(new CustomEvent("oss-theme-change", { detail: { theme } }));
+  }
+
+  // The icon and the label swap through CSS: the markup carries both theme
+  // pairs and html[data-theme] shows the matching one, so the control paints
+  // correct from the very first frame. Only the accessible name needs scripting.
+  function syncActions() {
+    const action = root.dataset.theme === "bright" ? "Switch to dark mode" : "Switch to bright mode";
+    for (const button of document.querySelectorAll("button[data-theme-toggle]")) {
+      button.setAttribute("aria-label", action);
+    }
   }
 
   let savedTheme = null;
@@ -34,28 +37,26 @@
   }
   applyTheme(savedTheme);
 
-  function connectButtons() {
-    buttons = Array.from(document.querySelectorAll("button[data-theme-toggle]"));
-    for (const button of buttons) {
-      button.addEventListener("click", () => {
-        const theme = root.dataset.theme === "bright" ? "dark" : "bright";
-        applyTheme(theme);
-        try {
-          window.localStorage.setItem(preferenceKey, theme);
-        } catch {
-          // The selected theme still works for this page when saving is blocked.
-        }
-      });
-      button.hidden = false;
-    }
-    applyTheme(root.dataset.theme);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", syncActions, { once: true });
+  } else {
+    syncActions();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", connectButtons, { once: true });
-  } else {
-    connectButtons();
-  }
+  // One delegated listener covers every toggle from the moment this script
+  // runs — there is no wiring window in which a visible button would ignore
+  // a first click while the rest of the page is still loading.
+  document.addEventListener("click", (event) => {
+    const target = event && event.target;
+    const button = target && typeof target.closest === "function" ? target.closest("button[data-theme-toggle]") : null;
+    if (!button) return;
+    applyTheme(root.dataset.theme === "bright" ? "dark" : "bright");
+    try {
+      window.localStorage.setItem(preferenceKey, root.dataset.theme);
+    } catch {
+      // The selected theme still works for this page when saving is blocked.
+    }
+  });
 
   window.addEventListener("pageshow", (event) => {
     if (!event.persisted) return;

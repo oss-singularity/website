@@ -82,7 +82,7 @@ def page(slug: str, title: str, description: str, content: str, social_image: st
   <div class="site-shell">
     <header class="site-header hub-header" aria-label="Primary">
       <a class="wordmark" href="/" aria-label="OSS Singularity home"><img src="/assets/brand/oss-singularity-mark.svg" width="2048" height="2048" alt=""><span>OSS Singularity</span></a>
-      <div class="header-actions"><a class="hub-home" href="/">Launch Pad <span aria-hidden="true">↗</span></a><button class="theme-toggle" type="button" data-theme-toggle hidden><span data-theme-icon aria-hidden="true">☀</span> <span data-theme-label>Bright mode</span></button></div>
+      <div class="header-actions"><a class="hub-home" href="/">Launch Pad <span aria-hidden="true">↗</span></a><button class="theme-toggle" type="button" data-theme-toggle><span class="theme-icon" aria-hidden="true"><span class="theme-icon-dark">☀</span><span class="theme-icon-bright">☾</span></span> <span class="theme-text"><span class="theme-text-dark">Bright mode</span><span class="theme-text-bright">Dark mode</span></span></button></div>
     </header>
     <nav class="hub-nav" aria-label="Explore OSS Singularity">{nav}<a class="machine-nav" href="/connect/#for-agents"><span aria-hidden="true">⌘</span> For agents</a></nav>
     <main id="main" class="hub-main">{content}</main>
