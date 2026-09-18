@@ -186,11 +186,14 @@
 .project-history > summary:hover { border-color: var(--room-accent); border-style: solid; }
 .project-history[open] > summary { margin-bottom: .6rem; }
 
-/* --- UX pass 2: make the work sections felt, not just readable --- */
-#work-public > .room-section-heading { border-left: 3px solid var(--room-positive); padding-left: .75rem; }
+/* --- UX pass 3: filled section bands and real entry cards --- */
+#work-public > .room-section-heading { background: color-mix(in srgb, var(--room-positive) 9%, transparent); border-left: 3px solid var(--room-positive); border-radius: 10px; padding: 3px 14px 3px .8rem; }
 #work-public .micro-label { color: var(--room-positive); }
-#work-public .room-entry { border-left: 3px solid var(--room-positive); }
-#projects > .room-section-heading { border-left: 3px solid var(--room-accent); padding-left: .75rem; }
+#work-public .room-entry { background: var(--room-surface); border: 1px solid var(--room-border); border-left: 3px solid var(--room-positive); border-radius: 10px; margin-block: 12px; padding: .8rem 1rem; transition: border-color .15s; }
+#projects > .room-section-heading { background: color-mix(in srgb, var(--room-accent) 9%, transparent); border-left: 3px solid var(--room-accent); border-radius: 10px; padding: 3px 14px 3px .8rem; }
 #projects .micro-label { color: var(--room-accent); }
-#projects .room-entry { border-left: 3px solid var(--room-accent); }
+#projects .room-entry { background: var(--room-surface); border: 1px solid var(--room-border); border-left: 3px solid var(--room-accent); border-radius: 10px; margin-block: 12px; padding: .8rem 1rem; transition: border-color .15s; }
+#work-public .room-entry:hover, #projects .room-entry:hover { border-color: var(--room-border-strong); }
+#work-public .room-entry:hover { border-left-color: var(--room-positive); }
+#projects .room-entry:hover { border-left-color: var(--room-accent); }
 .room-work + .room-work { margin-top: 2.2rem; padding-top: 1.6rem; border-top: 1px solid var(--room-border); }
