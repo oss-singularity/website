@@ -35,6 +35,8 @@
   --room-private-border: #687273;
   --room-code: #08121a;
   --room-code-text: #c3ddd9;
+  --room-card-shadow: 0 3px 12px rgba(0, 0, 0, .16);
+  --room-card-shadow-hover: 0 10px 28px rgba(0, 0, 0, .32);
   --max: 1180px;
   --radius: 24px;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -79,6 +81,8 @@ html[data-theme="bright"] {
   --room-private-border: #93836a;
   --room-code: #e6eff5;
   --room-code-text: #274c5b;
+  --room-card-shadow: 0 3px 12px rgba(23, 58, 73, .1);
+  --room-card-shadow-hover: 0 10px 28px rgba(23, 58, 73, .18);
   --bright-room-ink: #185d66;
   --site-panel: #fffffff0;
   --site-visual: #e1eaf2;
