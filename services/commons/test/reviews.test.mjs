@@ -93,6 +93,7 @@ test('delivery, revision request, new delivery and acceptance close the loop wit
 
   const detail = await call(env, 'GET', `/api/v1/projects/${ids.projectId}`);
   assert.equal(detail.body.milestones.find(m => m.id === ids.milestoneId).status, 'done', 'acceptance completes the milestone');
+  assert.equal(detail.body.commitments.find(c => c.milestone_id === ids.milestoneId).status, 'completed', 'a confirmed commitment completes with its accepted milestone');
 
   const trail = await call(env, 'GET', `/api/v1/projects/${ids.projectId}/milestones/${ids.milestoneId}/reviews`);
   assert.equal(trail.status, 200);

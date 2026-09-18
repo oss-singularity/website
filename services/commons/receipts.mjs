@@ -32,6 +32,12 @@ function deliveryView(row) {
       content_identifier: row.content_identifier ?? null,
     },
     evidence_url: row.evidence_url ?? null,
+    retention: row.retention_retained_by ? {
+      retained_by: row.retention_retained_by,
+      retained_until: row.retention_retained_until ?? null,
+      access: row.retention_access ?? 'public',
+      on_unavailable: row.retention_on_unavailable ?? null,
+    } : null,
     author: row.author_github_id ? {
       identity_id: row.author_identity_id, github_id: row.author_github_id, github_login: row.author_github_login,
       github_url: `https://github.com/${row.author_github_login}`, verification: 'github-account-control',
@@ -55,7 +61,30 @@ export async function submitDelivery(request, env, projectId, milestoneId, now) 
     .bind(milestoneId, actor.id).first();
   if (!bound) throw new ApiError(403, 'forbidden', 'Only the confirmed contributor of this milestone submits deliveries.');
   const body = await readJson(request, ['summary', 'artifact_url', 'artifact_media_type', 'artifact_size_bytes',
-    'integrity_digest', 'content_identifier', 'evidence_url', 'expected_version']);
+    'integrity_digest', 'content_identifier', 'evidence_url', 'retention', 'expected_version']);
+  const retention = { retained_by: null, retained_until: null, access: null, on_unavailable: null };
+  if (body.retention !== undefined && body.retention !== null) {
+    if (typeof body.retention !== 'object' || Array.isArray(body.retention)) invalid('retention must be an object naming the declared retention rules.', 'retention');
+    if (!['contributor', 'coordinator', 'third-party'].includes(body.retention.retained_by)) invalid('retention.retained_by must name who keeps the artifact retrievable: contributor, coordinator or third-party.', 'retention');
+    retention.retained_by = body.retention.retained_by;
+    if (body.retention.retained_until !== undefined && body.retention.retained_until !== null) {
+      const until = body.retention.retained_until;
+      const parts = typeof until === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(until) : null;
+      const calendar = parts ? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])) : null;
+      const real = calendar && calendar.getFullYear() === Number(parts[1]) && calendar.getMonth() === Number(parts[2]) - 1 && calendar.getDate() === Number(parts[3]);
+      if (!real) {
+        invalid('retention.retained_until must be a valid ISO calendar date (YYYY-MM-DD) or null.', 'retention');
+      }
+      retention.retained_until = body.retention.retained_until;
+    }
+    if (body.retention.access !== undefined && body.retention.access !== null && body.retention.access !== 'public') {
+      invalid('retention.access must be public in this pilot; non-public access plans are a later stage.', 'retention');
+    }
+    retention.access = 'public';
+    if (body.retention.on_unavailable !== undefined && body.retention.on_unavailable !== null && body.retention.on_unavailable !== '') {
+      retention.on_unavailable = textField(body.retention.on_unavailable, 'retention.on_unavailable', 10, 300);
+    }
+  }
   const summary = textField(body.summary, 'summary', 20, 2000);
   const artifactUrl = safeUrl(body.artifact_url);
   if (!MEDIA_TYPES.includes(body.artifact_media_type)) invalid('artifact_media_type must be one of the declared media types.', 'artifact_media_type');
@@ -80,14 +109,15 @@ export async function submitDelivery(request, env, projectId, milestoneId, now) 
   const results = await env.DB.batch([
     env.DB.prepare(`INSERT INTO deliveries (id, project_id, milestone_id, author_identity_id, revision, scope_version,
         summary, artifact_url, artifact_media_type, artifact_size_bytes, integrity_algorithm, integrity_digest,
-        content_identifier, evidence_url, created_at)
-      SELECT ?, ?, ?, ?, (SELECT COALESCE(MAX(revision), 0) + 1 FROM deliveries WHERE milestone_id = ?), ?, ?, ?, ?, ?, 'sha256', ?, ?, ?, ?
+        content_identifier, evidence_url, retention_retained_by, retention_retained_until, retention_access, retention_on_unavailable, created_at)
+      SELECT ?, ?, ?, ?, (SELECT COALESCE(MAX(revision), 0) + 1 FROM deliveries WHERE milestone_id = ?), ?, ?, ?, ?, ?, 'sha256', ?, ?, ?, ?, ?, ?, ?, ?
       WHERE EXISTS (SELECT 1 FROM projects WHERE id = ? AND version = ? AND status = 'open')
         AND EXISTS (SELECT 1 FROM milestones WHERE id = ? AND project_id = ? AND status = 'open')
         AND EXISTS (SELECT 1 FROM commitments WHERE milestone_id = ? AND contributor_identity_id = ? AND status = 'confirmed')`)
       .bind(id, projectId, milestoneId, actor.id, milestoneId, context.scope_version, summary,
         artifactUrl, body.artifact_media_type, body.artifact_size_bytes, body.integrity_digest,
-        body.content_identifier || null, evidenceUrl, now,
+        body.content_identifier || null, evidenceUrl, retention.retained_by, retention.retained_until,
+        retention.access, retention.on_unavailable, now,
         projectId, body.expected_version, milestoneId, projectId, milestoneId, actor.id),
     env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open'`).bind(now, projectId),
     env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
@@ -121,14 +151,18 @@ export async function deliveryManifest(request, env, projectId, milestoneId, rev
   const milestone = await env.DB.prepare('SELECT id, title, scope_version FROM milestones WHERE id = ?').bind(milestoneId).first();
   const reviewRow = await env.DB.prepare(`${reviewSelect} WHERE r.milestone_id = ? AND r.delivery_revision = ? ORDER BY r.created_at DESC, r.id DESC LIMIT 1`)
     .bind(milestoneId, Number(revision)).first();
+  const newestRow = await env.DB.prepare('SELECT MAX(revision) AS revision FROM deliveries WHERE milestone_id = ?').bind(milestoneId).first();
+  const view = deliveryView(row);
   return response({
     schema_version: 1, kind: 'oss-delivery-manifest',
     project: { id: project.id, title: project.title, scope_version: 1 },
     milestone: { id: milestone.id, title: milestone.title, scope_version: milestone.scope_version },
     delivery_revision: row.revision, delivered_at: iso(row.created_at),
-    author: deliveryView(row).author,
-    artifact: deliveryView(row).artifact,
+    author: view.author,
+    artifact: view.artifact,
     evidence_url: row.evidence_url ?? null,
+    retention: view.retention,
+    superseded_by_revision: newestRow?.revision !== null && newestRow?.revision > row.revision ? newestRow.revision : null,
     summary: row.summary,
     verification: {
       algorithm: 'sha256',
@@ -209,6 +243,10 @@ export async function submitReview(request, env, projectId, milestoneId, now) {
     statements.push(
       env.DB.prepare(`UPDATE milestones SET status = 'done', version = version + 1, updated_at = ?
         WHERE id = ? AND project_id = ? AND status = 'open'`).bind(now, milestoneId, projectId),
+      env.DB.prepare(`UPDATE commitments SET status = 'completed', updated_at = ?
+        WHERE milestone_id = ? AND status = 'confirmed'`).bind(now, milestoneId),
+      env.DB.prepare(`UPDATE commitments SET status = 'declined', updated_at = ?
+        WHERE milestone_id = ? AND status = 'offered'`).bind(now, milestoneId),
       env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open'`).bind(now, projectId),
       env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
         SELECT ${sqlUuid}, id, version + 1, 'delivery_accepted', 'identity', ?, ? FROM projects WHERE id = ?`).bind(actor.id, now, projectId));
