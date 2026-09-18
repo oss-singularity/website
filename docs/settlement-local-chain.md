@@ -41,6 +41,23 @@ testnet run with value semantics is a launch rehearsal, never a test — it
 needs its own explicit authorization decision, recorded in the coordination
 system, before any key touches a public endpoint.
 
+The runner is already backend-configured (this suite, two backends):
+
+    # local chain (default): starts its own anvil on 127.0.0.1:8547
+    python3 scripts/test-settlement-anvil.py
+
+    # attached chain (a separately authorized rehearsal):
+    # 1. cast wallet new            -> burner key, funds it from the faucet
+    # 2. write an agreement JSON naming that burner address for its role
+    #    (copy settlement-anvil-agreement.json, swap the addresses)
+    # 3. write three keys to a file: contributor, coordinator, holder (0x…, one per line)
+    # 4. python3 scripts/test-settlement-anvil.py --attach --rpc <url> \
+    #        --key-file keys.txt --agreement rehearsal-agreement.json
+
+An attached run never starts or stops a chain, skips the time-travel
+scenarios (wall-clock deadlines apply), and never reads keys from
+command-line arguments — only from the key file.
+
 ## What the suite exercises
 
 Deployment of the freshly compiled committed example, then per scenario
