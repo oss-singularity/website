@@ -30,7 +30,7 @@ jobs:
         run: python3 scripts/check-agent-data.py --self-test
       - name: Validate the delivery receipt verifier
         run: python3 scripts/test-verify-receipt.py
-      - name: Validate the contract lab generator
+      - name: Validate the contract lab generator and pinned-compiler package
         run: python3 scripts/test-solidity-lab.py
       - name: Validate static release artifacts and rejection cases
         run: python3 scripts/test-release-artifact.py

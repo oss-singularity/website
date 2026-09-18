@@ -1,0 +1,8 @@
+{
+  "name": "oss-singularity-solidity-lab",
+  "private": true,
+  "description": "Pinned toolchain for the contract lab test package (roadmap stage 05). The compiler version is exact on purpose: a pinned source commit plus this pinned compiler reproduce the generated artifacts byte-for-byte.",
+  "devDependencies": {
+    "solc": "0.8.37"
+  }
+}
