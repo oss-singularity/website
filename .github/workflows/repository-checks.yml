@@ -36,6 +36,10 @@ jobs:
         run: python3 scripts/test-fair-settlement.py
       - name: Exercise the independent QA role model with dispute paths
         run: python3 scripts/test-qa-model.py
+      - name: Install pinned Foundry for the local-chain settlement exercise
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+      - name: Run the settlement exercise against a local chain
+        run: python3 scripts/test-settlement-anvil.py
       - name: Validate static release artifacts and rejection cases
         run: python3 scripts/test-release-artifact.py
       - name: Validate Commons code artifacts and existing schema profiles

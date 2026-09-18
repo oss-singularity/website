@@ -56,7 +56,7 @@ def _require_address(document: dict, field: str) -> None:
     value = document.get(field)
     if not isinstance(value, str) or not value.startswith("0x") or len(value) != 42:
         raise ValueError(f"{field} must be a 20-byte hex address (0x plus 40 hex characters)")
-    if any(c not in HEX_DIGITS for c in value[2:]):
+    if any(c not in "0123456789abcdefABCDEF" for c in value[2:]):
         raise ValueError(f"{field} must be a 20-byte hex address (0x plus 40 hex characters)")
 
 
