@@ -101,9 +101,6 @@
         if (pages <= 1) return null;
         const page = Math.min(Math.max(1, listPages.get(group) ?? 1), pages);
         listPages.set(group, page);
-        const bar = node("div", undefined, "project-pager");
-        bar.setAttribute("role", "navigation");
-        bar.setAttribute("aria-label", "Project pages");
         const turn = (delta) => {
           listPages.set(group, Math.min(pages, Math.max(1, page + delta)));
           renderList();
@@ -111,16 +108,24 @@
           const anchor = document.querySelectorAll(anchorSelector)[0];
           if (anchor && typeof anchor.scrollIntoView === "function") anchor.scrollIntoView({ block: "start" });
         };
-        const back = node("button", "‹ Previous page", "text-button");
-        back.type = "button"; back.disabled = page === 1;
-        back.addEventListener("click", () => turn(-1));
-        const next = node("button", "Next page ›", "text-button");
-        next.type = "button"; next.disabled = page === pages;
-        next.addEventListener("click", () => turn(1));
-        const label = node("span", `Page ${page} of ${pages}`, "room-subtle");
-        label.setAttribute("aria-current", "page");
-        bar.append(back, label, next);
-        return { bar, slice: (entries) => entries.slice((page - 1) * VISIBLE_CARDS, page * VISIBLE_CARDS) };
+        // one control above and one below the cards, so turning a page never
+        // forces a trip across the whole list
+        const bar = () => {
+          const element = node("div", undefined, "project-pager");
+          element.setAttribute("role", "navigation");
+          element.setAttribute("aria-label", "Project pages");
+          const back = node("button", "‹ Previous page", "text-button");
+          back.type = "button"; back.disabled = page === 1;
+          back.addEventListener("click", () => turn(-1));
+          const next = node("button", "Next page ›", "text-button");
+          next.type = "button"; next.disabled = page === pages;
+          next.addEventListener("click", () => turn(1));
+          const label = node("span", `Page ${page} of ${pages}`, "room-subtle");
+          label.setAttribute("aria-current", "page");
+          element.append(back, label, next);
+          return element;
+        };
+        return { top: bar(), bottom: bar(), slice: (entries) => entries.slice((page - 1) * VISIBLE_CARDS, page * VISIBLE_CARDS) };
       };
       const active = shown.filter((item) => item.status !== "closed");
       const archived = shown.filter((item) => item.status === "closed");
@@ -131,21 +136,24 @@
         box.append(none);
       } else if (listFilter !== "closed") {
         const openPager = pager("open", active.length, "#projects-list > .room-entry");
+        if (openPager) box.append(openPager.top);
         box.append(...(openPager ? openPager.slice(active) : active).map(card));
-        if (openPager) box.append(openPager.bar);
+        if (openPager) box.append(openPager.bottom);
         if (archived.length) {
           const history = node("details", undefined, "project-history");
           history.append(node("summary", `Closed history (${archived.length}) — show finished projects`));
           const closedPager = pager("closed", archived.length, "#projects-list .project-history");
+          if (closedPager) history.append(closedPager.top);
           history.append(...(closedPager ? closedPager.slice(archived) : archived).map(card));
-          if (closedPager) history.append(closedPager.bar);
+          if (closedPager) history.append(closedPager.bottom);
           if (listQuery) history.open = true; // a search reaches the closed work directly
           box.append(history);
         }
       } else {
         const closedPager = pager("closed", shown.length, "#projects-list > .room-entry");
+        if (closedPager) box.append(closedPager.top);
         box.append(...(closedPager ? closedPager.slice(shown) : shown).map(card));
-        if (closedPager) box.append(closedPager.bar);
+        if (closedPager) box.append(closedPager.bottom);
       }
       if (listQuery) box.append(p(`${shown.length} of ${items.length} projects match the search.`, "room-subtle"));
     }

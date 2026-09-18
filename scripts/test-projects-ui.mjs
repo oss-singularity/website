@@ -166,6 +166,9 @@ test('long lists page in place with per-group page controls that reset on view c
   const pagerButtons = (root, pattern) => h.walk(root).filter((n) => n.tagName === 'BUTTON' && pattern.test(n.textContent));
   assert.equal(direct().length, 6); // the open group pages in place
   assert.equal(history().querySelectorAll('.room-entry').length, 6); // so does the closed history
+  const kids = h.get('projects-list').children; // [filter bar, pager above, cards…, pager below, history]
+  assert.match(kids[1].className, /project-pager/); // page controls sit above the cards too
+  assert.match(kids.at(-2).className, /project-pager/);
   assert.equal(pageLabel(h.get('projects-list')), 'Page 1 of 2');
   assert.equal(pageLabel(history()), 'Page 1 of 2');
   assert.equal(pagerButtons(h.get('projects-list'), /Previous page/)[0].disabled, true); // no way back from page one
