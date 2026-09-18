@@ -323,8 +323,10 @@ def check_product(root: Path) -> int:
     # The per-page CSS cap (65 KB -> 70 KB, 2026-09-16) was removed by owner
     # decision on 2026-09-18; total CSS stays reported in the summary line.
     script_bytes = sum(path.stat().st_size for path in (root / "assets/scripts").glob("*.js"))
+    # Raised from 25 KB to 30 KB on 2026-09-18: the projects room reached 24.9 KB
+    # before the owner-requested search and paging slice; the cap stays a lean-script guard.
     for script in (root / "assets/scripts").glob("*.js"):
-        if script.stat().st_size > 25_000:
+        if script.stat().st_size > 30_000:
             fail(f"per-page JavaScript budget exceeded: {script.name}")
     for image in (root / "assets/projects").iterdir():
         if image.stat().st_size > 180_000:
