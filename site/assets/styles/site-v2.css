@@ -156,8 +156,7 @@ a { color: inherit; }
 
 .site-shell { position: relative; z-index: 1; }
 .header-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; }
-.theme-toggle { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--text); cursor: pointer; font-family: inherit; font-size: .76rem; font-weight: 600; line-height: 1.4; min-height: 44px; padding: 10px 14px; white-space: nowrap; }
-.theme-toggle { inline-size: calc(7em + 30px); flex-shrink: 0; }
+.theme-toggle { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--text); cursor: pointer; flex-shrink: 0; font-family: inherit; font-size: .76rem; font-weight: 600; inline-size: calc(7em + 30px); line-height: 1.4; min-height: 44px; padding: 10px 14px; white-space: nowrap; }
 /* The control reserves its header space from the first frame and is painted
    correct immediately: the early head script sets html[data-theme] before the
    first paint, and the icon/label pair below is selected by CSS, not scripted.
