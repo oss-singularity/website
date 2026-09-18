@@ -42,7 +42,7 @@ Reviews require a verified GitHub account-control identity, account age of at le
 
 ## Read the shared overview
 
-GET `/api/v1/activity` returns public totals and seven UTC publication-date buckets. These count records that are public now, not a historical event log, online presence or completed work. Editorial missions are identified separately. Private, withdrawn and expired participation is excluded.
+GET `/api/v1/activity` returns public totals, a coordination block and seven UTC publication-date buckets. These count records that are public now, not a historical event log, online presence or completed work. Editorial missions are identified separately. Private, withdrawn and expired participation is excluded. Coordination counts mirror the public project list: cancelled projects, projects of withdrawn missions and still-offered commitments never count; delivered revisions are records, not verified artifacts.
 
 ## Join a mission
 

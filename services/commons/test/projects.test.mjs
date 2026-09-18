@@ -218,3 +218,116 @@ test('unknown projects and missing credentials behave like the rest of the API',
   });
   assert.equal(unauthorized.status, 401, JSON.stringify(unauthorized.body ?? ''));
 });
+
+test('the activity coordination block mirrors public coordination state exactly', async t => {
+  const env = await environment(t);
+  const aria = await enroll(env, 'aria');
+  const kofi = await enroll(env, 'kofi');
+  const digest = 'c'.repeat(64);
+
+  const empty = await call(env, 'GET', '/api/v1/activity');
+  assert.equal(empty.status, 200);
+  assert.deepEqual(empty.body.coordination, {
+    projects_total: 0, projects_open: 0, projects_closed: 0, milestones_open: 0, milestones_done: 0,
+    commitments_confirmed: 0, commitments_completed: 0, deliveries_total: 0,
+  });
+
+  const project = await call(env, 'POST', '/api/v1/projects', {
+    mission_id: 'build-the-commons', title: 'Counter walkthrough',
+    purpose: 'Walk every public coordination counter through one honest loop.',
+  }, aria);
+  assert.equal(project.status, 201, JSON.stringify(project.body).slice(0, 200));
+  const projectId = project.body.id;
+  const milestone = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones`, {
+    title: 'Counter milestone', purpose: 'Carry the counters through a full review loop.',
+    expected_artifact: 'A walkthrough artifact accepted after one revision cycle.',
+    acceptance: criteria, expected_version: project.body.version,
+  }, aria);
+  assert.equal(milestone.status, 201, JSON.stringify(milestone.body ?? '').slice(0, 200));
+
+  const offer = await call(env, 'POST', `/api/v1/projects/${projectId}/commitments`,
+    { milestone_id: milestone.body.id, terms: 'volunteer' }, kofi);
+  assert.equal(offer.status, 201, JSON.stringify(offer.body).slice(0, 200));
+  const confirmed = await call(env, 'POST', `/api/v1/projects/${projectId}/commitments/${offer.body.id}/actions`,
+    { action: 'confirm' }, aria);
+  assert.equal(confirmed.status, 200, JSON.stringify(confirmed.body ?? '').slice(0, 200));
+
+  // A second, still-private offer must not move any public counter.
+  const lex = await enroll(env, 'lex');
+  const privateOffer = await call(env, 'POST', `/api/v1/projects/${projectId}/commitments`,
+    { milestone_id: milestone.body.id, terms: 'volunteer' }, lex);
+  assert.equal(privateOffer.status, 201, JSON.stringify(privateOffer.body).slice(0, 200));
+
+  let snapshot = await call(env, 'GET', '/api/v1/activity');
+  assert.deepEqual(snapshot.body.coordination, {
+    projects_total: 1, projects_open: 1, projects_closed: 0, milestones_open: 1, milestones_done: 0,
+    commitments_confirmed: 1, commitments_completed: 0, deliveries_total: 0,
+  });
+
+  // A revision cycle: first delivery is returned, the second is accepted.
+  const first = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestone.body.id}/deliveries`, {
+    summary: 'First revision before the retention statement was attached.',
+    artifact_url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.json',
+    artifact_media_type: 'text/plain', artifact_size_bytes: 512,
+    integrity_digest: digest, expected_version: project.body.version + 1,
+  }, kofi);
+  assert.equal(first.status, 201, JSON.stringify(first.body ?? '').slice(0, 200));
+  const requested = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestone.body.id}/reviews`, {
+    delivery_revision: 1, decision: 'revision_requested',
+    note: 'Attach the declared retention statement before acceptance.',
+    expected_version: 1,
+  }, aria);
+  assert.equal(requested.status, 201, JSON.stringify(requested.body ?? '').slice(0, 200));
+  const second = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestone.body.id}/deliveries`, {
+    summary: 'Second revision carrying the declared retention statement.',
+    artifact_url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.json',
+    artifact_media_type: 'text/plain', artifact_size_bytes: 512,
+    integrity_digest: digest, expected_version: project.body.version + 3,
+  }, kofi);
+  assert.equal(second.status, 201, JSON.stringify(second.body ?? '').slice(0, 200));
+  const accepted = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestone.body.id}/reviews`, {
+    delivery_revision: 2, decision: 'accept',
+    note: 'Revision two carries the retention statement; acceptance binds it.',
+    expected_version: 1,
+  }, aria);
+  assert.equal(accepted.status, 201, JSON.stringify(accepted.body ?? '').slice(0, 200));
+
+  snapshot = await call(env, 'GET', '/api/v1/activity');
+  assert.deepEqual(snapshot.body.coordination, {
+    projects_total: 1, projects_open: 1, projects_closed: 0, milestones_open: 0, milestones_done: 1,
+    commitments_confirmed: 0, commitments_completed: 1, deliveries_total: 2,
+  });
+
+  // A closed project stays public and counts as closed.
+  const secondProject = await call(env, 'POST', '/api/v1/projects', {
+    mission_id: 'build-the-commons', title: 'Closed counter pilot',
+    purpose: 'A project the coordinator closes without a milestone.',
+  }, aria);
+  assert.equal(secondProject.status, 201, JSON.stringify(secondProject.body).slice(0, 200));
+  const closed = await call(env, 'POST', `/api/v1/projects/${secondProject.body.id}/actions`,
+    { action: 'close', expected_version: secondProject.body.version }, aria);
+  assert.equal(closed.status, 200, JSON.stringify(closed.body ?? '').slice(0, 200));
+  snapshot = await call(env, 'GET', '/api/v1/activity');
+  assert.deepEqual(snapshot.body.coordination, {
+    projects_total: 2, projects_open: 1, projects_closed: 1, milestones_open: 0, milestones_done: 1,
+    commitments_confirmed: 0, commitments_completed: 1, deliveries_total: 2,
+  });
+
+  // A project whose mission is withdrawn leaves the public counters entirely.
+  const retiredMission = crypto.randomUUID();
+  env.DB.sqlite.prepare(`INSERT INTO proposals (id, kind, title, summary, status, provenance, receipt_hash, created_at, updated_at, published_at)
+    VALUES (?, 'mission', 'Retired mission', 'A mission the moderators retire with its project.', 'published', 'seed', NULL, ?, ?, ?)`)
+    .run(retiredMission, NOW, NOW, NOW);
+  const doomed = await call(env, 'POST', '/api/v1/projects', {
+    mission_id: retiredMission, title: 'Withdrawn counter pilot',
+    purpose: 'A project whose mission disappears from public view.',
+  }, aria);
+  assert.equal(doomed.status, 201, JSON.stringify(doomed.body).slice(0, 200));
+  env.DB.sqlite.prepare("UPDATE proposals SET status = 'rejected', published_at = NULL WHERE id = ?").run(retiredMission);
+  snapshot = await call(env, 'GET', '/api/v1/activity');
+  assert.deepEqual(snapshot.body.coordination, {
+    projects_total: 2, projects_open: 1, projects_closed: 1, milestones_open: 0, milestones_done: 1,
+    commitments_confirmed: 0, commitments_completed: 1, deliveries_total: 2,
+  });
+  assert.ok(!JSON.stringify(snapshot.body).includes(doomed.body.id));
+});

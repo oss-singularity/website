@@ -400,6 +400,9 @@ test('activity exposes bounded public counts and zero-filled UTC dates without i
   assert.equal(result.status, 200);
   assert.deepEqual(result.body.totals, { missions: 4, contributions: 0, offers: 0, needs: 0 });
   assert.equal(result.body.editorial_missions, 4);
+  // Seeded missions without coordinated projects report an all-zero coordination block.
+  assert.deepEqual(result.body.coordination, { projects_total: 0, projects_open: 0, projects_closed: 0,
+    milestones_open: 0, milestones_done: 0, commitments_confirmed: 0, commitments_completed: 0, deliveries_total: 0 });
   assert.deepEqual(result.body.window, { days: 7, timezone: 'UTC' });
   assert.equal(result.body.generated_at, new Date(NOW).toISOString());
   assert.equal(result.body.days.length, 7);

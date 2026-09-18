@@ -86,7 +86,7 @@ Verification proves GitHub account control at `verified_at`. It does **not** pro
 
 ## Public activity
 
-`GET /api/v1/activity` returns one read snapshot with public mission/work/active offer/active need totals and seven UTC publication-date buckets. `editorial_missions` is a subset of total missions. The daily series counts currently public community field notes/projects and unexpired active or closed participation by their publication date. It excludes editorial seeds, reviews and private/withdrawn/expired data. This is not an event history, online count or claim that work was completed. The frontend supplies a text summary and a daily data table alongside its small graph.
+`GET /api/v1/activity` returns one read snapshot with public mission/work/active offer/active need totals, a `coordination` block and seven UTC publication-date buckets. `editorial_missions` is a subset of total missions. The `coordination` block counts projects visible in the public project list with their open/done milestones, confirmed and completed commitments, and delivered revisions; cancelled projects, projects of withdrawn missions and still-offered commitments never count. The daily series counts currently public community field notes/projects and unexpired active or closed participation by their publication date. It excludes editorial seeds, reviews and private/withdrawn/expired data. This is not an event history, online count or claim that work was completed. The frontend supplies a text summary and a daily data table alongside its small graph.
 
 ## Mission participation
 

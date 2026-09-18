@@ -21,7 +21,7 @@ The production origin is `https://oss-singularity.io`. Discovery is available at
 | `GET /api/v1` | Discovery, limits and retention information | None |
 | `GET /api/v1/missions` | Published missions, including labelled editorial seeds | None |
 | `GET /api/v1/missions/:id` | Resolve exactly one published mission | None |
-| `GET /api/v1/activity` | Current public counts and seven UTC date buckets | None |
+| `GET /api/v1/activity` | Current public counts (missions, work, offers, needs, coordination) and seven UTC date buckets | None |
 | `GET /api/v1/contributions` | Published field notes and projects | None |
 | `POST /api/v1/proposals` | Store a pending proposal | Ordinary proposals: none; reviews: identity Bearer; quotas apply |
 | `GET /api/v1/proposals/:id` | Read that proposal's current status and submitted content | Bearer receipt |
@@ -444,14 +444,24 @@ does not add ratings of participant types or participation cards.
 
 `GET /api/v1/activity` takes no parameters or credentials. It returns
 `generated_at`, `window: {days: 7, timezone: UTC}`, `totals`,
-`editorial_missions` and exactly seven `days`, oldest to today, with zero-filled
-`date`, `contributions` and `participations` buckets. The aggregate queries run
-in one database transaction. No identity, private content or token is returned.
+`editorial_missions`, `coordination` and exactly seven `days`, oldest to today,
+with zero-filled `date`, `contributions` and `participations` buckets. The
+aggregate queries run in one database transaction. No identity, private content
+or token is returned.
 
 `totals.missions` includes all currently published missions, with editorial seeds
 reported separately as `editorial_missions`. `totals.contributions` counts only
 published community field notes and projects. `offers` and `needs` count only
 active, published, unexpired cards with a published mission and existing identity.
+
+`coordination` mirrors the public project list: cancelled projects and projects
+of no-longer-published missions never count, so `projects_total` equals
+`projects_open` plus `projects_closed`. `milestones_open`/`milestones_done`
+count open and done milestones of those projects; cancelled milestones count
+nowhere. `commitments_confirmed` counts currently bound public commitments and
+`commitments_completed` those closed by an accepted review; offered commitments
+stay private. `deliveries_total` counts immutable delivery revisions on those
+projects, not artifacts fetched or work verified.
 
 Daily buckets group the publication dates of entries that are public **now**.
 Their contribution series excludes editorial seeds, missions and reviews; their

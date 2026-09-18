@@ -20,10 +20,15 @@
     return node;
   };
   const dayLabel = date => new Intl.DateTimeFormat("en", {weekday: "short", timeZone: "UTC"}).format(new Date(`${date}T00:00:00Z`));
+  const coordinationKeys = ["projects_total", "projects_open", "projects_closed", "milestones_open",
+    "milestones_done", "commitments_confirmed", "commitments_completed", "deliveries_total"];
+  // The coordination block arrived after this panel; an older snapshot stays valid without it.
+  const coordinationCounts = value => !value || coordinationKeys.every(key => count(value[key]));
   const valid = data => {
     if (!data || data.window?.days !== 7 || data.window?.timezone !== "UTC" || !Number.isFinite(Date.parse(data.generated_at)) ||
         !data.totals || !["missions", "contributions", "offers", "needs"].every(key => count(data.totals[key])) ||
-        !count(data.editorial_missions) || data.editorial_missions > data.totals.missions || !Array.isArray(data.days) || data.days.length !== 7) return false;
+        !count(data.editorial_missions) || data.editorial_missions > data.totals.missions || !Array.isArray(data.days) || data.days.length !== 7 ||
+        !coordinationCounts(data.coordination)) return false;
     const today = Math.floor(Date.parse(data.generated_at) / 86400000) * 86400000;
     return data.days.every((day, index) => day && day.date === new Date(today - (6 - index) * 86400000).toISOString().slice(0, 10) &&
       count(day.contributions) && count(day.participations) && count(day.contributions + day.participations));
@@ -37,6 +42,13 @@
       totals.append(group);
     });
     document.getElementById("activity-editorial").textContent = `${data.editorial_missions} of these missions are editorial starting points. Needs and offers are invitations, not assigned work.`;
+    const coordination = document.getElementById("activity-coordination");
+    if (data.coordination) {
+      const numbers = data.coordination;
+      coordination.textContent = `Coordinated projects (${numbers.projects_open.toLocaleString("en")} open · ${numbers.projects_closed.toLocaleString("en")} closed) · milestones done (${numbers.milestones_done.toLocaleString("en")}) · completed commitments (${numbers.commitments_completed.toLocaleString("en")}).`;
+    } else {
+      coordination.textContent = "Coordinated projects (— open · — closed) · milestones done (—) · completed commitments (—).";
+    }
     const chart = document.getElementById("activity-chart");
     const table = document.getElementById("activity-days");
     chart.replaceChildren();
