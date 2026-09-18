@@ -90,12 +90,11 @@ class AnvilSettlementTests(unittest.TestCase):
             raise
         global ATTACHED
         if ATTACH:
-            try:
-                urllib.request.urlopen(urllib.request.Request(
-                    RPC, data=b'{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}',
-                    headers={"Content-Type": "application/json"}), timeout=5)
-            except Exception as error:
-                raise unittest.SkipTest(f"attached chain not reachable: {error}")
+            # probe through cast: public RPCs may reject the python client outright
+            probe = subprocess.run(["cast", "chain-id", "--rpc-url", RPC],
+                                   capture_output=True, text=True, timeout=30)
+            if probe.returncode != 0:
+                raise unittest.SkipTest(f"attached chain not reachable: {probe.stderr.strip()[:120]}")
             ATTACHED = False  # this run must never stop a chain it did not start
         else:
             cls.ANVIL = subprocess.Popen(["anvil", "--port", str(LOCAL_PORT), "--silent"],
@@ -145,9 +144,11 @@ class AnvilSettlementTests(unittest.TestCase):
         if deploy.returncode != 0 or receipt.get("status") != "0x1" or not address:
             self.fail(f"deployment failed on local chain: {deploy.stderr[:160]}")
         self.contract = address
-        # The chain clock is global and keeps the highest mined timestamp, so
-        # every scenario first returns it to the present, below all deadlines.
-        self._jump_to(int(time.time()))
+        # The local chain clock is global and keeps the highest mined
+        # timestamp, so every scenario first returns it to the present, below
+        # all deadlines. Attached chains have no time control at all.
+        if not ATTACH:
+            self._jump_to(int(time.time()))
 
     @classmethod
     def _shutdown(cls) -> None:
