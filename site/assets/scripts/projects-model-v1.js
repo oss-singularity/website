@@ -11,7 +11,7 @@
     && v.verification === "github-account-control" && date(v.verified_at);
   const projectLabels = { open: "Open project", closed: "Closed project", cancelled: "Cancelled project" };
   const milestoneLabels = { open: "Open milestone", done: "Done", cancelled: "Cancelled" };
-  const commitmentLabels = { offered: "Offer awaiting coordinator", confirmed: "Bound commitment", declined: "Declined", withdrawn: "Offer withdrawn", ended: "Ended", cancelled: "Cancelled" };
+  const commitmentLabels = { offered: "Offer awaiting coordinator", confirmed: "Bound commitment", declined: "Declined", withdrawn: "Offer withdrawn", ended: "Ended", cancelled: "Cancelled", completed: "Completed with the milestone" };
   const commitmentActions = { confirm: "Confirm this contributor", decline: "Decline offer", withdraw: "Withdraw my offer", end: "End this commitment" };
   const summary = (v) => v && uuid(v.id) && missionId(v.mission_id) && text(v.title, 120) && text(v.purpose, 2000)
     && ["open", "closed", "cancelled"].includes(v.status) && Number.isSafeInteger(v.version) && v.version > 0
@@ -24,7 +24,7 @@
     && Array.isArray(v.depends_on) && v.depends_on.length <= 10 && v.depends_on.every(uuid)
     && typeof v.blocked === "boolean";
   const commitment = (v, inExport = false) => v && uuid(v.id) && uuid(v.milestone_id) && (inExport || uuid(v.project_id))
-    && ["offered", "confirmed", "declined", "withdrawn", "ended", "cancelled"].includes(v.status)
+    && ["offered", "confirmed", "declined", "withdrawn", "ended", "cancelled", "completed"].includes(v.status)
     && v.terms === "volunteer" && v.scope_version === 1
     && date(v.created_at) && date(v.updated_at) && profile(v.contributor) && profile(v.coordinator);
   // Public reads never include another participant's offered commitment;
@@ -41,6 +41,13 @@
     && Array.isArray(v.commitments) && v.commitments.length <= 60 && v.commitments.every((c) => commitment(c, true)
       && ["confirmed", "ended"].includes(c.status))
     && v.notice === "An export records coordination decisions and identities; it verifies no artifact and authorizes no payment.";
+  // Retention is optional during the transition: absent/null stays valid; a present
+  // declaration must name a retaining role, a short ISO date or none, public access
+  // and an optional unavailability note of 10-300 characters.
+  const retention = (v) => v == null || (v && ["contributor", "coordinator", "third-party"].includes(v.retained_by)
+    && (v.retained_until === null || (typeof v.retained_until === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.retained_until)))
+    && v.access === "public"
+    && (v.on_unavailable === null || (typeof v.on_unavailable === "string" && [...v.on_unavailable].length >= 10 && [...v.on_unavailable].length <= 300)));
   const delivery = (v) => v && uuid(v.id) && uuid(v.project_id) && uuid(v.milestone_id)
     && Number.isSafeInteger(v.revision) && v.revision >= 1 && v.revision <= 10
     && v.scope_version === 1 && text(v.summary, 2000)
@@ -50,6 +57,7 @@
     && /^[a-f0-9]{64}$/.test(v.artifact.integrity.digest)
     && (v.artifact.content_identifier === null || /^[a-zA-Z0-9]{9,128}$/.test(v.artifact.content_identifier))
     && (v.evidence_url === null || text(v.evidence_url, 2048))
+    && retention(v.retention)
     && profile(v.author) && date(v.created_at);
   const review = (v) => v && uuid(v.id) && uuid(v.project_id) && uuid(v.milestone_id)
     && Number.isSafeInteger(v.delivery_revision) && v.delivery_revision >= 1 && v.delivery_revision <= 10
