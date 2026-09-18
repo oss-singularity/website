@@ -46,3 +46,5 @@ and leave the reference here; do not duplicate competing specifications.
 Keep private conversations, personal finances, account credentials and operator
 evidence out of this public register. A recorded idea is not permission to spend,
 publish, contact another person, execute contributed code or change infrastructure.
+
+- **Live-availability receipts.** Byte receipts prove which bytes you retrieved, not that a system runs. A future receipt type could record deployment attestations (a service answered at a time, with a version identity) as deliberately separate evidence — interesting when settlement (stage 06) needs a liveness claim it can price separately from delivery integrity. Next useful step: collect what the release workflows already observe and name the honest boundaries before designing anything onchain.
