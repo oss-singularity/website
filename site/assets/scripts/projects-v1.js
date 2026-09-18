@@ -59,9 +59,12 @@
   let listFilter = "all";
   let listQuery = "";
   // Each group (open cards, closed history, closed filter) pages on its own;
-  // search and filter changes reset every group to its first page.
+  // search and filter changes reset every group to its first page. The page
+  // size is a reader preference and survives view changes; the history fold
+  // remembers its own open state so turning pages never closes it again.
   const listPages = new Map();
-  const VISIBLE_CARDS = 6;
+  let pageSize = 6;
+  let historyOpen = false;
   const projectFilter = () => {
     const bar = node("div", undefined, "project-filter");
     bar.setAttribute("role", "group");
@@ -77,6 +80,19 @@
       chip.addEventListener("click", () => { listFilter = key; listPages.clear(); renderList(); });
       bar.append(chip);
     });
+    const size = node("select", undefined, "project-size");
+    size.setAttribute("aria-label", "Projects per page");
+    for (const value of [6, 12, 24, 48]) {
+      const option = node("option", String(value));
+      option.value = String(value);
+      size.append(option);
+    }
+    size.value = String(pageSize);
+    size.addEventListener("change", () => {
+      const value = Number(size.value);
+      if (Number.isInteger(value) && value >= 6) { pageSize = value; listPages.clear(); renderList(); }
+    });
+    bar.append(size);
     return bar;
   };
   const renderList = () => {
@@ -97,7 +113,7 @@
       // the closed history folds into one inspectable group, and every group
       // pages in place — the list never grows exorbitantly long
       const pager = (group, count, anchorSelector) => {
-        const pages = Math.max(1, Math.ceil(count / VISIBLE_CARDS));
+        const pages = Math.max(1, Math.ceil(count / pageSize));
         if (pages <= 1) return null;
         const page = Math.min(Math.max(1, listPages.get(group) ?? 1), pages);
         listPages.set(group, page);
@@ -125,7 +141,7 @@
           element.append(back, label, next);
           return element;
         };
-        return { top: bar(), bottom: bar(), slice: (entries) => entries.slice((page - 1) * VISIBLE_CARDS, page * VISIBLE_CARDS) };
+        return { top: bar(), bottom: bar(), slice: (entries) => entries.slice((page - 1) * pageSize, page * pageSize) };
       };
       const active = shown.filter((item) => item.status !== "closed");
       const archived = shown.filter((item) => item.status === "closed");
@@ -141,12 +157,15 @@
         if (openPager) box.append(openPager.bottom);
         if (archived.length) {
           const history = node("details", undefined, "project-history");
-          history.append(node("summary", `Closed history (${archived.length}) — show finished projects`));
+          const summary = node("summary", `Closed history (${archived.length}) — show finished projects`);
+          // the fold keeps its open state across page turns and re-renders
+          summary.addEventListener("click", () => { historyOpen = !historyOpen; });
+          history.append(summary);
           const closedPager = pager("closed", archived.length, "#projects-list .project-history");
           if (closedPager) history.append(closedPager.top);
           history.append(...(closedPager ? closedPager.slice(archived) : archived).map(card));
           if (closedPager) history.append(closedPager.bottom);
-          if (listQuery) history.open = true; // a search reaches the closed work directly
+          history.open = listQuery ? true : historyOpen; // a search reaches the closed work directly
           box.append(history);
         }
       } else {
@@ -375,7 +394,7 @@
   const setMission = (id) => {
     generation += 1; abort(); mission = missionId(id) ? id : null;
     publicDetail = null; privateDetail = null; items = []; cursor = null; loaded = false; offerMilestone = null; pending = null; writeBusy = false;
-    listFilter = "all"; listQuery = ""; listPages.clear();
+    listFilter = "all"; listQuery = ""; listPages.clear(); historyOpen = false;
     if (searchInput) searchInput.value = "";
     $("projects-list").replaceChildren(); $("projects-list").setAttribute("aria-busy", "false");
     $("project-detail").replaceChildren(); $("project-detail").hidden = true; $("projects-more").hidden = true;

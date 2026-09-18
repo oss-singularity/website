@@ -184,6 +184,17 @@ test('long lists page in place with per-group page controls that reset on view c
   h.get('projects-list').querySelectorAll('.chip').find((n) => n.textContent === 'Open (8)').click(); await flush();
   assert.equal(direct().length, 6); // a view change returns to the bounded first page
   assert.equal(pageLabel(h.get('projects-list')), 'Page 1 of 2');
+  h.get('projects-list').querySelectorAll('.chip').find((n) => n.textContent === 'All (15)').click(); await flush();
+  h.walk(history()).find((n) => n.tagName === 'SUMMARY').click(); await flush(); // open the folded history
+  pagerButtons(history(), /Next page/)[0].click(); await flush();
+  assert.equal(history().querySelectorAll('.room-entry').length, 1);
+  assert.equal(history().open, true, 'turning a page keeps the history unfolded');
+  const size = h.walk(h.get('projects-list')).find((n) => (n.className || '').split(/\s+/).includes('project-size'));
+  size.value = '24'; size.events.get('change')?.({ preventDefault() {} }); await flush();
+  assert.equal(direct().length, 8); // the reader's page size is a preference, not a view
+  assert.equal(h.get('projects-list').querySelectorAll('.project-pager').length, 0); // one page, no controls needed
+  size.value = '6'; size.events.get('change')?.({ preventDefault() {} }); await flush();
+  assert.equal(direct().length, 6);
 });
 
 test('delivered milestones collapse to their headline but keep the record inspectable', async () => {
