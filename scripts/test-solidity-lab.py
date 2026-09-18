@@ -77,5 +77,102 @@ class LabTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 1, f"must refuse: {case.get('kind')}")
 
 
+CONTRIBUTOR = "0x0000000000000000000000000000000000000001"
+COORDINATOR = "0x0000000000000000000000000000000000000002"
+STRANGER = "0x0000000000000000000000000000000000000003"
+
+
+class ModelTests(unittest.TestCase):
+    """Role, replay and failure behaviour against the Python side-model."""
+
+    def setUp(self) -> None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("lab_model", REPO / "design" / "solidity-lab" / "model.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.model = module.DeliveryAcceptanceModel(CONTRIBUTOR, COORDINATOR, deadline=1000)
+        self.revert = module.Revert
+
+    def test_full_journey_accepts_exactly_the_newest_revision(self) -> None:
+        self.model.record_delivery(CONTRIBUTOR, 1)
+        self.model.request_revision(COORDINATOR, 1, "add retention statement")
+        self.model.record_delivery(CONTRIBUTOR, 2)
+        self.model.accept(COORDINATOR, 2)
+        self.assertEqual(self.model.accepted_revision, 2)
+
+    def test_roles_are_checked_at_every_decision_point(self) -> None:
+        with self.assertRaises(self.revert):  # stranger cannot deliver
+            self.model.record_delivery(STRANGER, 1)
+        self.model.record_delivery(CONTRIBUTOR, 1)
+        with self.assertRaises(self.revert):  # contributor cannot review
+            self.model.accept(CONTRIBUTOR, 1)
+        with self.assertRaises(self.revert):  # stranger cannot review
+            self.model.request_revision(STRANGER, 1, "nope")
+
+    def test_revisions_move_forward_only_and_replay_adds_nothing(self) -> None:
+        self.model.record_delivery(CONTRIBUTOR, 1)
+        with self.assertRaises(self.revert):
+            self.model.record_delivery(CONTRIBUTOR, 1)  # replay of the same revision
+        with self.assertRaises(self.revert):
+            self.model.record_delivery(CONTRIBUTOR, 3)  # skipping ahead
+        self.model.record_delivery(CONTRIBUTOR, 2)
+        with self.assertRaises(self.revert):
+            self.model.accept(COORDINATOR, 1)  # stale acceptance refused
+        self.model.accept(COORDINATOR, 2)
+        with self.assertRaises(self.revert):
+            self.model.accept(COORDINATOR, 2)  # acceptance is final
+        with self.assertRaises(self.revert):
+            self.model.record_delivery(CONTRIBUTOR, 3)  # nothing after acceptance
+
+    def test_revision_request_destroys_no_state_and_deadline_binds(self) -> None:
+        self.model.record_delivery(CONTRIBUTOR, 1)
+        self.model.request_revision(COORDINATOR, 1, "note")
+        self.assertEqual(self.model.current_revision, 1)  # delivery untouched
+        self.model.now = 1001
+        with self.assertRaises(self.revert):
+            self.model.accept(COORDINATOR, 1)
+        self.model.now = 999
+        self.model.accept(COORDINATOR, 1)
+
+    def test_reviews_need_a_delivery_first(self) -> None:
+        with self.assertRaises(self.revert):
+            self.model.accept(COORDINATOR, 1)
+
+
+class CompilerTests(unittest.TestCase):
+    """The pinned compiler must accept the committed example; output is reproducible."""
+
+    SOLC_VERSION = "0.8.37"
+
+    def _compile(self) -> tuple[bytes, bytes]:
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            result = subprocess.run(
+                ["npx", "--yes", f"solc@{self.SOLC_VERSION}", "--bin", "--abi",
+                 str(COMMITTED / "DeliveryAcceptance.sol")],
+                capture_output=True, text=True, timeout=300, cwd=folder)
+            if result.returncode != 0:
+                self.skipTest(f"pinned solc unavailable in this environment: {result.stderr[:120]}")
+            binaries = sorted(Path(folder).glob("*_DeliveryAcceptance.bin"))
+            abis = sorted(Path(folder).glob("*_DeliveryAcceptance.abi"))
+            if not binaries or not abis:
+                self.fail(f"pinned solc wrote no artifacts: {result.stdout[:160]}")
+            return binaries[0].read_bytes(), abis[0].read_bytes()
+
+    def test_pinned_compiler_compiles_with_stable_bytecode(self) -> None:
+        import hashlib
+        binary, abi = self._compile()
+        self.assertGreater(len(binary), 60, "compiled binary is implausibly small")
+        self.assertIn(b'"name":"accept"', abi)
+        self.assertIn(b'"name":"recordDelivery"', abi)
+        self.assertIn(b'"name":"NotNewestRevision"', abi)
+        again_binary, again_abi = self._compile()
+        self.assertEqual(hashlib.sha256(binary).hexdigest(), hashlib.sha256(again_binary).hexdigest(),
+                         "same pinned compiler and source must reproduce identical bytecode")
+        self.assertEqual(hashlib.sha256(abi).hexdigest(), hashlib.sha256(again_abi).hexdigest(),
+                         "same pinned compiler and source must reproduce identical ABI")
+
+
 if __name__ == "__main__":
     unittest.main()
