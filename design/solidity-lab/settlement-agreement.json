@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "oss-solidity-lab-settlement-agreement",
+  "title": "Synthetic fair settlement example",
+  "note": "Synthetic inputs only: placeholder addresses, a digest over the public synthetic artifact, and future deadlines. The holder role is a placeholder for a separately authorized escrow or named human authority; the Commons never holds funds. The lab generates and explains; it never signs, deploys, or holds funds. The dispute fallback is refund: a deadlocked dispute returns the budget rather than releasing it by default.",
+  "contributor": "0x0000000000000000000000000000000000000001",
+  "coordinator": "0x0000000000000000000000000000000000000002",
+  "holder": "0x0000000000000000000000000000000000000003",
+  "delivery_digest": "74aebc353c86c6269f80cc8509528ab19b3a1612ac3291bab40f32701454f69b",
+  "review_deadline": 1830000000,
+  "dispute_deadline": 1832592000,
+  "outer_deadline": 1835184000,
+  "dispute_fallback": "refund"
+}
