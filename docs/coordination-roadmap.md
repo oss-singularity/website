@@ -190,7 +190,12 @@ artifacts and no real funds, then consider a separately authorized testnet
 exercise. **Release criteria:** pinned reproducible output; role, signature,
 replay, nonce, expiry and cross-contract/cross-chain tests; clear review of the
 requested operation; no private-key collection, automatic signing or implicit
-deployment. A testnet demonstration is not a real-value launch.
+deployment. A testnet demonstration is not a real-value launch. **Implementation status:** shipped as the contract lab
+(`scripts/solidity-lab.py`, `design/solidity-lab/`): a deterministic
+generator, the committed reproducible example pair, an exact-pinned
+compiler (solc 0.8.37) and a Python side-model covering role, replay and
+failure behaviour — accepted through the coordination system (project
+`9b6db17d`).
 
 ## 5. Fair compensation and optional settlement — proposed
 
