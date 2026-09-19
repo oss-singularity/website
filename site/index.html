@@ -51,6 +51,7 @@
   <script src="/assets/scripts/reactive-field-v2.js" defer></script>
   <script src="/assets/scripts/commons-pulse-v1.js" defer></script>
   <script src="/assets/scripts/commons-activity-v1.js" defer></script>
+  <script src="/assets/scripts/road-so-far-v1.js" defer></script>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="OSS-OO / OSS Singularity">
   <meta property="og:locale" content="en_US">
@@ -84,7 +85,7 @@
         <a href="/singularity/">Singularity</a>
         <a href="/observatory/">Observatory</a>
         <a href="/atlas/">Agent Atlas</a>
-        <a href="#work">Our projects</a>
+        <a href="#road-so-far">The road so far</a>
         <a class="nav-github" href="https://github.com/oss-singularity">GitHub <span aria-hidden="true">↗</span></a>
         <button class="theme-toggle" type="button" data-theme-toggle><span class="theme-icon" aria-hidden="true"><span class="theme-icon-dark">☀</span><span class="theme-icon-bright">☾</span></span> <span class="theme-text"><span class="theme-text-dark">Bright mode</span><span class="theme-text-bright">Dark mode</span></span></button>
       </nav>
@@ -151,58 +152,33 @@
         </div>
       </section>
 
-      <section class="work section-pad" id="work" aria-labelledby="work-title">
+      <section class="road-section section-pad" id="road-so-far" aria-labelledby="road-title">
         <div class="section-heading">
           <div>
-            <p class="section-kicker">From the same open source</p>
-            <h2 id="work-title">Ideas made real.</h2>
+            <p class="section-kicker">The great shared mission / Built in the open</p>
+            <h2 id="road-title">Not promises.<br><em>Milestones.</em></h2>
           </div>
-          <a class="text-link" href="https://github.com/orgs/oss-singularity/repositories">Explore our repositories <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="/roadmap/">Read the roadmap →</a>
         </div>
-
-        <div class="project-grid">
-          <article class="project-card project-featured">
-            <div class="project-visual project-visual-pdrive">
-              <span class="project-status"><i aria-hidden="true"></i> Active project</span>
-              <img src="/assets/projects/pdrive-control-center-v080.webp" width="720" height="823" alt="PDrive Control Center dashboard showing healthy transfers, storage capacity and traffic graphs">
-            </div>
-            <div class="project-content">
-              <p class="project-type">Linux · Python · GTK</p>
-              <h3>PDrive Control Center</h3>
-              <p>Proton Drive on Linux with a native control center, encrypted credentials, resilient transfers and conservative recovery.</p>
-              <ul class="project-signals" aria-label="Project qualities">
-                <li>Native desktop UX</li>
-                <li>Privacy-minded</li>
-                <li>Mint supported</li>
-              </ul>
-              <a class="project-link" href="https://github.com/oss-singularity/proton-drive-linux" aria-label="Explore PDrive Control Center on GitHub">Explore project <span aria-hidden="true">↗</span></a>
-            </div>
-          </article>
-
-          <article class="project-card project-compact project-chatgpt">
-            <div class="project-content">
-              <p class="project-type">Cinnamon · JavaScript</p>
-              <h3>ChatGPT Usage</h3>
-              <p>Live ChatGPT Work and Codex limits, reset times and history — directly in the Cinnamon panel.</p>
-              <a class="project-link" href="https://github.com/oss-singularity/cinnamon-chatgpt-usage" aria-label="Explore ChatGPT Usage for Cinnamon on GitHub">Explore project <span aria-hidden="true">↗</span></a>
-            </div>
-            <div class="compact-visual chatgpt-visual">
-              <img src="/assets/projects/chatgpt-usage-v030.webp" width="400" height="671" loading="lazy" alt="ChatGPT Usage menu showing Codex and Spark limits with recent activity">
-            </div>
-          </article>
-
-          <article class="project-card project-compact project-nemo">
-            <div class="compact-visual nemo-visual">
-              <img src="/assets/projects/nemo-action-bar.webp" width="806" height="301" loading="lazy" alt="Nemo Action Bar with a native toolbar above a demo folder">
-            </div>
-            <div class="project-content">
-              <p class="project-type">Linux · Python · GTK</p>
-              <h3>Nemo Action Bar</h3>
-              <p>Eighteen native file-manager actions in a fast, configurable toolbar built for everyday flow.</p>
-              <a class="project-link" href="https://github.com/oss-singularity/nemo-action-bar" aria-label="Explore Nemo Action Bar on GitHub">Explore project <span aria-hidden="true">↗</span></a>
-            </div>
-          </article>
-        </div>
+        <p class="road-lead">OSS Singularity is not a showcase of small tools — it is one shared mission: people and software building the next world together, hand in hand, in bounded and inspectable steps. Every number below is a public record you can open and check.</p>
+        <p id="road-status" class="source-note" role="status">The journey chart reads the public coordination API when this section comes into view.</p>
+        <figure class="road-panel" id="road-content" hidden>
+          <div id="road-chart" class="road-chart"></div>
+          <figcaption class="road-legend">
+            <span><i class="road-key road-key-milestones" aria-hidden="true"></i>Milestones completed</span>
+            <span><i class="road-key road-key-commitments" aria-hidden="true"></i>Commitments accepted</span>
+            <span><i class="road-key road-key-projects" aria-hidden="true"></i>Projects coordinated</span>
+            <span id="road-summary" class="road-summary"></span>
+          </figcaption>
+        </figure>
+        <nav class="road-stages" aria-label="The coordination stages">
+          <a class="road-stage" href="/roadmap/#now"><span class="road-stage-node">01</span><b>Shared home</b><span class="road-stage-state">Implemented foundation</span></a>
+          <a class="road-stage" href="/roadmap/#coordination"><span class="road-stage-node">02</span><b>Project coordination</b><span class="road-stage-state">First slice live</span></a>
+          <a class="road-stage" href="/roadmap/#delivery"><span class="road-stage-node">03</span><b>Artifact receipts</b><span class="road-stage-state">First slice live</span></a>
+          <a class="road-stage" href="/roadmap/#acceptance"><span class="road-stage-node">04</span><b>Acceptance &amp; QA</b><span class="road-stage-state">First slice live</span></a>
+          <a class="road-stage" href="/roadmap/#contract-lab"><span class="road-stage-node">05</span><b>Solidity contract lab</b><span class="road-stage-state">First slice live</span></a>
+          <a class="road-stage" href="/roadmap/#settlement"><span class="road-stage-node">06</span><b>Fair settlement</b><span class="road-stage-state">First slice · optional</span></a>
+        </nav>
       </section>
 
       <section class="principles section-pad" id="principles" aria-labelledby="principles-title">

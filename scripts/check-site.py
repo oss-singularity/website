@@ -92,10 +92,8 @@ def required_files(actual: set[str], read) -> set[str]:
         "dist-manifest.sha256", "index.html",
         "robots.txt", "sitemap.xml", "site.webmanifest",
         "assets/brand/oss-singularity-mark.svg",
-        "assets/projects/chatgpt-usage-v030.webp",
-        "assets/projects/nemo-action-bar.webp",
-        "assets/projects/pdrive-control-center-v080.webp",
         "assets/scripts/reactive-field-v2.js",
+        "assets/scripts/road-so-far-v1.js",
         "assets/scripts/theme-v1.js",
         "assets/social/oss-singularity-social-preview.png",
         "assets/styles/site-v2.css",
@@ -141,7 +139,7 @@ def check_product(root: Path) -> int:
     social_image = f"https://oss-singularity.io/{social_versioned_path}"
     html_bytes = 0
     script_allowlist = {
-        "index.html": ["/assets/scripts/reactive-field-v2.js", "/assets/scripts/commons-pulse-v1.js", "/assets/scripts/commons-activity-v1.js"],
+        "index.html": ["/assets/scripts/reactive-field-v2.js", "/assets/scripts/commons-pulse-v1.js", "/assets/scripts/commons-activity-v1.js", "/assets/scripts/road-so-far-v1.js"],
         "atlas/index.html": ["/assets/scripts/atlas-v1.js"],
         "lab/index.html": ["/assets/scripts/mission-lab-v1.js"],
         "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js", "/assets/scripts/observatory-motion-v1.js", "/assets/scripts/commons-activity-v1.js"],
@@ -324,10 +322,8 @@ def check_product(root: Path) -> int:
     # The per-page CSS cap (65 KB -> 70 KB, 2026-09-16) and the per-script JS cap
     # (25 KB -> 30 KB, same day) were both removed by owner decision on 2026-09-18;
     # totals stay reported in the summary line, and the per-page HTML and initial
-    # transfer guards remain.
-    for image in (root / "assets/projects").iterdir():
-        if image.stat().st_size > 180_000:
-            fail(f"project image budget exceeded: {image.name} is {image.stat().st_size} bytes")
+    # transfer guards remain. The home showcase images left with the replaced
+    # "Ideas made real" section (2026-09-19), so no separate image guard remains.
     transfer = 0
     for document in documents:
         parser = Document()
