@@ -1,7 +1,7 @@
 # Commons code artifacts
 
 The offline Commons artifact tools create a reproducible code package containing
-the six production ES modules and a descriptor bound to a caller-supplied commit
+the eight production ES modules and a descriptor bound to a caller-supplied commit
 and existing schema profile. This is the first component of the separate Worker
 release stage in [Release automation](release-automation.md). It does not publish
 a Worker, apply SQL to D1 or replace the current
@@ -25,8 +25,8 @@ python3 scripts/commons-artifact.py verify \
   --rebuild-source services/commons
 ```
 
-The schema fingerprint above belongs to profile 1: the existing three pinned
-migrations. Verification receives the expected commit and schema independently;
+The schema fingerprint above belongs to profile 1: the seven pinned migrations
+`0001`–`0007`. Verification receives the expected commit and schema independently;
 copying those values from an untrusted packet would only check self-consistency.
 A supplied commit is a claim until the separate canonical-source, successful-CI
 and trusted-artifact-transport gates establish its provenance.
@@ -47,13 +47,14 @@ deterministic. Reordered input keys are accepted only when all validated values
 and decoded bytes still match; duplicate keys are rejected.
 
 The only packaged files are `worker.mjs`, `security.mjs`, `identity.mjs`,
-`participations.mjs`, `activity.mjs` and `work-items.mjs`. Local servers, database
-adapters, tests, configuration and migration SQL are excluded. The source capture
+`participations.mjs`, `activity.mjs`, `work-items.mjs`, `projects.mjs` and
+`receipts.mjs`. Local servers, database adapters, tests, configuration and
+migration SQL are excluded. The source capture
 rejects an unknown root `.mjs` file or any unexpected migration file, so an
 extension cannot silently omit a newly introduced module or migration.
 
 Profile 1 fixes the module entry point, compatibility date `2026-09-04`, no
-compatibility flags and the exact hashes of the three existing migration files.
+compatibility flags and the exact hashes of the seven existing migration files.
 It does not accept arbitrary bindings, credentials, provider resource IDs,
 upload destinations or extra descriptor fields. A future module or migration
 requires a deliberate profile update and the corresponding release evidence.
@@ -66,7 +67,7 @@ contain fixed codes, without payload contents or supplied paths.
 
 ## Schema identity and its limits
 
-Only the three hash-pinned initialization files are evaluated, in a fresh
+Only the seven hash-pinned initialization files are evaluated, in a fresh
 in-memory SQLite database. Digest validation finishes before SQL evaluation.
 The packet carries migration hashes and a schema fingerprint; it carries no SQL
 to execute. The tools never receive a production database path or credential.
@@ -114,8 +115,11 @@ production access and leaves completed-run and required-check consumption pendin
 The separate [candidate consumer](release-commons-candidates.md) establishes those
 observations and independently rebuilds the packet from commit-bound source.
 
-The remaining Worker stage needs independently authenticated candidate provenance, an
-independently bound destination and schema, constrained provider access,
-serialization, a durable deployment journal, uncertain-outcome reconciliation
-and live acceptance with conditional recovery. Neither the existing static
+The remaining Worker stage — independently authenticated candidate provenance,
+serialized dispatch-only promotion, a durable deployment journal, fresh
+preconditions before each mutation, uncertain-outcome reconciliation and live
+acceptance with conditional recovery — is implemented by the separate
+[promotion procedure](release-commons-promotion.md) and its workflow. Schema
+changes remain their own procedure with private backup, DDL inventory and
+preservation evidence. Neither the existing static
 publication workflow nor this packet grants Worker or database write access.

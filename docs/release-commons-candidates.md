@@ -4,7 +4,9 @@ The Commons candidate consumer joins a completed [rehearsal](release-commons-reh
 two captured archives, independently bound source and the current
 [required-check policy](release-checks.md). It creates an inspectable local
 report with `deployment_authorized: false`. It cannot publish a Worker or write
-to a database. There is no automatic Commons consumer or promotion job yet.
+to a database. Commons promotion is deliberately dispatch-only: the
+[promotion workflow](release-commons-promotion.md) consumes this contract on
+demand, and no push-triggered consumer or promotion job exists.
 
 ```mermaid
 flowchart LR
@@ -69,8 +71,9 @@ GETs; redirects and unrelated routes are rejected, with no automatic retry.
   file each. The shared parser verifies local and central records, flags,
   complete decompression and CRC, rejecting duplicate paths, links, special
   entries, unindexed data and oversized input. Nothing is extracted or imported.
-- The six modules and three pinned migrations match the source commit's Git
-  blobs. The trusted Commons workflow matches that same commit. Unknown source
+- The eight production modules and seven pinned migrations match the source
+  commit's Git blobs. The trusted Commons workflow matches that same commit.
+  Unknown source
   modules, unexpected migrations and truncated or ambiguous Git trees fail.
   The consumer rebuilds the complete packet independently and compares its
   exact bytes. Only the existing hash-pinned initialization SQL is evaluated,
@@ -105,9 +108,11 @@ signature nor a filesystem seal or atomic GitHub lock; local files and main can
 change afterward.
 
 Fresh promotion identity, installed schema compatibility, constrained provider
-access, shared serialization, durable recovery and live acceptance remain
-separate [release gates](release-automation.md). This result grants none of those
-permissions and does not change the static publisher's artifact contract.
+access, shared serialization, durable recovery and live acceptance are
+implemented by the separate [promotion procedure](release-commons-promotion.md),
+which consumes this report. They remain outside this command's own result,
+which grants none of those permissions and does not change the static
+publisher's artifact contract.
 The [pure code planner](release-commons-plan.md) uses an independently verified
 candidate digest with a known predecessor and fresh target capture; it describes
 the proposed version transition without performing provider operations.

@@ -63,7 +63,10 @@ class PacketTests(unittest.TestCase):
 
 
 class DeriveTests(unittest.TestCase):
-    observation = {'active_version': 'v-live', 'versions': {}}
+    observation = {'active_version': 'v-live', 'latest_version_id': 'v-live',
+                   'versions': {'v-live': {'number': 5, 'metadata': {}, 'annotations': {}}},
+                   'deployments': [{'id': 'dep-live', 'strategy': 'percentage',
+                                    'versions': [{'version_id': 'v-live', 'percentage': 100}]}]}
     detail = {'resources': {
         'bindings': [
             {'name': 'DB', 'type': 'd1', 'id': 'd1-uuid'},
@@ -77,6 +80,8 @@ class DeriveTests(unittest.TestCase):
     def test_derive_plan_inherits_bindings_and_reads_current_identity(self):
         plan = cli.derive_plan(self.observation, self.detail, 'message', 'tag')
         self.assertEqual(plan['predecessor_version'], 'v-live')
+        self.assertEqual(plan['predecessor_deployment_id'], 'dep-live')
+        self.assertEqual(plan['predecessor_generation'], 5)
         self.assertEqual(plan['release_sha'], '1' * 40)
         self.assertEqual(plan['bindings'], [
             {'name': 'DB', 'type': 'inherit'}, {'name': 'ADMIN_TOKEN', 'type': 'inherit'}, {'name': 'GITHUB_READ_TOKEN', 'type': 'inherit'},
@@ -89,6 +94,12 @@ class DeriveTests(unittest.TestCase):
                        {'resources': {'bindings': [], 'script_runtime': {}}}]:
             with self.assertRaises(ArtifactError):
                 cli.derive_plan(self.observation, detail, 'm', 't')
+        for observation in [
+                {**self.observation, 'deployments': []},
+                {**self.observation, 'versions': {}},
+                {key: value for key, value in self.observation.items() if key != 'deployments'}]:
+            with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
+                cli.derive_plan(observation, self.detail, 'm', 't')
 
 
 class OutputTests(unittest.TestCase):
@@ -146,15 +157,34 @@ def schema_rows():
         return [dict(row) for row in database.execute(artifact.SCHEMA_QUERY)]
 
 
-def module_content():
-    """The live provider's multipart script form, built from the real modules."""
+def source_modules():
     files, _migrations = artifact.source_inputs(ROOT / 'services/commons')
+    return files
+
+
+def multipart_form(files):
+    """The live provider's multipart script form for the given module bytes."""
     boundary = '----CfWorkerUploadFixture'
     parts = b''
     for name in sorted(files):
         parts += (f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{name}"'
                   f'\r\nContent-Type: application/javascript+module\r\n\r\n').encode() + files[name] + b'\r\n'
     return parts + f'--{boundary}--'.encode()
+
+
+def module_content():
+    return multipart_form(source_modules())
+
+
+def git_objects(values, commit, tree_sha, files):
+    """Synthetic Git commit/tree objects binding the given module bytes by blob id."""
+    entries = [{'path': 'services/commons/' + name, 'mode': '100644', 'type': 'blob',
+                'sha': hashlib.sha1(b'blob ' + str(len(files[name])).encode()
+                                    + b'\0' + files[name]).hexdigest()}
+               for name in sorted(files)]
+    values[consumer.checks.BASE + '/git/commits/' + commit] = {'sha': commit, 'tree': {'sha': tree_sha}}
+    values[consumer.checks.BASE + '/git/trees/' + tree_sha + '?recursive=1'] = {
+        'sha': tree_sha, 'truncated': False, 'tree': entries}
 
 
 class FakeGitHub:
@@ -173,7 +203,8 @@ class FakeGitHub:
 
 class FakeProvider:
     """Synthetic target with live response shapes and single mutations."""
-    def __init__(self, rows, installed, content, routes, *, latest=VERSION):
+    def __init__(self, rows, installed, content, routes, *, latest=VERSION,
+                 foreign_latest_after_stage=False):
         self.active = VERSION
         self.latest = latest
         self.installed = installed
@@ -184,15 +215,23 @@ class FakeProvider:
         self.staged_detail = None
         self.staged = None
         self.staged_annotations = None
+        self.foreign_latest_after_stage = foreign_latest_after_stage
+        self._foreign_applied = False
 
     def observe(self):
         self.calls.append('observe')
         versions = {VERSION: {'number': 3, 'metadata': {}, 'annotations': {}}}
+        latest = self.latest
         if self.staged is not None:
             versions[self.staged] = {'number': 4, 'metadata': {},
                                      'annotations': {'workers/message': 'm', 'workers/tag': 't'}}
+            latest = self.staged
+            if self.foreign_latest_after_stage and not self._foreign_applied:
+                self._foreign_applied = True
+                versions['foreign-pending-upload'] = {'number': 5, 'metadata': {}, 'annotations': {}}
+                latest = 'foreign-pending-upload'
         return {'active_version': self.active, 'versions': versions,
-                'latest_version_id': self.staged if self.staged is not None else self.latest,
+                'latest_version_id': latest,
                 'account_id': ENV['COMMONS_ACCOUNT_ID'], 'zone_id': ENV['COMMONS_ZONE_ID'],
                 'script_name': cli.SCRIPT_NAME,
                 'deployments': [{'id': DEPLOYMENT, 'strategy': 'percentage',
@@ -346,7 +385,8 @@ class FromRehearsalTests(unittest.TestCase):
         ]
         cls.routes = [{'id': 'c' * 32, 'pattern': 'oss-singularity.io/api/*',
                        'script': cli.SCRIPT_NAME, 'request_limit_fail_open': False}]
-        cls.content = module_content()
+        cls.modules = source_modules()
+        cls.content = multipart_form(cls.modules)
 
     def setUp(self):
         values = check_fixtures.fixture()
@@ -388,6 +428,9 @@ class FromRehearsalTests(unittest.TestCase):
         values[consumer.checks.BASE + '/git/commits/' + SHA] = {'sha': SHA, 'tree': {'sha': 'd' * 40}}
         values[consumer.checks.BASE + '/git/trees/' + 'd' * 40 + '?recursive=1'] = {
             'sha': 'd' * 40, 'truncated': False, 'tree': entries}
+        # The live predecessor claims LIVE_SHA; its own Git objects bind the
+        # installed module bytes independently of those bytes themselves.
+        git_objects(values, LIVE_SHA, '5' * 40, self.modules)
         self.values = values
         self.archives = {CANDIDATE: self.candidate_zip, RECEIPT: self.receipt_zip}
 
@@ -470,6 +513,88 @@ class FromRehearsalTests(unittest.TestCase):
                      provider=provider, intent=self.intent(), accept=lambda sha: True)
         self.assertNotIn('download:' + str(CANDIDATE), github.calls)
         self.assertNotIn('stage', provider.calls)
+
+    def test_predecessor_drift_under_unchanged_release_sha_refuses(self):
+        provider = self.provider()
+        real = self.modules['worker.mjs']
+        provider.content = provider.content.replace(
+            real, real + b'\n// provider drift retaining the claimed RELEASE_SHA\n', 1)
+        github = FakeGitHub(self.values, self.archives)
+        with self.assertRaisesRegex(ArtifactError, 'predecessor_source_mismatch'):
+            cli.main(argv=['--from-rehearsal', str(RUN), str(ATTEMPT), SHA, '--message', 'm',
+                           '--tag', 't'], environ=dict(ENV), github=github, fetch=github.get,
+                     provider=provider, intent=self.intent(), accept=lambda sha: True)
+        # The drifted bytes never became a baseline, a rollback target or a
+        # staged upload; no promotion intent was recorded.
+        self.assertIn('content', provider.calls)
+        self.assertNotIn('stage', provider.calls)
+        self.assertNotIn('activate:', ' '.join(provider.calls))
+        self.assertTrue(any(route.endswith('/git/commits/' + LIVE_SHA) for route in github.calls))
+
+    def test_missing_predecessor_git_evidence_fails_closed(self):
+        provider = self.provider()
+        github = FakeGitHub(self.values, self.archives)
+        class NoPredecessorEvidence(FakeGitHub):
+            def get(self, route, _environ=None):
+                if route.endswith('/git/commits/' + LIVE_SHA):
+                    raise ArtifactError('github_read_failed')
+                return FakeGitHub.get(self, route, _environ)
+        blocked = NoPredecessorEvidence(self.values, self.archives)
+        with self.assertRaisesRegex(ArtifactError, 'github_read_failed'):
+            cli.main(argv=['--from-rehearsal', str(RUN), str(ATTEMPT), SHA, '--message', 'm',
+                           '--tag', 't'], environ=dict(ENV), github=blocked, fetch=blocked.get,
+                     provider=provider, intent=self.intent(), accept=lambda sha: True)
+        self.assertNotIn('stage', provider.calls)
+
+    def test_older_predecessor_profile_promotes_additive_modules(self):
+        older = {'worker.mjs', 'security.mjs', 'identity.mjs', 'participations.mjs',
+                 'activity.mjs', 'work-items.mjs'}
+        older_commit = '6' * 40
+        installed = [dict(item) for item in self.installed]
+        next(item for item in installed if item['name'] == 'RELEASE_SHA')['text'] = older_commit
+        values = deepcopy(self.values)
+        git_objects(values, older_commit, '7' * 40,
+                    {name: self.modules[name] for name in older})
+        provider = FakeProvider(self.rows, installed,
+                                multipart_form({name: self.modules[name] for name in older}),
+                                self.routes)
+        github = FakeGitHub(values, self.archives)
+        result = cli.main(argv=['--from-rehearsal', str(RUN), str(ATTEMPT), SHA, '--message', 'm',
+                                '--tag', 't'], environ=dict(ENV), github=github, fetch=github.get,
+                          provider=provider, intent=self.intent(), accept=lambda sha: True)
+        self.assertTrue(result['promoted'])
+        self.assertIn('activate:' + provider.staged, provider.calls)
+        self.assertTrue(any(route.endswith('/git/commits/' + older_commit)
+                            for route in github.calls))
+
+    def test_stale_predecessor_after_intent_refuses_without_overrunning(self):
+        provider = self.provider()
+        github = FakeGitHub(self.values, self.archives)
+        records = self.intent('unresolved')
+        inner_start = records.start
+        def intervening_start(sha, payload):
+            provider.active = 'intervening-operator-version'
+            provider.calls.append('external-activation:intervening-operator-version')
+            return inner_start(sha, payload)
+        records.start = intervening_start
+        with self.assertRaisesRegex(ArtifactError, 'stale_preconditions'):
+            cli.main(argv=['--from-rehearsal', str(RUN), str(ATTEMPT), SHA, '--message', 'm',
+                           '--tag', 't'], environ=dict(ENV), github=github, fetch=github.get,
+                     provider=provider, intent=records, accept=lambda sha: True)
+        # A privileged operator activated another version between planning and
+        # staging; the engine refused instead of overrunning it.
+        self.assertNotIn('stage', provider.calls)
+        self.assertNotIn('activate:', ' '.join(provider.calls))
+        self.assertEqual(provider.active, 'intervening-operator-version')
+
+    def test_foreign_upload_while_staging_aborts_before_activation(self):
+        provider = self.provider(foreign_latest_after_stage=True)
+        result, github = self.invoke(provider, final='rolled_back')
+        self.assertFalse(result['promoted'])
+        self.assertEqual(result['error'], 'stale_preconditions')
+        self.assertEqual(provider.active, VERSION)
+        self.assertIn('stage', provider.calls)
+        self.assertNotIn('activate:' + provider.staged, provider.calls)
 
 
 class _FakeResponse:

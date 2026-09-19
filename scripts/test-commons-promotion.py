@@ -1,4 +1,5 @@
 """Offline promotion engine tests against a synthetic provider and records."""
+import hashlib
 import json
 import sqlite3
 import unittest
@@ -12,6 +13,7 @@ import release_source as source
 from site_artifact import ArtifactError
 
 VERSION_A = 'aaaa-version-a'
+LIVE_DEPLOYMENT = 'dep-live-version-a'
 MODULES = ['worker.mjs', 'util.mjs']
 BINDINGS = [
     {'name': 'DB', 'type': 'd1', 'id': 'd1-uuid'},
@@ -29,7 +31,8 @@ DATABASE = '44444444-4444-4444-8444-444444444444'
 
 def plan(**changes):
     value = {
-        'predecessor_version': VERSION_A, 'release_sha': '1' * 40,
+        'predecessor_version': VERSION_A, 'predecessor_deployment_id': LIVE_DEPLOYMENT,
+        'predecessor_generation': 3, 'release_sha': '1' * 40,
         'message': 'Promote verified Commons candidate 2' * 40 + '2', 'tag': 'commons-candidate-tag',
         'bindings': [{'name': b['name'], 'type': 'inherit'} for b in BINDINGS],
         'installed_bindings': BINDINGS, 'main_module': 'worker.mjs',
@@ -60,21 +63,49 @@ class FakeResponse:
 
 class FakeAdapter:
     """Synthetic provider: version listing, details, and single mutations."""
-    def __init__(self, *, fail_stage=False, fail_activate=False, drop_binding=False):
+    def __init__(self, *, fail_stage=False, fail_activate=False, drop_binding=False,
+                 foreign_activation_after_stage=False, foreign_upload_after_stage=False):
         self.active = VERSION_A
-        self.versions = {VERSION_A: {'annotations': {'workers/message': 'installed', 'workers/tag': 'installed'}}}
+        self.latest = VERSION_A
+        self.deployment_id = LIVE_DEPLOYMENT
+        self.versions = {VERSION_A: {'number': 3, 'annotations': {'workers/message': 'installed', 'workers/tag': 'installed'}}}
         self.calls = []
         self.fail_stage, self.fail_activate, self.drop_binding = fail_stage, fail_activate, drop_binding
         self.staged_identity = None
+        self.staged = None
+        self.foreign_activation_after_stage = foreign_activation_after_stage
+        self.foreign_upload_after_stage = foreign_upload_after_stage
+        self._foreign_applied = False
+
+    def _apply_foreign_change(self):
+        """A privileged operator mutates the target once, after this call staged."""
+        if self._foreign_applied or self.staged is None:
+            return
+        self._foreign_applied = True
+        if self.foreign_activation_after_stage:
+            self.active = 'intervening-operator-version'
+            self.deployment_id = 'intervening-deployment'
+            self.latest = 'intervening-operator-version'
+            self.versions['intervening-operator-version'] = {'number': 9, 'annotations': {}}
+        elif self.foreign_upload_after_stage:
+            self.latest = 'foreign-pending-upload'
+            self.versions['foreign-pending-upload'] = {'number': 9, 'annotations': {}}
 
     def observe(self):
-        return {'active_version': self.active, 'versions': self.versions}
+        self._apply_foreign_change()
+        return {'active_version': self.active, 'latest_version_id': self.latest,
+                'versions': self.versions,
+                'deployments': [{'id': self.deployment_id, 'strategy': 'percentage',
+                                 'versions': [{'version_id': self.active, 'percentage': 100}]}]}
 
     def stage_version(self, content, commit, message, tag, bindings=None,
                       main_module='worker.mjs', compatibility_date=None):
         self.calls.append('stage')
         version = 'stag-' + commit[:4]
-        self.versions[version] = {'annotations': {'workers/message': message, 'workers/tag': tag}}
+        self.versions[version] = {'number': 4,
+                                  'annotations': {'workers/message': message, 'workers/tag': tag}}
+        self.staged = version
+        self.latest = version
         self.staged_identity = {'workers/message': message, 'workers/tag': tag}
         if self.fail_stage:
             self.fail_stage = False
@@ -123,6 +154,7 @@ def intent_outcomes(final):
     item = {'id': 7, 'sha': '2' * 40, 'environment': promotion.ENVIRONMENT, 'task': promotion.TASK,
             'production_environment': True, 'payload': {'kind': 'commons-promotion-intent',
             'schema_version': 1, 'commit': '2' * 40, 'predecessor_version': VERSION_A,
+            'predecessor_deployment_id': LIVE_DEPLOYMENT, 'predecessor_generation': 3,
             'plan_sha256': 'a' * 64, 'module_count': len(MODULES)}}
     statuses_url = deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1'
     state, description = {'promoted': ('success', promotion.PROMOTED),
@@ -263,6 +295,73 @@ class PromotionTests(unittest.TestCase):
         self.assertTrue(result['promoted'])
         self.assertEqual(adapter.calls.count('activate:' + result['staged_version']), 1)
 
+    def test_intervening_active_version_refuses_without_staging_or_overrunning(self):
+        adapter = FakeAdapter()
+        adapter.active = 'intervening-operator-version'
+        adapter.latest = 'intervening-operator-version'
+        adapter.deployment_id = 'intervening-deployment'
+        adapter.versions['intervening-operator-version'] = {'number': 9, 'annotations': {}}
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('unresolved')),
+                                          )
+        with self.assertRaisesRegex(ArtifactError, 'stale_preconditions'):
+            promotion.promote(adapter, records, plan(), candidate(), lambda sha: True, pause=0)
+        # The foreign version was neither staged over nor activated over, and
+        # the journal keeps the unresolved close that blocks the next intent.
+        self.assertNotIn('stage', adapter.calls)
+        self.assertNotIn('activate:', ' '.join(adapter.calls))
+        self.assertEqual(adapter.active, 'intervening-operator-version')
+
+    def test_changed_deployment_before_stage_refuses_and_rolls_back(self):
+        adapter = FakeAdapter()
+        adapter.deployment_id = 'operator-redeployed-the-same-version'
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('rolled_back')),
+                                          )
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return True
+        result = promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
+        self.assertFalse(result['promoted'])
+        self.assertEqual(result['error'], 'stale_preconditions')
+        self.assertNotIn('stage', adapter.calls)
+        self.assertEqual(adapter.active, VERSION_A)
+        # The unchanged predecessor passed its own bounded acceptance, so the
+        # pre-staging refusal may close as rolled back.
+        self.assertEqual(accepted, [plan()['release_sha']])
+
+    def test_foreign_upload_while_staging_refuses_activation(self):
+        adapter = FakeAdapter(foreign_upload_after_stage=True)
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('rolled_back')),
+                                          )
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return True
+        result = promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
+        # This call's own staged upload is the only permitted change; the
+        # foreign pending version refuses the activation before it happens.
+        self.assertFalse(result['promoted'])
+        self.assertEqual(result['error'], 'stale_preconditions')
+        self.assertIn('stage', adapter.calls)
+        self.assertNotIn('activate:', ' '.join(adapter.calls))
+        self.assertEqual(adapter.active, VERSION_A)
+        self.assertEqual(accepted, [plan()['release_sha']])
+
+    def test_foreign_activation_while_staging_stays_unresolved(self):
+        adapter = FakeAdapter(foreign_activation_after_stage=True)
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('unresolved')),
+                                          )
+        with self.assertRaisesRegex(ArtifactError, 'stale_preconditions'):
+            promotion.promote(adapter, records, plan(), candidate(), lambda sha: True, pause=0)
+        self.assertIn('stage', adapter.calls)
+        self.assertNotIn('activate:', ' '.join(adapter.calls))
+        # The intervening operator version stayed active; nothing overran it.
+        self.assertEqual(adapter.active, 'intervening-operator-version')
+
     def test_an_open_intent_blocks_and_closed_records_free_the_next_promotion(self):
         item = {'id': 7, 'environment': promotion.ENVIRONMENT, 'task': promotion.TASK,
                 'production_environment': True, 'payload': {'kind': 'commons-promotion-intent'}}
@@ -302,6 +401,40 @@ class PromotionTests(unittest.TestCase):
             promotion.open_intent(records)
 
 
+class GitObjects:
+    """Synthetic Git object transport: one commit, one recursive tree read."""
+
+    def __init__(self, commit, tree_sha, entries, truncated=False, refuse_commit=False):
+        self.commit, self.tree_sha, self.entries = commit, tree_sha, entries
+        self.truncated, self.refuse_commit = truncated, refuse_commit
+        self.calls = []
+
+    def get(self, route):
+        self.calls.append(route)
+        if self.refuse_commit and route.endswith('/git/commits/' + self.commit):
+            raise ArtifactError('github_read_failed')
+        if route.endswith('/git/commits/' + self.commit):
+            return {'sha': self.commit, 'tree': {'sha': self.tree_sha}}
+        if route.endswith('/git/trees/' + self.tree_sha + '?recursive=1'):
+            return {'sha': self.tree_sha, 'truncated': self.truncated,
+                    'tree': [dict(entry) for entry in self.entries]}
+        raise ArtifactError('github_read_failed')
+
+
+def git_evidence(names, commit, *, drifted=None, wrong_mode=False, truncated=False,
+                 refuse_commit=False, entry_type='blob'):
+    """Build the tree entries and transport for a commit carrying `names`."""
+    entries = []
+    for name in sorted(names):
+        raw = f'console.log("{name}");'.encode()
+        sha = 'f' * 40 if drifted == name else hashlib.sha1(
+            b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+        entries.append({'path': 'services/commons/' + name,
+                        'mode': '100644' if not wrong_mode else '100755',
+                        'type': entry_type, 'sha': sha})
+    return GitObjects(commit, '5' * 40, entries, truncated=truncated, refuse_commit=refuse_commit)
+
+
 class PredecessorTests(unittest.TestCase):
     def multipart(self, names, boundary='----Px'):
         parts = ''.join(
@@ -310,24 +443,82 @@ class PredecessorTests(unittest.TestCase):
             for n in names)
         return parts.encode() + f'--{boundary}--'.encode()
 
-    def test_predecessor_packet_is_rebuilt_from_live_content_and_bound(self):
+    def test_predecessor_packet_is_rebuilt_from_git_bound_live_content(self):
         import commons_artifact as artifact
         import commons_rehearsal as rehearsal
         content = self.multipart(sorted(artifact.MODULES))
-        packet = promotion.reconstruct_predecessor(content, '3' * 40)
-        restored, descriptor = artifact.unpack(packet, '3' * 40, rehearsal.SCHEMA_SHA256)
+        github = git_evidence(artifact.MODULES, '3' * 40)
+        packet = promotion.reconstruct_predecessor(content, '3' * 40, github)
+        restored, descriptor = artifact.unpack(packet, '3' * 40, rehearsal.SCHEMA_SHA256, modules=None)
         self.assertEqual(set(restored), set(artifact.MODULES))
         self.assertTrue(all(v.startswith(b'console.log(') for v in restored.values()))
         self.assertEqual(descriptor['commit'], '3' * 40)
+        # Exactly the two bounded evidence reads happened, commit then tree.
+        self.assertEqual(len(github.calls), 2)
+        self.assertTrue(github.calls[0].endswith('/git/commits/' + '3' * 40))
+        self.assertIn('/git/trees/' + '5' * 40 + '?recursive=1', github.calls[1])
+
+    def test_older_predecessor_module_profile_binds_to_its_own_commit(self):
+        import commons_artifact as artifact
+        import commons_rehearsal as rehearsal
+        older = {'worker.mjs', 'security.mjs', 'identity.mjs', 'participations.mjs',
+                 'activity.mjs', 'work-items.mjs'}
+        content = self.multipart(sorted(older))
+        packet = promotion.reconstruct_predecessor(content, '3' * 40,
+                                                   git_evidence(older, '3' * 40))
+        restored, descriptor = artifact.unpack(packet, '3' * 40, rehearsal.SCHEMA_SHA256, modules=None)
+        self.assertEqual(set(restored), older)
+        self.assertEqual(set(descriptor['modules']), older)
+
+    def test_live_bytes_drifted_under_the_claimed_commit_refuse(self):
+        import commons_artifact as artifact
+        content = self.multipart(sorted(artifact.MODULES))
+        # The provider serves changed bytes while RELEASE_SHA still claims the
+        # old commit; the tree's blob for worker.mjs does not match them.
+        github = git_evidence(artifact.MODULES, '3' * 40, drifted='worker.mjs')
+        with self.assertRaisesRegex(ArtifactError, 'predecessor_source_mismatch'):
+            promotion.reconstruct_predecessor(content, '3' * 40, github)
+
+    def test_installed_profile_must_be_exactly_the_commit_s_modules(self):
+        import commons_artifact as artifact
+        full = self.multipart(sorted(artifact.MODULES))
+        # The live install carries a module the claimed commit never had.
+        with self.assertRaisesRegex(ArtifactError, 'predecessor_source_mismatch'):
+            promotion.reconstruct_predecessor(
+                full, '3' * 40, git_evidence(artifact.MODULES - {'receipts.mjs'}, '3' * 40))
+        # The claimed commit has a production module the live install dropped.
+        partial = self.multipart(sorted(artifact.MODULES - {'receipts.mjs'}))
+        with self.assertRaisesRegex(ArtifactError, 'predecessor_source_mismatch'):
+            promotion.reconstruct_predecessor(partial, '3' * 40, git_evidence(artifact.MODULES, '3' * 40))
+
+    def test_missing_or_malformed_git_evidence_fails_closed(self):
+        import commons_artifact as artifact
+        content = self.multipart(sorted(artifact.MODULES))
+        # The evidence commit is not readable (a shallow CI checkout has no
+        # local objects either); the reconstruction refuses, never self-certifies.
+        with self.assertRaisesRegex(ArtifactError, 'github_read_failed'):
+            promotion.reconstruct_predecessor(
+                content, '3' * 40, git_evidence(artifact.MODULES, '3' * 40, refuse_commit=True))
+        # A truncated tree, a non-blob entry and a wrong entry mode all refuse.
+        with self.assertRaisesRegex(ArtifactError, 'predecessor_source_unverified'):
+            promotion.reconstruct_predecessor(
+                content, '3' * 40, git_evidence(artifact.MODULES, '3' * 40, truncated=True))
+        with self.assertRaisesRegex(ArtifactError, 'predecessor_source_mismatch'):
+            promotion.reconstruct_predecessor(
+                content, '3' * 40, git_evidence(artifact.MODULES, '3' * 40, entry_type='tree'))
+        with self.assertRaisesRegex(ArtifactError, 'predecessor_source_mismatch'):
+            promotion.reconstruct_predecessor(
+                content, '3' * 40, git_evidence(artifact.MODULES, '3' * 40, wrong_mode=True))
 
     def test_predecessor_reconstruction_refuses_damaged_content(self):
         import commons_artifact as artifact
         content = self.multipart(sorted(artifact.MODULES))
+        github = git_evidence(artifact.MODULES, '3' * 40)
         truncated = content[:content.rfind(b'--' + b'----Px')]
         for broken in [b'', b'no-multipart', truncated + b'trailing',
                        content.replace(b'console.log', b'console\x00log', 1)]:
             with self.assertRaises(ArtifactError):
-                promotion.reconstruct_predecessor(broken, '3' * 40)
+                promotion.reconstruct_predecessor(broken, '3' * 40, github)
 
 
 class WiringPrimitiveTests(unittest.TestCase):
@@ -545,7 +736,8 @@ class CaptureTests(unittest.TestCase):
 class EnginePlanTests(unittest.TestCase):
     def planned(self, **changes):
         value = {
-            'predecessor': {'version_id': VERSION},
+            'predecessor': {'version_id': VERSION, 'deployment_id': DEPLOYMENT},
+            'expected_generation': 4,
             'release_sha_change': {'before': OLD, 'after': NEW},
             'desired_version': {
                 'bindings': {'DB': {'type': 'd1', 'id': DATABASE},
@@ -562,6 +754,8 @@ class EnginePlanTests(unittest.TestCase):
     def test_release_sha_is_reentered_and_everything_else_inherits(self):
         plan = promotion.engine_plan(NEW, self.planned(), 'Promote the candidate', 'the-tag')
         self.assertEqual(plan['predecessor_version'], VERSION)
+        self.assertEqual(plan['predecessor_deployment_id'], DEPLOYMENT)
+        self.assertEqual(plan['predecessor_generation'], 4)
         self.assertEqual(plan['release_sha'], OLD)
         self.assertEqual(plan['message'], 'Promote the candidate')
         self.assertEqual(plan['tag'], 'the-tag')
@@ -595,6 +789,21 @@ class EnginePlanTests(unittest.TestCase):
         del missing['desired_version']['bindings']['RELEASE_SHA']
         with self.assertRaisesRegex(ArtifactError, 'invalid_plan'):
             promotion.engine_plan(NEW, missing, 'm', 't')
+
+    def test_refuses_plans_without_the_fresh_precondition_pins(self):
+        without_deployment = self.planned()
+        del without_deployment['predecessor']['deployment_id']
+        with self.assertRaisesRegex(ArtifactError, 'invalid_plan'):
+            promotion.engine_plan(NEW, without_deployment, 'm', 't')
+        without_generation = self.planned()
+        del without_generation['expected_generation']
+        with self.assertRaisesRegex(ArtifactError, 'invalid_plan'):
+            promotion.engine_plan(NEW, without_generation, 'm', 't')
+        for broken in [0, '4', 2**63, None]:
+            bad_generation = self.planned()
+            bad_generation['expected_generation'] = broken
+            with self.assertRaisesRegex(ArtifactError, 'invalid_plan'):
+                promotion.engine_plan(NEW, bad_generation, 'm', 't')
 
 
 if __name__ == '__main__':

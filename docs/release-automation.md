@@ -2,8 +2,11 @@
 
 **Automatic static publication is enabled.** Eligible contributions reach
 production through a reviewed PR, successful checks and a reproducible release,
-without requiring Codex or one maintainer's workstation. Separate Worker and
-database promotion remain the next infrastructure stage.
+without requiring Codex or one maintainer's workstation. Commons Worker code
+promotion is implemented as a deliberately dispatch-only workflow with durable
+intent, fresh preconditions before each mutation and retained rollback;
+automatic Worker promotion and the separate database/schema stage remain
+outside it.
 
 The offline [static artifact contract](release-artifacts.md) validates payload
 bytes and a constrained descriptor, including an independent rebuild comparison.
@@ -30,7 +33,7 @@ rollback and republication pilot are verified; see the
 | Constrained static adapter | Installed and verified with a separate restricted identity. |
 | Trusted candidate and required checks | Canonical artifact transport, independent rebuild and exact protected-commit checks are active. |
 | Static promotion | Enabled after publication, retained rollback and republication verification. |
-| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md), a separate [canonical artifact rehearsal](release-commons-rehearsal.md), an [independent completed-run consumer](release-commons-candidates.md), a [version-bound code planner](release-commons-plan.md) and a [transition fixture with crash recovery](release-commons-transition.md) are implemented. The real [Cloudflare adapter](../scripts/commons_cloudflare.py) matches the live Workers version API, verified by a byte-identical stage, activation and predecessor-restore rehearsal that kept every binding and the live API unchanged. A reviewed [promotion procedure](release-commons-promotion.md) now specifies the worker path with durable intent; its intent record, operator command and schema migration remain separate work. Static jobs cannot update either. |
+| Worker and database promotion | [Code packaging and schema checks](release-commons-artifacts.md), a separate [canonical artifact rehearsal](release-commons-rehearsal.md), an [independent completed-run consumer](release-commons-candidates.md), a [version-bound code planner](release-commons-plan.md) and a [transition fixture with crash recovery](release-commons-transition.md) are implemented. The real [Cloudflare adapter](../scripts/commons_cloudflare.py) matches the live Workers version API, verified by a byte-identical stage, activation and predecessor-restore rehearsal that kept every binding and the live API unchanged. A reviewed [promotion procedure](release-commons-promotion.md) implements the worker path with durable intent, staged verification, fresh preconditions before each mutation and conditional rollback, driven by a dispatch-only workflow that consumes the verified candidate. Schema migration remains a separate procedure with its own backup and preservation evidence. Static jobs cannot update either. |
 
 ## Near-term sequence
 
@@ -46,12 +49,14 @@ first:
    posts are never repeated, but today a transient failure of the read that
    confirms an already posted status fails the whole run. A bounded read-only
    retry keeps the no-blind-retry rule for every mutation.
-3. **Worker promotion procedure — specified.** The [promotion procedure](release-commons-promotion.md)
+3. **Worker promotion procedure — implemented.** The [promotion procedure](release-commons-promotion.md)
    binds the live-validated adapter primitives into a reviewed path with
-   durable intent, inherited bindings, single-attempt mutations and retained
-   rollback. Its first implementation slice is a fixed operator command with
-   offline tests; routine automation follows the static publication discipline
-   afterwards.
+   durable intent, inherited bindings, single-attempt mutations, fresh
+   preconditions before each mutation and retained
+   rollback. The operator command, the promotion engine and the dispatch-only
+   workflow are implemented with offline tests; the workflow deliberately
+   keeps promotion dispatch-only instead of adopting the static path's
+   automatic trigger.
 4. **Publication status audit — optional.** A failing workflow conclusion with
    a closed successful record should be reconcilable from the deployment record
    without re-running a publication.
