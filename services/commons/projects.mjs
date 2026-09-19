@@ -116,15 +116,22 @@ export async function createProject(request, env, now) {
     throw new ApiError(409, 'project_limit', `A coordinator keeps at most ${MAX_OPEN_PROJECTS} open projects.`);
   }
   const id = crypto.randomUUID();
+  // The open-project cap lives inside the write so a raced counter can never
+  // oversubscribe it; a rejected insert leaves the event statement empty too.
   const results = await env.DB.batch([
     env.DB.prepare(`INSERT INTO projects (id, mission_id, coordinator_identity_id, title, purpose, status, version, created_at, updated_at)
       SELECT ?, ?, ?, ?, ?, 'open', 1, ?, ?
-      WHERE EXISTS (SELECT 1 FROM proposals WHERE id = ? AND kind = 'mission' AND status = 'published')`).bind(
-      id, missionId, actor.id, title, purpose, now, now, missionId),
+      WHERE EXISTS (SELECT 1 FROM proposals WHERE id = ? AND kind = 'mission' AND status = 'published')
+        AND (SELECT COUNT(*) FROM projects WHERE coordinator_identity_id = ? AND status = 'open') < ?`).bind(
+      id, missionId, actor.id, title, purpose, now, now, missionId, actor.id, MAX_OPEN_PROJECTS),
     env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
       SELECT ${sqlUuid}, id, 2, 'created', 'identity', ?, ? FROM projects WHERE id = ?`).bind(actor.id, now, id),
   ]);
   if (results[0].meta.changes !== 1) {
+    const raced = await env.DB.prepare(`SELECT COUNT(*) AS count FROM projects WHERE coordinator_identity_id = ? AND status = 'open'`).bind(actor.id).first();
+    if (raced.count >= MAX_OPEN_PROJECTS) {
+      throw new ApiError(409, 'project_limit', `A coordinator keeps at most ${MAX_OPEN_PROJECTS} open projects.`);
+    }
     invalid('mission_id must identify a published mission.', 'mission_id');
   }
   const row = await projectRow(env.DB, id);
@@ -219,23 +226,40 @@ export async function addMilestone(request, env, projectId, now) {
     invalid('depends_on must not repeat a milestone.', 'depends_on');
   }
   const id = crypto.randomUUID();
+  // Every statement of the batch repeats the same project CAS and milestone cap,
+  // so a rejected compare-and-set leaves the whole batch a no-op instead of
+  // committing an orphaned milestone, event or dependency edges.
   const statements = [
     env.DB.prepare(`INSERT INTO milestones (id, project_id, parent_milestone_id, created_by_identity_id, title, purpose,
         expected_artifact, acceptance, status, scope_version, version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', 1, 1, ?, ?)`).bind(
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'open', 1, 1, ?, ?
+      WHERE EXISTS (SELECT 1 FROM projects WHERE id = ? AND version = ? AND status = 'open')
+        AND (SELECT COUNT(*) FROM milestones WHERE project_id = ? AND status != 'cancelled') < ?`).bind(
       id, projectId, parent?.id ?? null, actor.id, title, purpose, expectedArtifact,
-      JSON.stringify(body.acceptance), now, now),
-    env.DB.prepare("UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND version = ? AND status = 'open'")
-      .bind(now, projectId, body.expected_version),
+      JSON.stringify(body.acceptance), now, now,
+      projectId, body.expected_version, projectId, MAX_MILESTONES),
+    env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND version = ? AND status = 'open'
+      AND EXISTS (SELECT 1 FROM milestones WHERE id = ? AND status = 'open')`)
+      .bind(now, projectId, body.expected_version, id),
     env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
-      SELECT ${sqlUuid}, id, version + 1, 'milestone_added', 'identity', ?, ? FROM projects WHERE id = ?`).bind(actor.id, now, projectId),
+      SELECT ${sqlUuid}, id, version + 1, 'milestone_added', 'identity', ?, ? FROM projects WHERE id = ?
+        AND EXISTS (SELECT 1 FROM milestones WHERE id = ? AND status = 'open')`).bind(actor.id, now, projectId, id),
   ];
   for (const dependency of dependencies) {
-    statements.push(env.DB.prepare('INSERT INTO milestone_dependencies (milestone_id, depends_on_id, created_at) VALUES (?, ?, ?)')
-      .bind(id, dependency, now));
+    statements.push(env.DB.prepare(`INSERT INTO milestone_dependencies (milestone_id, depends_on_id, created_at)
+      SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM milestones WHERE id = ? AND status = 'open')`)
+      .bind(id, dependency, now, id));
   }
   const results = await env.DB.batch(statements);
-  if (results[1].meta.changes !== 1) {
+  if (results[0].meta.changes !== 1) {
+    const recount = await env.DB.prepare("SELECT COUNT(*) AS count FROM milestones WHERE project_id = ? AND status != 'cancelled'").bind(projectId).first();
+    if (recount.count >= MAX_MILESTONES) {
+      throw new ApiError(409, 'milestone_limit', `A project keeps at most ${MAX_MILESTONES} milestones.`);
+    }
+    const status = await env.DB.prepare('SELECT status FROM projects WHERE id = ?').bind(projectId).first();
+    if (status && status.status !== 'open') {
+      throw new ApiError(409, 'project_closed', 'Only an open project accepts milestones.');
+    }
     conflict409('version_conflict', 'The project changed since you read it. Reload and retry.');
   }
   const milestones = await milestonesOf(env.DB, projectId);
@@ -253,18 +277,29 @@ export async function projectAction(request, env, projectId, now) {
   if (!['close', 'cancel'].includes(body.action)) invalid('action must be close or cancel.', 'action');
   version(body.expected_version);
   const status = body.action === 'close' ? 'closed' : 'cancelled';
+  // The follow-up statements only run in the state a successful compare-and-set
+  // just produced. When that guard matches outside this write the project is
+  // already terminal, so no open milestone or commitment remains for them to
+  // touch. The event additionally deduplicates on the terminal action itself:
+  // a project leaves 'open' at most once per terminal action, so a replayed
+  // request cannot append a second close or cancel event.
   const results = await env.DB.batch([
     env.DB.prepare(`UPDATE projects SET status = ?, version = version + 1, updated_at = ?
       WHERE id = ? AND version = ? AND status = 'open'
       RETURNING id, mission_id, title, status, version, updated_at`).bind(status, now, projectId, body.expected_version),
     env.DB.prepare(`UPDATE milestones SET status = 'cancelled', version = version + 1, updated_at = ?
-      WHERE project_id = ? AND status = 'open'`).bind(now, projectId),
+      WHERE project_id = ? AND status = 'open'
+        AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND version = ? AND status = ?)`)
+      .bind(now, projectId, projectId, body.expected_version + 1, status),
     env.DB.prepare(`UPDATE commitments SET status = 'cancelled', updated_at = ?
       WHERE project_id = ? AND status IN ('offered','confirmed')
-        AND milestone_id IN (SELECT id FROM milestones WHERE project_id = ? AND status != 'done')`)
-      .bind(now, projectId, projectId),
+        AND milestone_id IN (SELECT id FROM milestones WHERE project_id = ? AND status != 'done')
+        AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND version = ? AND status = ?)`)
+      .bind(now, projectId, projectId, projectId, body.expected_version + 1, status),
     env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
-      SELECT ${sqlUuid}, id, version + 1, ?, 'identity', ?, ? FROM projects WHERE id = ?`).bind(body.action, actor.id, now, projectId),
+      SELECT ${sqlUuid}, id, version + 1, ?, 'identity', ?, ? FROM projects WHERE id = ? AND version = ? AND status = ?
+        AND NOT EXISTS (SELECT 1 FROM project_events WHERE project_id = ? AND action = ?)`)
+      .bind(body.action, actor.id, now, projectId, body.expected_version + 1, status, projectId, body.action),
   ]);
   if (results[0].meta.changes !== 1) {
     conflict409('version_conflict', 'The project changed since you read it. Reload and retry.');
@@ -290,12 +325,17 @@ export async function milestoneAction(request, env, projectId, milestoneId, now)
   if (!milestone || milestone.status !== 'open') {
     throw new ApiError(404, 'not_found', 'No open milestone was found.');
   }
+  // The project bump runs before the milestone CAS and repeats its exact guard,
+  // so a rejected completion bumps nothing. Ordering is the coupling here: after
+  // the CAS the pre-state guard would no longer match.
   const results = await env.DB.batch([
+    env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open'
+      AND EXISTS (SELECT 1 FROM milestones WHERE id = ? AND project_id = ? AND status = 'open' AND version = ?)`)
+      .bind(now, projectId, milestoneId, projectId, body.expected_version),
     env.DB.prepare(`UPDATE milestones SET status = 'done', version = version + 1, updated_at = ?
       WHERE id = ? AND project_id = ? AND status = 'open' AND version = ?`).bind(now, milestoneId, projectId, body.expected_version),
-    env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open'`).bind(now, projectId),
   ]);
-  if (results[0].meta.changes !== 1) {
+  if (results[1].meta.changes !== 1) {
     conflict409('version_conflict', 'The milestone changed since you read it. Reload and retry.');
   }
   const milestones = await milestonesOf(env.DB, projectId);
@@ -333,19 +373,34 @@ export async function offerCommitment(request, env, projectId, now) {
     throw new ApiError(409, 'commitment_limit', `A milestone keeps at most ${MAX_NONTERMINAL_COMMITMENTS} nonterminal commitments.`);
   }
   const id = crypto.randomUUID();
+  // The duplicate, cap and open-milestone conditions all live inside the
+  // insert; the event only records an offer that was actually written.
   const results = await env.DB.batch([
     env.DB.prepare(`INSERT INTO commitments (id, milestone_id, project_id, contributor_identity_id, coordinator_identity_id,
         terms, scope_version, status, created_at, updated_at)
       SELECT ?, ?, ?, ?, ?, 'volunteer', ?, 'offered', ?, ?
       WHERE EXISTS (SELECT 1 FROM milestones WHERE id = ? AND status = 'open' AND project_id = ?)
-        AND NOT EXISTS (SELECT 1 FROM commitments WHERE milestone_id = ? AND contributor_identity_id = ? AND status IN ('offered','confirmed'))`)
+        AND NOT EXISTS (SELECT 1 FROM commitments WHERE milestone_id = ? AND contributor_identity_id = ? AND status IN ('offered','confirmed'))
+        AND (SELECT COUNT(*) FROM commitments WHERE milestone_id = ? AND status IN ('offered','confirmed')) < ?`)
       .bind(id, milestoneId, projectId, actor.id, row.coordinator_identity_id, milestone.scope_version, now, now,
-        milestoneId, projectId, milestoneId, actor.id),
+        milestoneId, projectId, milestoneId, actor.id, milestoneId, MAX_NONTERMINAL_COMMITMENTS),
     env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
-      SELECT ${sqlUuid}, id, version + 1, 'commitment_offered', 'identity', ?, ? FROM projects WHERE id = ?`).bind(actor.id, now, projectId),
+      SELECT ${sqlUuid}, id, version + 1, 'commitment_offered', 'identity', ?, ? FROM projects WHERE id = ?
+        AND EXISTS (SELECT 1 FROM commitments WHERE id = ?)`).bind(actor.id, now, projectId, id),
   ]);
   if (results[0].meta.changes !== 1) {
-    throw new ApiError(409, 'duplicate_commitment', 'This identity already has a nonterminal commitment on this milestone.');
+    const activeAgain = await env.DB.prepare(`SELECT COUNT(*) AS count FROM commitments
+      WHERE milestone_id = ? AND contributor_identity_id = ? AND status IN ('offered','confirmed')`)
+      .bind(milestoneId, actor.id).first();
+    if (activeAgain.count > 0) {
+      throw new ApiError(409, 'duplicate_commitment', 'This identity already has a nonterminal commitment on this milestone.');
+    }
+    const boundAgain = await env.DB.prepare(`SELECT COUNT(*) AS count FROM commitments
+      WHERE milestone_id = ? AND status IN ('offered','confirmed')`).bind(milestoneId).first();
+    if (boundAgain.count >= MAX_NONTERMINAL_COMMITMENTS) {
+      throw new ApiError(409, 'commitment_limit', `A milestone keeps at most ${MAX_NONTERMINAL_COMMITMENTS} nonterminal commitments.`);
+    }
+    conflict409('milestone_closed', 'Only an open milestone of an open project accepts commitments.');
   }
   const commitments = await commitmentsFor(env.DB, projectId, actor, now);
   return response(commitments.find(view => view.id === id), 201);
@@ -377,13 +432,18 @@ export async function commitmentAction(request, env, projectId, commitmentId, no
   if (row.project_status !== 'open' && body.action !== 'end') {
     conflict409('project_closed', 'Only an open project accepts this action.');
   }
+  // The event is written before the transition and repeats its exact guard, so
+  // a raced action records neither the event nor the status change. No project
+  // version bump happens here, so reading the project row first changes no
+  // stamped value.
   const results = await env.DB.batch([
-    env.DB.prepare('UPDATE commitments SET status = ?, updated_at = ? WHERE id = ? AND status = ?').bind(to, now, commitmentId, from),
     env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
-      SELECT ${sqlUuid}, id, version + 1, ?, 'identity', ?, ? FROM projects WHERE id = ?`)
-      .bind(`commitment_${body.action}`, actor.id, now, projectId),
+      SELECT ${sqlUuid}, id, version + 1, ?, 'identity', ?, ? FROM projects WHERE id = ?
+        AND EXISTS (SELECT 1 FROM commitments WHERE id = ? AND status = ?)`)
+      .bind(`commitment_${body.action}`, actor.id, now, projectId, commitmentId, from),
+    env.DB.prepare('UPDATE commitments SET status = ?, updated_at = ? WHERE id = ? AND status = ?').bind(to, now, commitmentId, from),
   ]);
-  if (results[0].meta.changes !== 1) {
+  if (results[1].meta.changes !== 1) {
     conflict409('state_conflict', 'The commitment changed concurrently. Reload and retry.');
   }
   const commitments = await commitmentsFor(env.DB, projectId, actor, now);

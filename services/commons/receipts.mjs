@@ -106,6 +106,9 @@ export async function submitDelivery(request, env, projectId, milestoneId, now) 
     throw new ApiError(409, 'revision_limit', `A milestone keeps at most ${MAX_REVISIONS} delivery revisions.`);
   }
   const id = crypto.randomUUID();
+  // The revision cap joins the version and binding guards inside the insert;
+  // the version bump and event only record a delivery that was actually
+  // written, so a rejected compare-and-set persists nothing at all.
   const results = await env.DB.batch([
     env.DB.prepare(`INSERT INTO deliveries (id, project_id, milestone_id, author_identity_id, revision, scope_version,
         summary, artifact_url, artifact_media_type, artifact_size_bytes, integrity_algorithm, integrity_digest,
@@ -113,17 +116,24 @@ export async function submitDelivery(request, env, projectId, milestoneId, now) 
       SELECT ?, ?, ?, ?, (SELECT COALESCE(MAX(revision), 0) + 1 FROM deliveries WHERE milestone_id = ?), ?, ?, ?, ?, ?, 'sha256', ?, ?, ?, ?, ?, ?, ?, ?
       WHERE EXISTS (SELECT 1 FROM projects WHERE id = ? AND version = ? AND status = 'open')
         AND EXISTS (SELECT 1 FROM milestones WHERE id = ? AND project_id = ? AND status = 'open')
-        AND EXISTS (SELECT 1 FROM commitments WHERE milestone_id = ? AND contributor_identity_id = ? AND status = 'confirmed')`)
+        AND EXISTS (SELECT 1 FROM commitments WHERE milestone_id = ? AND contributor_identity_id = ? AND status = 'confirmed')
+        AND (SELECT COUNT(*) FROM deliveries WHERE milestone_id = ?) < ?`)
       .bind(id, projectId, milestoneId, actor.id, milestoneId, context.scope_version, summary,
         artifactUrl, body.artifact_media_type, body.artifact_size_bytes, body.integrity_digest,
         body.content_identifier || null, evidenceUrl, retention.retained_by, retention.retained_until,
         retention.access, retention.on_unavailable, now,
-        projectId, body.expected_version, milestoneId, projectId, milestoneId, actor.id),
-    env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open'`).bind(now, projectId),
+        projectId, body.expected_version, milestoneId, projectId, milestoneId, actor.id, milestoneId, MAX_REVISIONS),
+    env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open'
+      AND EXISTS (SELECT 1 FROM deliveries WHERE id = ?)`).bind(now, projectId, id),
     env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
-      SELECT ${sqlUuid}, id, version + 1, 'delivery_added', 'identity', ?, ? FROM projects WHERE id = ?`).bind(actor.id, now, projectId),
+      SELECT ${sqlUuid}, id, version + 1, 'delivery_added', 'identity', ?, ? FROM projects WHERE id = ?
+        AND EXISTS (SELECT 1 FROM deliveries WHERE id = ?)`).bind(actor.id, now, projectId, id),
   ]);
   if (results[0].meta.changes !== 1) {
+    const recount = await env.DB.prepare(`SELECT COUNT(*) AS revisions FROM deliveries WHERE milestone_id = ?`).bind(milestoneId).first();
+    if (recount.revisions >= MAX_REVISIONS) {
+      throw new ApiError(409, 'revision_limit', `A milestone keeps at most ${MAX_REVISIONS} delivery revisions.`);
+    }
     throw new ApiError(409, 'version_conflict', 'The project changed since you read it. Reload and retry.');
   }
   const row = await env.DB.prepare(`${deliverySelect} WHERE d.id = ?`).bind(id).first();
@@ -207,6 +217,10 @@ async function latestRevision(db, milestoneId) {
 // the delivering contributor (self-commitment is refused upstream), so a
 // reviewer never reviews their own delivery, and acceptance binds exactly
 // one immutable revision — a stale acceptance is refused, not superseded.
+// The revision currency is checked inside the write, not only before it: an
+// accept must land on the newest revision at commit time, so a revision
+// arriving between precheck and batch fails the insert guard, and every
+// completion statement below is tied to that insert actually succeeding.
 export async function submitReview(request, env, projectId, milestoneId, now) {
   const actor = await authenticateIdentity(request, env, now);
   const context = await projectAndMilestone(env.DB, projectId, milestoneId);
@@ -231,36 +245,49 @@ export async function submitReview(request, env, projectId, milestoneId, now) {
     throw new ApiError(409, 'stale_revision', 'Only the newest delivery revision can be accepted; matched bytes of a superseded revision are not a current delivery.');
   }
   const id = crypto.randomUUID();
+  // Every completion statement repeats the review-insert coupling, so the
+  // batch either records the review with its completion or nothing at all.
+  const reviewWritten = 'EXISTS (SELECT 1 FROM milestone_reviews WHERE id = ?)';
   const statements = [
     env.DB.prepare(`INSERT INTO milestone_reviews (id, project_id, milestone_id, delivery_revision, decision, note, reviewer_identity_id, created_at)
       SELECT ?, ?, ?, ?, ?, ?, ?, ?
       WHERE EXISTS (SELECT 1 FROM milestones WHERE id = ? AND project_id = ? AND status = 'open' AND version = ?)
-        AND NOT EXISTS (SELECT 1 FROM milestone_reviews WHERE milestone_id = ? AND delivery_revision = ? AND decision = ?)`)
-      .bind(id, projectId, milestoneId, body.delivery_revision, body.decision, note, actor.id, now,
-        milestoneId, projectId, body.expected_version, milestoneId, body.delivery_revision, body.decision),
+        AND NOT EXISTS (SELECT 1 FROM milestone_reviews WHERE milestone_id = ? AND delivery_revision = ? AND decision = ?)
+        ${body.decision === 'accept' ? 'AND NOT EXISTS (SELECT 1 FROM deliveries WHERE milestone_id = ? AND revision > ?)' : ''}`)
+      .bind(...[id, projectId, milestoneId, body.delivery_revision, body.decision, note, actor.id, now,
+        milestoneId, projectId, body.expected_version, milestoneId, body.delivery_revision, body.decision,
+        ...(body.decision === 'accept' ? [milestoneId, body.delivery_revision] : [])]),
   ];
   if (body.decision === 'accept') {
     statements.push(
       env.DB.prepare(`UPDATE milestones SET status = 'done', version = version + 1, updated_at = ?
-        WHERE id = ? AND project_id = ? AND status = 'open'`).bind(now, milestoneId, projectId),
+        WHERE id = ? AND project_id = ? AND status = 'open' AND ${reviewWritten}`)
+        .bind(now, milestoneId, projectId, id),
       env.DB.prepare(`UPDATE commitments SET status = 'completed', updated_at = ?
-        WHERE milestone_id = ? AND status = 'confirmed'`).bind(now, milestoneId),
+        WHERE milestone_id = ? AND status = 'confirmed' AND ${reviewWritten}`).bind(now, milestoneId, id),
       env.DB.prepare(`UPDATE commitments SET status = 'declined', updated_at = ?
-        WHERE milestone_id = ? AND status = 'offered'`).bind(now, milestoneId),
-      env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open'`).bind(now, projectId),
+        WHERE milestone_id = ? AND status = 'offered' AND ${reviewWritten}`).bind(now, milestoneId, id),
+      env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open' AND ${reviewWritten}`)
+        .bind(now, projectId, id),
       env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
-        SELECT ${sqlUuid}, id, version + 1, 'delivery_accepted', 'identity', ?, ? FROM projects WHERE id = ?`).bind(actor.id, now, projectId));
+        SELECT ${sqlUuid}, id, version + 1, 'delivery_accepted', 'identity', ?, ? FROM projects WHERE id = ? AND ${reviewWritten}`)
+        .bind(actor.id, now, projectId, id));
   } else {
     statements.push(
-      env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open'`).bind(now, projectId),
+      env.DB.prepare(`UPDATE projects SET version = version + 1, updated_at = ? WHERE id = ? AND status = 'open' AND ${reviewWritten}`)
+        .bind(now, projectId, id),
       env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
-        SELECT ${sqlUuid}, id, version + 1, 'revision_requested', 'identity', ?, ? FROM projects WHERE id = ?`).bind(actor.id, now, projectId));
+        SELECT ${sqlUuid}, id, version + 1, 'revision_requested', 'identity', ?, ? FROM projects WHERE id = ? AND ${reviewWritten}`)
+        .bind(actor.id, now, projectId, id));
   }
   const results = await env.DB.batch(statements);
   if (results[0].meta.changes !== 1) {
     const duplicate = await env.DB.prepare(`SELECT id FROM milestone_reviews WHERE milestone_id = ? AND delivery_revision = ? AND decision = ?`)
       .bind(milestoneId, body.delivery_revision, body.decision).first();
     if (duplicate) throw new ApiError(409, 'duplicate_decision', 'This exact decision is already recorded; the trail is immutable.');
+    if (body.decision === 'accept' && body.delivery_revision !== await latestRevision(env.DB, milestoneId)) {
+      throw new ApiError(409, 'stale_revision', 'Only the newest delivery revision can be accepted; matched bytes of a superseded revision are not a current delivery.');
+    }
     if (context.milestone_status !== 'open') throw new ApiError(409, 'milestone_closed', 'Only an open milestone accepts review decisions.');
     throw new ApiError(409, 'version_conflict', 'The milestone changed since you read it. Reload and retry.');
   }
