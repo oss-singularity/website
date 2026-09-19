@@ -5,11 +5,14 @@ Deploys the freshly compiled, committed FairSettlement example against a
 local Anvil simulation chain and drives the settlement paths with real
 transactions — including the deterministic timeouts no wall-clock test could
 wait for. Uses Foundry's world-famous dev keys that can never hold value;
-nothing here touches a public network. Skips when Foundry or the pinned
-compiler is unavailable (CI installs both, pinned).
+nothing here touches a public network. Missing Foundry or an unavailable
+pinned compiler skip explicitly outside CI; under CI both are mandatory gates
+and fail hard. A compiler that rejects the generated source, or writes no
+artifacts, always fails everywhere (review A3) — never a green skip.
 """
 
 import argparse
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -23,8 +26,17 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 LAB = REPO / "scripts" / "solidity-lab.py"
 AGREEMENT = REPO / "design" / "solidity-lab" / "settlement-anvil-agreement.json"
-SOLC_VERSION = "0.8.37"
 LOCAL_PORT = 8547
+
+
+def _load_module(name: str):
+    spec = importlib.util.spec_from_file_location(name, REPO / "design" / "solidity-lab" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+PINNED_SOLC = _load_module("pinned_solc")
 
 # Anvil's deterministic dev keys (public knowledge, zero value, local chain only):
 # account0 = contributor, account1 = coordinator, account2 = holder.
@@ -55,15 +67,10 @@ def _compile_committed_example(out_dir: Path) -> bytes:
     result = subprocess.run([sys.executable, str(LAB), "--agreement", str(AGREEMENT),
                              "--out", str(generated)], capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stderr
-    compile_result = subprocess.run(
-        ["npx", "--yes", f"solc@{SOLC_VERSION}", "--bin", str(generated / "FairSettlement.sol")],
-        capture_output=True, text=True, timeout=300, cwd=str(out_dir))
-    if compile_result.returncode != 0:
-        raise unittest.SkipTest(f"pinned solc unavailable: {compile_result.stderr[:120]}")
-    binaries = sorted(out_dir.glob("*_FairSettlement.bin"))
-    if not binaries:
-        raise unittest.SkipTest(f"pinned solc wrote no binary: {compile_result.stdout[:160]}")
-    return bytes.fromhex(binaries[0].read_text().strip())
+    # Fail-closed (review A3): a compiler or artifact failure raises and turns
+    # the suite red; it must never become a green skip.
+    artifacts = PINNED_SOLC.compile_with_artifacts(generated / "FairSettlement.sol", out_dir, "FairSettlement")
+    return bytes.fromhex(artifacts["bin"].decode().strip())
 
 
 class AnvilSettlementTests(unittest.TestCase):
@@ -80,14 +87,14 @@ class AnvilSettlementTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         if not _foundry_available():
-            raise unittest.SkipTest("foundry (anvil/cast) unavailable in this environment")
+            if PINNED_SOLC.tools_mandatory():
+                raise AssertionError("foundry (anvil/cast) is a mandatory gate in CI but unavailable")
+            raise unittest.SkipTest("foundry (anvil/cast) unavailable in this environment (optional locally)")
         cls.AGREEMENT_DATA = json.loads(AGREEMENT.read_text())
         cls.WORKDIR = tempfile.TemporaryDirectory()
-        try:
-            cls.BYTECODE = _compile_committed_example(Path(cls.WORKDIR.name))
-        except unittest.SkipTest:
-            cls.WORKDIR.cleanup()
-            raise
+        cls.addClassCleanup(cls._cleanup)
+        PINNED_SOLC.enforce_availability()
+        cls.BYTECODE = _compile_committed_example(Path(cls.WORKDIR.name))
         global ATTACHED
         if ATTACH:
             # probe through cast: public RPCs may reject the python client outright
@@ -99,7 +106,7 @@ class AnvilSettlementTests(unittest.TestCase):
         else:
             cls.ANVIL = subprocess.Popen(["anvil", "--port", str(LOCAL_PORT), "--silent"],
                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            ATTACHED = True  # this run owns the chain and stops it in tearDownClass
+            ATTACHED = True  # this run owns the chain and stops it in _cleanup
             ready = False
             for _ in range(30):
                 try:
@@ -111,23 +118,18 @@ class AnvilSettlementTests(unittest.TestCase):
                 except Exception:
                     time.sleep(0.5)
             if not ready:
-                cls._shutdown()
+                if PINNED_SOLC.tools_mandatory():
+                    raise AssertionError("local anvil did not become ready (mandatory in CI)")
                 raise unittest.SkipTest("local anvil did not become ready")
 
     @classmethod
-    def _shutdown(cls) -> None:
-        if not ATTACHED:
-            cls.ANVIL = None
+    def _cleanup(cls) -> None:
         if cls.ANVIL is not None:
             cls.ANVIL.terminate()
             cls.ANVIL = None
         if cls.WORKDIR is not None:
             cls.WORKDIR.cleanup()
             cls.WORKDIR = None
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        cls._shutdown()
 
     def setUp(self) -> None:
         if ATTACH and self._testMethodName in TIME_SCENARIOS:
@@ -149,21 +151,6 @@ class AnvilSettlementTests(unittest.TestCase):
         # all deadlines. Attached chains have no time control at all.
         if not ATTACH:
             self._jump_to(int(time.time()))
-
-    @classmethod
-    def _shutdown(cls) -> None:
-        if not ATTACHED:
-            cls.ANVIL = None
-        if cls.ANVIL is not None:
-            cls.ANVIL.terminate()
-            cls.ANVIL = None
-        if cls.WORKDIR is not None:
-            cls.WORKDIR.cleanup()
-            cls.WORKDIR = None
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        cls._shutdown()
 
     def _cast(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(["cast", *args, "--rpc-url", RPC],
@@ -267,6 +254,39 @@ class AnvilSettlementTests(unittest.TestCase):
         self.assertEqual(self._state(), STATE["refunded"])
 
 
+class CompilerGateTests(unittest.TestCase):
+    """The pinned-compiler gate of this suite fails closed (review A3).
+
+    These run wherever npx and the pinned solc exist, independent of Foundry,
+    so the red-pipeline guarantee stays verifiable on stations without anvil.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        PINNED_SOLC.enforce_availability()
+
+    def test_compiler_rejection_fails_the_gate_instead_of_skipping(self) -> None:
+        # Mutation proof: a source the compiler rejects must turn this gate
+        # red — never a green skip.
+        with tempfile.TemporaryDirectory() as folder:
+            workdir = Path(folder)
+            broken = workdir / "Broken.sol"
+            broken.write_text("contract Broken { this is not solidity }\n", encoding="utf-8")
+            with self.assertRaises(PINNED_SOLC.CompileFailed):
+                PINNED_SOLC.compile_with_artifacts(broken, workdir, "Broken")
+
+    def test_generated_example_compiles_with_real_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            workdir = Path(folder)
+            generated = workdir / "generated"
+            result = subprocess.run([sys.executable, str(LAB), "--agreement", str(AGREEMENT),
+                                     "--out", str(generated)], capture_output=True, text=True, timeout=60)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            artifacts = PINNED_SOLC.compile_with_artifacts(
+                generated / "FairSettlement.sol", workdir, "FairSettlement")
+            self.assertGreater(len(artifacts["bin"]), 120, "compiled binary is implausibly small")
+
+
 TIME_SCENARIOS = frozenset({
     "test_review_deadline_refuses_accept_and_leaves_dispute_path",
     "test_dispute_fallback_refuses_inside_window_and_refunds_after",
@@ -294,7 +314,4 @@ if __name__ == "__main__":
         if len(lines) != 3 or any(not line.startswith("0x") or len(line) != 66 for line in lines):
             raise SystemExit("key file must hold exactly three 0x-prefixed 32-byte hex keys")
         KEYS.update(dict(zip(("contributor", "coordinator", "holder"), lines)))
-    if not _foundry_available():
-        print("foundry (anvil/cast) unavailable — skipping local-chain exercise")
-        raise SystemExit(0)
     unittest.main(argv=["test-settlement-anvil", *remaining])

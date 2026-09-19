@@ -22,7 +22,12 @@ Two agreement kinds are supported:
   contract.
 
 The lab explains signatures; it never requests one from a wallet, never
-deploys, and never touches funds. Inputs are synthetic placeholders.
+deploys, and never touches funds. Inputs are synthetic placeholders. Every
+agreement passes a closed schema check before generation: role addresses are
+validated 20-byte hex strings, roles must be distinct (compared
+case-insensitively), deadlines are true integers within the uint256 range,
+and title/note accept only printable characters within a length bound — so no
+unvalidated string ever reaches the generated Solidity source.
 """
 
 from __future__ import annotations
@@ -36,51 +41,98 @@ SOLIDITY_VERSION = "^0.8.24"
 
 HEX_DIGITS = set("0123456789abcdef")
 DISPUTE_FALLBACKS = ("refund", "release")
+UINT256_MAX = 2**256 - 1  # every deadline becomes a uint256 constant in the contract
+TITLE_MAX_LENGTH = 80
+NOTE_MAX_LENGTH = 600
+
+# Closed input schemas (review A4): exactly these fields, nothing interpolated
+# into Solidity that has not passed the checks below.
+DELIVERY_FIELDS = ("schema_version", "kind", "title", "note", "contributor",
+                   "coordinator", "delivery_digest", "deadline")
+SETTLEMENT_FIELDS = ("schema_version", "kind", "title", "note", "contributor", "coordinator",
+                     "holder", "delivery_digest", "review_deadline", "dispute_deadline",
+                     "outer_deadline", "dispute_fallback")
 
 
-def _validate_delivery_agreement(document: dict) -> dict:
-    if document.get("kind") != "oss-solidity-lab-agreement" or document.get("schema_version") != 1:
-        raise ValueError("not an oss-solidity-lab-agreement (schema_version 1)")
-    for field in ("contributor", "coordinator", "delivery_digest", "deadline"):
-        if field not in document:
-            raise ValueError(f"agreement is missing {field}")
-    digest = document["delivery_digest"]
-    if not isinstance(digest, str) or len(digest) != 64 or any(c not in HEX_DIGITS for c in digest):
-        raise ValueError("delivery_digest must be 64 lowercase hex characters")
-    if not isinstance(document["deadline"], int) or document["deadline"] <= 0:
-        raise ValueError("deadline must be a positive integer timestamp")
-    return document
+def _require_closed_document(document: dict, allowed: tuple[str, ...]) -> None:
+    unknown = sorted(set(document) - set(allowed))
+    if unknown:
+        raise ValueError(
+            f"unknown agreement field(s) {unknown}; the input schema is closed: {list(allowed)}")
 
 
-def _require_address(document: dict, field: str) -> None:
+def _require_text(document: dict, field: str, max_length: int) -> str:
+    value = document.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} must be a non-empty string")
+    if len(value) > max_length:
+        raise ValueError(f"{field} must be at most {max_length} characters, got {len(value)}")
+    for character in value:
+        # No control characters and no line breaks of any kind: the title is
+        # interpolated into // comment lines of the generated contract.
+        if ord(character) < 32 or 127 <= ord(character) <= 159 or ord(character) in (0x2028, 0x2029):
+            raise ValueError(f"{field} must contain only printable characters (no control characters or line breaks)")
+    return value
+
+
+def _require_address(document: dict, field: str) -> str:
     value = document.get(field)
     if not isinstance(value, str) or not value.startswith("0x") or len(value) != 42:
         raise ValueError(f"{field} must be a 20-byte hex address (0x plus 40 hex characters)")
     if any(c not in "0123456789abcdefABCDEF" for c in value[2:]):
         raise ValueError(f"{field} must be a 20-byte hex address (0x plus 40 hex characters)")
+    # The validated spelling is emitted verbatim: the charset check makes it
+    # inert as Solidity source, and solc's own EIP-55 literal check rejects a
+    # wrong casing at compile time — which now fails the gates instead of
+    # skipping them. Computing the canonical checksum here would need Keccak,
+    # which the standard library does not ship.
+    return value
 
 
 def _require_deadline(document: dict, field: str) -> int:
     value = document.get(field)
-    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        raise ValueError(f"{field} must be a positive integer timestamp")
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer unix timestamp (bool is not a deadline)")
+    if not 0 < value <= UINT256_MAX:
+        raise ValueError(f"{field} must be a positive timestamp within the uint256 range")
     return value
+
+
+def _require_digest(document: dict) -> None:
+    digest = document.get("delivery_digest")
+    if not isinstance(digest, str) or len(digest) != 64 or any(c not in HEX_DIGITS for c in digest):
+        raise ValueError("delivery_digest must be 64 lowercase hex characters")
+
+
+def _require_distinct_roles(document: dict, fields: tuple[str, ...]) -> None:
+    if len({document[field].lower() for field in fields}) != len(fields):
+        raise ValueError(f"{', '.join(fields)} must be distinct addresses (compared case-insensitively)")
+
+
+def _validate_delivery_agreement(document: dict) -> dict:
+    if document.get("kind") != "oss-solidity-lab-agreement" or document.get("schema_version") != 1:
+        raise ValueError("not an oss-solidity-lab-agreement (schema_version 1)")
+    _require_closed_document(document, DELIVERY_FIELDS)
+    for field, limit in (("title", TITLE_MAX_LENGTH), ("note", NOTE_MAX_LENGTH)):
+        _require_text(document, field, limit)
+    for field in ("contributor", "coordinator"):
+        document[field] = _require_address(document, field)
+    _require_digest(document)
+    _require_deadline(document, "deadline")
+    _require_distinct_roles(document, ("contributor", "coordinator"))
+    return document
 
 
 def _validate_settlement_agreement(document: dict) -> dict:
     if document.get("kind") != "oss-solidity-lab-settlement-agreement" or document.get("schema_version") != 1:
         raise ValueError("not an oss-solidity-lab-settlement-agreement (schema_version 1)")
-    for field in ("title", "contributor", "coordinator", "holder", "delivery_digest",
-                  "review_deadline", "dispute_deadline", "outer_deadline", "dispute_fallback"):
-        if field not in document:
-            raise ValueError(f"agreement is missing {field}")
-    digest = document["delivery_digest"]
-    if not isinstance(digest, str) or len(digest) != 64 or any(c not in HEX_DIGITS for c in digest):
-        raise ValueError("delivery_digest must be 64 lowercase hex characters")
+    _require_closed_document(document, SETTLEMENT_FIELDS)
+    for field, limit in (("title", TITLE_MAX_LENGTH), ("note", NOTE_MAX_LENGTH)):
+        _require_text(document, field, limit)
     for field in ("contributor", "coordinator", "holder"):
-        _require_address(document, field)
-    if len({document["contributor"], document["coordinator"], document["holder"]}) != 3:
-        raise ValueError("contributor, coordinator and holder must be three distinct addresses")
+        document[field] = _require_address(document, field)
+    _require_distinct_roles(document, ("contributor", "coordinator", "holder"))
+    _require_digest(document)
     review = _require_deadline(document, "review_deadline")
     dispute = _require_deadline(document, "dispute_deadline")
     outer = _require_deadline(document, "outer_deadline")

@@ -15,6 +15,17 @@ SETTLEMENT_AGREEMENT = REPO / "design" / "solidity-lab" / "settlement-agreement.
 COMMITTED = REPO / "design" / "solidity-lab" / "generated"
 
 
+def _load_module(name: str):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(name, REPO / "design" / "solidity-lab" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+PINNED_SOLC = _load_module("pinned_solc")
+
+
 def generate(out: Path) -> tuple[bytes, bytes]:
     result = subprocess.run([sys.executable, str(LAB), "--agreement", str(AGREEMENT), "--out", str(out)],
                             capture_output=True, text=True, timeout=60)
@@ -73,8 +84,22 @@ class LabTests(unittest.TestCase):
         cases = [
             {**base, "delivery_digest": "zz" * 32},
             {**base, "deadline": -1},
+            {**base, "deadline": True},   # bool is not an integer deadline (review A4)
+            {**base, "deadline": 2**256},  # beyond the uint256 constant the contract declares
             {**base, "kind": "something-else"},
             {k: v for k, v in base.items() if k != "coordinator"},
+            {k: v for k, v in base.items() if k != "title"},
+            {**base, "title": ""},
+            {**base, "title": "x" * 81},  # length rule
+            {**base, "note": "note\nwith a line break"},  # charset rule
+            {**base, "contributor": "0x123"},  # malformed address
+            {**base, "contributor": "0x" + "g" * 40},  # non-hex characters
+            {**base, "contributor": base["coordinator"]},  # roles must be independent
+            {**base, "contributor": "0x" + "ab" * 20, "coordinator": "0x" + "aB" * 20},  # case is not a different address
+            # a trailing injected function body must be refused before generation (review A4)
+            {**base, "contributor": "0x0000000000000000000000000000000000000001; function unexpected() external {}"},
+            {**base, "title": "fine title\nfunction unexpected() external {}"},  # comment escape
+            {**base, "unexpected": "field"},  # the input schema is closed
         ]
         for case in cases:
             with tempfile.TemporaryDirectory() as folder:
@@ -82,7 +107,24 @@ class LabTests(unittest.TestCase):
                 path.write_text(json.dumps(case))
                 result = subprocess.run([sys.executable, str(LAB), "--agreement", str(path), "--out", folder],
                                         capture_output=True, text=True, timeout=60)
-                self.assertEqual(result.returncode, 1, f"must refuse: {case.get('kind')}")
+                self.assertEqual(result.returncode, 1, f"must refuse: {case}")
+
+    def test_poisoned_agreements_are_refused_before_anything_is_written(self) -> None:
+        base = json.loads(AGREEMENT.read_text())
+        poisoned = (
+            {"contributor": "0x0000000000000000000000000000000000000001; function unexpected() external {}"},
+            {"coordinator": "0x0000000000000000000000000000000000000002 function unexpected() external {}"},
+            {"title": "fine title\nfunction unexpected() external {}"},
+        )
+        for case in poisoned:
+            with tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / "agreement.json"
+                path.write_text(json.dumps({**base, **case}))
+                result = subprocess.run([sys.executable, str(LAB), "--agreement", str(path), "--out", folder],
+                                        capture_output=True, text=True, timeout=60)
+                self.assertEqual(result.returncode, 1, f"must refuse before generating: {case}")
+                leftovers = sorted(p.name for p in Path(folder).iterdir() if p.name != "agreement.json")
+                self.assertEqual(leftovers, [], "refusal must happen before generation writes any file")
 
 
 CONTRIBUTOR = "0x0000000000000000000000000000000000000001"
@@ -211,11 +253,19 @@ class SettlementLabTests(unittest.TestCase):
             {**base, "kind": "something-else"},
             {**base, "delivery_digest": "zz" * 32},
             {k: v for k, v in base.items() if k != "holder"},
+            {k: v for k, v in base.items() if k != "title"},
             {**base, "holder": "0x123"},
             {**base, "holder": COORDINATOR},
+            {**base, "contributor": "0x" + "cd" * 20, "coordinator": "0x" + "CD" * 20},  # same address, different case
+            # a trailing injected function body must be refused before generation (review A4)
+            {**base, "holder": "0x0000000000000000000000000000000000000003; function unexpected() external {}"},
+            {**base, "title": "fine title\nfunction unexpected() external {}"},  # comment escape
+            {**base, "note": "note\nwith a line break"},  # charset rule
+            {**base, "unexpected": "field"},  # the input schema is closed
             {**base, "review_deadline": base["outer_deadline"]},
             {**base, "dispute_deadline": base["review_deadline"]},
             {**base, "outer_deadline": 0},
+            {**base, "review_deadline": 2**256},  # beyond the uint256 constant
             {**base, "dispute_fallback": "keep"},
             {**base, "review_deadline": True},
         ]
@@ -229,9 +279,12 @@ class SettlementLabTests(unittest.TestCase):
 
 
 class CompilerTests(unittest.TestCase):
-    """The pinned compiler must accept the committed examples; output is reproducible."""
+    """The pinned compiler must accept the committed examples; output is reproducible.
 
-    SOLC_VERSION = "0.8.37"
+    Fail-closed (review A3): tool availability is probed separately, and a
+    missing optional local tool may skip — but a compiler that rejects the
+    committed source always fails, and in CI even missing tooling fails.
+    """
 
     EXPECTED_ABI_NAMES = {
         "DeliveryAcceptance": ("recordDelivery", "accept", "NotNewestRevision"),
@@ -243,19 +296,29 @@ class CompilerTests(unittest.TestCase):
         ),
     }
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        PINNED_SOLC.enforce_availability()
+
     def _compile(self, stem: str) -> tuple[bytes, bytes]:
         with tempfile.TemporaryDirectory() as folder:
-            result = subprocess.run(
-                ["npx", "--yes", f"solc@{self.SOLC_VERSION}", "--bin", "--abi",
-                 str(COMMITTED / f"{stem}.sol")],
-                capture_output=True, text=True, timeout=300, cwd=folder)
-            if result.returncode != 0:
-                self.skipTest(f"pinned solc unavailable in this environment: {result.stderr[:120]}")
-            binaries = sorted(Path(folder).glob(f"*_{stem}.bin"))
-            abis = sorted(Path(folder).glob(f"*_{stem}.abi"))
-            if not binaries or not abis:
-                self.fail(f"pinned solc wrote no artifacts: {result.stdout[:160]}")
-            return binaries[0].read_bytes(), abis[0].read_bytes()
+            return self._compile_path(COMMITTED / f"{stem}.sol", stem, Path(folder))
+
+    def _compile_path(self, source: Path, stem: str, folder: Path) -> tuple[bytes, bytes]:
+        try:
+            artifacts = PINNED_SOLC.compile_with_artifacts(source, folder, stem)
+        except PINNED_SOLC.CompileFailed as error:
+            self.fail(str(error))
+        return artifacts["bin"], artifacts["abi"]
+
+    def test_compiler_rejection_fails_the_gate_instead_of_skipping(self) -> None:
+        # Mutation proof (review A3): a source the compiler rejects must turn
+        # this gate red — never a green skip.
+        with tempfile.TemporaryDirectory() as folder:
+            broken = Path(folder) / "Broken.sol"
+            broken.write_text("contract Broken { this is not solidity }\n", encoding="utf-8")
+            with self.assertRaises(self.failureException):
+                self._compile_path(broken, "Broken", Path(folder))
 
     def _assert_stable_compile(self, stem: str) -> None:
         import hashlib

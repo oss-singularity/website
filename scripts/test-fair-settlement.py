@@ -22,6 +22,16 @@ LAB = REPO / "design" / "solidity-lab"
 CONTRACT = LAB / "generated" / "FairSettlement.sol"
 MODEL = LAB / "fair_model.py"
 
+
+def _load_module(name: str):
+    spec = importlib.util.spec_from_file_location(name, LAB / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+PINNED_SOLC = _load_module("pinned_solc")
+
 CONTRIBUTOR = "0x0000000000000000000000000000000000000001"
 COORDINATOR = "0x0000000000000000000000000000000000000002"
 HOLDER = "0x0000000000000000000000000000000000000003"
@@ -246,22 +256,32 @@ class ParityTests(unittest.TestCase):
 
 
 class CompilerTests(unittest.TestCase):
-    """The pinned compiler must accept the committed settlement example."""
+    """The pinned compiler must accept the committed settlement example.
 
-    SOLC_VERSION = "0.8.37"
+    Fail-closed (review A3): tool availability is probed separately; compiler
+    and artifact errors always fail, and missing tooling fails in CI.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        PINNED_SOLC.enforce_availability()
 
     def _compile(self) -> tuple[bytes, bytes]:
         with tempfile.TemporaryDirectory() as folder:
-            result = subprocess.run(
-                ["npx", "--yes", f"solc@{self.SOLC_VERSION}", "--bin", "--abi", str(CONTRACT)],
-                capture_output=True, text=True, timeout=300, cwd=folder)
-            if result.returncode != 0:
-                self.skipTest(f"pinned solc unavailable in this environment: {result.stderr[:120]}")
-            binaries = sorted(Path(folder).glob("*_FairSettlement.bin"))
-            abis = sorted(Path(folder).glob("*_FairSettlement.abi"))
-            if not binaries or not abis:
-                self.fail(f"pinned solc wrote no artifacts: {result.stdout[:160]}")
-            return binaries[0].read_bytes(), abis[0].read_bytes()
+            try:
+                artifacts = PINNED_SOLC.compile_with_artifacts(CONTRACT, Path(folder), "FairSettlement")
+            except PINNED_SOLC.CompileFailed as error:
+                self.fail(str(error))
+            return artifacts["bin"], artifacts["abi"]
+
+    def test_compiler_rejection_fails_the_gate_instead_of_skipping(self) -> None:
+        # Mutation proof (review A3): a source the compiler rejects must turn
+        # this gate red — never a green skip.
+        with tempfile.TemporaryDirectory() as folder:
+            broken = Path(folder) / "Broken.sol"
+            broken.write_text("contract Broken { this is not solidity }\n", encoding="utf-8")
+            with self.assertRaises(PINNED_SOLC.CompileFailed):
+                PINNED_SOLC.compile_with_artifacts(broken, Path(folder), "Broken")
 
     def test_pinned_compiler_compiles_with_stable_bytecode(self) -> None:
         import hashlib

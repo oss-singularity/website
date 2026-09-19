@@ -68,6 +68,12 @@ path still open); the dispute fallback (refused inside the window, refund
 after it); and the outer-deadline refund. Every revert is asserted as a named
 transaction failure, every state read back from the chain as the enum value.
 
+The suite fails closed on its toolchain: the pinned compiler is probed
+separately from compilation, so a compiler or artifact error always fails the
+run and can never surface as a green skip. Missing Foundry or an unavailable
+compiler skip explicitly (labelled as tool-missing) only outside CI; under CI
+both are mandatory gates and missing tooling fails hard.
+
 ## Honest limits
 
 - Anvil dev keys are public knowledge; the exercise never touches a key that
