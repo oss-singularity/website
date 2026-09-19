@@ -73,12 +73,17 @@ jobs:
           COMMONS_ZONE_ID: ${{ secrets.COMMONS_ZONE_ID }}
           COMMONS_D1_ID: ${{ secrets.COMMONS_D1_ID }}
           STATIC_ORIGIN_IP: ${{ secrets.STATIC_ORIGIN_IP }}
+          PROMOTION_RUN_ID: ${{ inputs.run_id }}
+          PROMOTION_RUN_ATTEMPT: ${{ inputs.run_attempt }}
+          PROMOTION_COMMIT: ${{ inputs.commit }}
+          PROMOTION_MESSAGE: ${{ inputs.message }}
+          PROMOTION_TAG: ${{ inputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/commons-promotion.py \
-            --from-rehearsal "${{ inputs.run_id }}" "${{ inputs.run_attempt }}" "${{ inputs.commit }}" \
-            --message "${{ inputs.message }}" --tag "${{ inputs.tag }}" \
+            --from-rehearsal "$PROMOTION_RUN_ID" "$PROMOTION_RUN_ATTEMPT" "$PROMOTION_COMMIT" \
+            --message "$PROMOTION_MESSAGE" --tag "$PROMOTION_TAG" \
             > "$RUNNER_TEMP/commons-promotion-report.json"
       - name: Present the sanitized outcome
         if: always() && steps.promotion.outcome != 'skipped'

@@ -6,10 +6,12 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import re
 import shutil
 import sqlite3
+import subprocess
 import tempfile
 import unittest
 import warnings
@@ -486,6 +488,81 @@ class _FakeResponse:
 
     def __exit__(self, *_):
         return False
+
+
+class WorkflowContractTests(unittest.TestCase):
+    """The dispatch workflow passes its inputs as data, never as shell source."""
+
+    WORKFLOW = ROOT / '.github/workflows/commons-promotion.yml'
+
+    def run_scripts(self):
+        """Every literal `run: |` block of the workflow, dedented to source."""
+        lines = self.WORKFLOW.read_text().splitlines()
+        blocks, index = [], 0
+        while index < len(lines):
+            line = lines[index]
+            lead = len(line) - len(line.lstrip())
+            if line.strip() == 'run: |':
+                block = []
+                index += 1
+                while index < len(lines):
+                    inner = lines[index]
+                    inner_lead = len(inner) - len(inner.lstrip())
+                    if inner.strip() and inner_lead <= lead:
+                        break
+                    block.append(inner[lead + 2:])
+                    index += 1
+                blocks.append('\n'.join(block))
+            else:
+                index += 1
+        return blocks
+
+    def test_dispatch_inputs_enter_only_as_fixed_environment_names(self):
+        for script in self.run_scripts():
+            self.assertNotIn('${{', script)
+        text = self.WORKFLOW.read_text()
+        for name in ['run_id', 'run_attempt', 'commit', 'message', 'tag']:
+            self.assertIn(f'PROMOTION_{name.upper()}: ${{{{ inputs.{name} }}}}', text)
+        script = next(block for block in self.run_scripts() if 'commons-promotion.py' in block)
+        for name in ['RUN_ID', 'RUN_ATTEMPT', 'COMMIT', 'MESSAGE', 'TAG']:
+            self.assertIn(f'"$PROMOTION_{name}"', script)
+
+    def test_hostile_dispatch_inputs_reach_the_command_as_data(self):
+        script = next(block for block in self.run_scripts() if 'commons-promotion.py' in block)
+        hostile = {
+            'PROMOTION_RUN_ID': '35369851512 $(printf R3_PARAMETER_SENTINEL >&2)',
+            'PROMOTION_RUN_ATTEMPT': '1`printf R3_BACKTICK_SENTINEL >&2`',
+            'PROMOTION_COMMIT': 'a"' * 5 + '$(printf R3_COMMIT_SENTINEL >&2)',
+            'PROMOTION_MESSAGE': 'release $(printf R3_MESSAGE_SENTINEL >&2) `printf R3_ALT_SENTINEL >&2`'
+                                 ' "double" \'single\' $HOME $PATH\nsecond `pwd` line',
+            'PROMOTION_TAG': 'tag-"quoted"-$(pwd)-`pwd`\nline 2 $USER',
+        }
+        with tempfile.TemporaryDirectory(prefix='oss-promotion-workflow-') as folder:
+            root = Path(folder)
+            capture, report = root / 'argv.bin', root / 'commons-promotion-report.json'
+            stub = root / 'python3'
+            stub.write_text('#!/bin/sh\nprintf "%s\\0" "$@" > "$FAKE_PYTHON_CAPTURE"\n'
+                            'echo workflow-report-marker\n')
+            stub.chmod(0o755)
+            environment = dict(os.environ)
+            environment.update(hostile)
+            environment['PATH'] = str(root) + os.pathsep + environment.get('PATH', '')
+            environment['RUNNER_TEMP'] = str(root)
+            environment['FAKE_PYTHON_CAPTURE'] = str(capture)
+            completed = subprocess.run(['bash', '-c', script], capture_output=True, text=True,
+                                       env=environment, cwd=root, timeout=60)
+            captured_argv = capture.read_bytes().split(b'\0')[:-1]
+            captured_report = report.read_text()
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        # No substitution, backtick execution or expansion happened anywhere.
+        self.assertEqual(completed.stderr, '')
+        self.assertEqual(completed.stdout, '')
+        expected = ['scripts/commons-promotion.py', '--from-rehearsal',
+                    hostile['PROMOTION_RUN_ID'], hostile['PROMOTION_RUN_ATTEMPT'],
+                    hostile['PROMOTION_COMMIT'], '--message', hostile['PROMOTION_MESSAGE'],
+                    '--tag', hostile['PROMOTION_TAG']]
+        self.assertEqual([value.encode() for value in expected], captured_argv)
+        self.assertEqual(captured_report, 'workflow-report-marker\n')
 
 
 if __name__ == '__main__':

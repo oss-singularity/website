@@ -176,6 +176,9 @@ the static publication discipline and Astra's original design intent:
   the live-acceptance origin binding; no static secrets.
 - Inputs: run id, attempt, commit. The job runs the wired command and uploads
   the sanitized outcome exactly like static publication; no artifact, log or
-  summary may contain tokens or account identifiers.
+  summary may contain tokens or account identifiers. Every dispatch input
+  reaches the command as a fixed `PROMOTION_*` environment variable that the
+  shell script expands only inside double quotes; no input value is ever
+  interpolated into shell source, so annotation text is data, not code.
 - One production concurrency group shared with static publication, without
   canceling an in-progress run.
