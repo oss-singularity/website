@@ -9,11 +9,17 @@ planning (procedure steps 1-2) are performed by the implemented contracts and
 are expected here as their already-verified results. The planned pins —
 predecessor version, deployment, generation and version lineage — are re-read
 freshly immediately before every mutation, so an intervening foreign change
-refuses instead of being overrun; the provider offers no compare-and-set, so
-this closes the planning-to-mutation window, not the read-to-write instant
-(the documented single-writer operating limit). Mutations are never repeated;
-a lost response is resolved by observing which version the deployment serves,
-and any step that cannot be resolved closes the intent as unresolved. The
+refuses instead of being overrun; the restore is gated the same way on this
+call's own occupied pins, first among them the deployment id its activation
+reply named, which is the only provable identity of that activation. The
+provider offers no compare-and-set, so this closes the planning-to-mutation
+window, not the read-to-write instant (the documented single-writer operating
+limit). Mutations are never repeated; a lost response is resolved by observing
+which version the deployment serves — a version-level resolution only, because
+without the activation reply no deployment record is provably this call's own,
+so a lost activation response leaves the rollback without an admissible pin
+and closes unresolved instead of restoring — and any step that cannot be
+resolved closes the intent as unresolved. The
 predecessor packet is only built from live bytes that match the recorded
 predecessor commit's independently fetched Git blobs. A rolled-back close
 additionally requires this call's own passed live acceptance of the restored
@@ -237,6 +243,36 @@ def fresh_preconditions(adapter, plan, staged=None):
         allowed_latest.add(staged)
     require(live.get('latest_version_id') in allowed_latest, 'stale_preconditions')
     require(provider_generation(live) == plan['predecessor_generation'], 'stale_preconditions')
+    return live
+
+
+def fresh_rollback_pins(adapter, staged, own_deployment):
+    """Re-read this call's own occupied pins immediately before the restore.
+
+    The restore mutation may only run against the exact line this call
+    occupied: the staged version still serving, the deployment record the
+    activation reply named still on top, and this call's staged upload still
+    the newest version. That reply is the only provable identity of the
+    activation — a deployment observed after a lost response could equally be
+    a foreign redeploy of the same version — so an absent pin refuses instead
+    of adopting whatever the later observation happens to show. As with the
+    pre-mutation checks, the provider offers no compare-and-set: this closes
+    the window between the activation and the restore, not the instant
+    between this read and the write itself (the documented single-writer
+    operating limit).
+    """
+    require(type(own_deployment) is str and len(own_deployment) > 0,
+            'promotion_unresolved')
+    live = adapter.observe()
+    require(type(live) is dict and type(live.get('active_version')) is str,
+            'provider_state_unverified')
+    require(live['active_version'] == staged, 'promotion_unresolved')
+    deployments = live.get('deployments')
+    require(type(deployments) is list and 0 < len(deployments) <= 64
+            and type(deployments[0]) is dict
+            and deployments[0].get('id') == own_deployment,
+            'promotion_unresolved')
+    require(live.get('latest_version_id') == staged, 'promotion_unresolved')
     return live
 
 
@@ -560,10 +596,17 @@ def promote(adapter, intent, plan, candidate, accept, pause=2.0):
     a state changed by anyone else — including another privileged operator —
     refuses instead of being overrun. Every mutation is attempted at most once
     per call; a lost response is resolved by observing the provider's state
-    under this call's own identity annotations. A rolled-back record claims a
-    restored and verified predecessor, so it is only ever written after this
-    call's own bounded live acceptance of the predecessor identity passed; the
-    provider serving the predecessor alone is not a health check.
+    under this call's own identity annotations — at version level for the
+    activation, whose deployment record is only provably this call's own from
+    its reply, so after a lost activation response no restore is attempted and
+    the intent closes unresolved. The restore itself is gated on this call's
+    own occupied pins — the activation's deployment record and the staged
+    upload as the newest version — re-read fresh, so a foreign deployment of
+    the same staged version or a newer foreign upload refuses instead of
+    being overrun. A rolled-back record claims a restored and verified
+    predecessor, so it is only ever written after this call's own bounded live
+    acceptance of the predecessor identity passed; the provider serving the
+    predecessor alone is not a health check.
     """
     predecessor = plan['predecessor_version']
     require(type(predecessor) is str and len(predecessor) > 0, 'invalid_plan')
@@ -580,6 +623,7 @@ def promote(adapter, intent, plan, candidate, accept, pause=2.0):
         'plan_sha256': plan.get('plan_sha256'),
         'module_count': len(candidate['modules'])})
     activated = False
+    own_deployment = None
     try:
         fresh_preconditions(adapter, plan)
         try:
@@ -599,18 +643,30 @@ def promote(adapter, intent, plan, candidate, accept, pause=2.0):
         # call's own staged upload; anything else refuses before activation.
         fresh_preconditions(adapter, plan, staged=staged)
         try:
-            adapter.activate_version(staged, plan['message'])
+            own_deployment = adapter.activate_version(staged, plan['message'])
         except ArtifactError:
             # One activation attempt only: resolve the outcome by observation.
+            # That resolution is version-level — which version serves. The
+            # deployment line's ownership is not resolved at all: without the
+            # reply no deployment id is provably this call's own, so the
+            # rollback below must refuse rather than adopt the observed line.
             require(adapter.observe()['active_version'] == staged, 'promotion_unresolved')
+        else:
+            require(type(own_deployment) is str and len(own_deployment) > 0,
+                    'provider_state_unverified')
         activated = True
         try:
             accept_bounded(candidate['commit'], accept, pause=pause)
         except ArtifactError:
             # Rollback restores the predecessor exactly once, then re-accepts
             # the previous release identity; only a passed re-acceptance may
-            # close the intent as rolled back.
-            require(adapter.observe()['active_version'] == staged, 'promotion_unresolved')
+            # close the intent as rolled back. The restore only runs against
+            # this call's own occupied pins — the activation's deployment
+            # record and the staged upload as the newest version — re-read
+            # fresh: a foreign deployment of the same staged version, a newer
+            # foreign upload or any other activation refuses instead of being
+            # overrun, and a lost activation reply never supplied the pin.
+            fresh_rollback_pins(adapter, staged, own_deployment)
             try:
                 adapter.activate_version(predecessor, plan['message'] + ' (rollback)')
             except ArtifactError:

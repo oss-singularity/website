@@ -204,9 +204,10 @@ class FakeGitHub:
 class FakeProvider:
     """Synthetic target with live response shapes and single mutations."""
     def __init__(self, rows, installed, content, routes, *, latest=VERSION,
-                 foreign_latest_after_stage=False):
+                 foreign_latest_after_stage=False, foreign_deployment_after_activation=False):
         self.active = VERSION
         self.latest = latest
+        self.deployment_id = DEPLOYMENT
         self.installed = installed
         self.content = content
         self.rows = rows
@@ -216,7 +217,11 @@ class FakeProvider:
         self.staged = None
         self.staged_annotations = None
         self.foreign_latest_after_stage = foreign_latest_after_stage
+        self.foreign_deployment_after_activation = foreign_deployment_after_activation
         self._foreign_applied = False
+        self._foreign_window_applied = False
+        self.activated_staged = False
+        self.deployment_seq = 0
 
     def observe(self):
         self.calls.append('observe')
@@ -230,11 +235,19 @@ class FakeProvider:
                 self._foreign_applied = True
                 versions['foreign-pending-upload'] = {'number': 5, 'metadata': {}, 'annotations': {}}
                 latest = 'foreign-pending-upload'
+        deployment_id = self.deployment_id
+        if (self.activated_staged and self.foreign_deployment_after_activation
+                and not self._foreign_window_applied):
+            # A privileged operator redeploys the still-active staged version
+            # inside the rollback window: a new deployment record, no version
+            # change, no reply to this call.
+            self._foreign_window_applied = True
+            self.deployment_id = deployment_id = 'operator-redeployed-the-staged-version'
         return {'active_version': self.active, 'versions': versions,
                 'latest_version_id': latest,
                 'account_id': ENV['COMMONS_ACCOUNT_ID'], 'zone_id': ENV['COMMONS_ZONE_ID'],
                 'script_name': cli.SCRIPT_NAME,
-                'deployments': [{'id': DEPLOYMENT, 'strategy': 'percentage',
+                'deployments': [{'id': deployment_id, 'strategy': 'percentage',
                                  'versions': [{'version_id': self.active, 'percentage': 100}]}],
                 'routes': [dict(route) for route in self.routes],
                 'schedules': [{'cron': '17 * * * *', 'created_on': '2026-09-05T08:07:13.971361Z'}],
@@ -293,7 +306,14 @@ class FakeProvider:
 
     def activate_version(self, version_id, _message):
         self.calls.append('activate:' + version_id)
+        # Every activation creates a new deployment record, newest first, and
+        # the reply names it (the lost-response variants raise instead).
         self.active = version_id
+        self.deployment_seq += 1
+        self.deployment_id = 'dep-{}-after-{}'.format(self.deployment_seq, version_id)
+        if version_id == self.staged:
+            self.activated_staged = True
+        return self.deployment_id
 
 
 class _IntentOpener:
@@ -487,6 +507,17 @@ class FromRehearsalTests(unittest.TestCase):
         self.assertEqual(provider.active, VERSION)
         self.assertIn('activate:' + VERSION, provider.calls)
         self.assertIn('activate:' + provider.staged, provider.calls)
+
+    def test_foreign_deployment_in_rollback_window_closes_unresolved_without_restore(self):
+        provider = self.provider(foreign_deployment_after_activation=True)
+        with self.assertRaisesRegex(ArtifactError, 'promotion_unresolved'):
+            self.invoke(provider, accept=lambda sha: sha != SHA, final='unresolved')
+        # The wired command's engine refused the restore: the operator's
+        # redeployment of the same staged version stayed the top deployment,
+        # the staged version keeps serving, and no predecessor activation ran.
+        self.assertNotIn('activate:' + VERSION, provider.calls)
+        self.assertEqual(provider.deployment_id, 'operator-redeployed-the-staged-version')
+        self.assertEqual(provider.active, provider.staged)
 
     def test_candidate_commit_reuse_is_refused_by_the_planner(self):
         installed = [dict(item) for item in self.installed]

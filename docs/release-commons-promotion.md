@@ -47,7 +47,11 @@ target is not a fixed filesystem but a versioned Worker whose bindings
 - **Never repeat a mutation.** Stage, activate and restore are attempted
   exactly once per intent. Lost responses are resolved by observation
   (read the current deployments and versions by identity annotations), and an
-  ambiguous outcome keeps the intent unresolved.
+  ambiguous outcome keeps the intent unresolved. The activation's deployment
+  identity is provable only from its own reply: a lost activation response
+  resolves which version serves, but never licenses a restore — no
+  deployment record observed later is adopted as this call's own, so the
+  intent closes unresolved instead of rolling back.
 - **Every activation is paired with retained rollback.** The predecessor
   version is captured before activation and restored — not redeployed — on
   rollback, because versions are immutable.
@@ -88,9 +92,16 @@ target is not a fixed filesystem but a versioned Worker whose bindings
    intent as rolled back — the provider serving the predecessor is not by
    itself a health check — while a failed one, like any unresolvable step,
    closes the intent as unresolved and blocks the next promotion until an
-   operator reconciles it. The restore only runs while this promotion's own
-   staged version is still the active one, so it can never overrun an
-   intervening foreign version; any other observed state closes unresolved.
+   operator reconciles it. The restore only runs against this promotion's own
+   occupied pins, freshly re-read: the staged version still serving, the
+   deployment record the activation reply named still on top, and this call's
+   staged upload still the newest version. A foreign redeployment of the same
+   staged version, a newer foreign upload or any other activation refuses the
+   restore and closes unresolved with the foreign state untouched (a
+   left-behind pending version additionally blocks the next planning); after
+   a lost activation reply no deployment record is provably this call's own,
+   so the rollback is refused the same way rather than inventing an identity
+   from a later observation.
 7. **Preserve the evidence.** The promotion record keeps the staged version
    id, both deployment ids and the acceptance results. Staged versions are
    immutable; the provider's own version listing is the retention mechanism.
@@ -102,7 +113,7 @@ target is not a fixed filesystem but a versioned Worker whose bindings
 | Candidate consumption, planning, transition fixture | Implemented offline ([artifacts](release-commons-artifacts.md), [rehearsal](release-commons-rehearsal.md), [candidates](release-commons-candidates.md), [plan](release-commons-plan.md), [transition](release-commons-transition.md)). |
 | Real adapter stage/activate/restore with inherited bindings | Implemented and live-validated on 15 September 2026: a byte-identical rehearsal staged, activated and restored the predecessor while every binding and the live API stayed unchanged. |
 | Durable intent record for Worker promotions | Implemented: `scripts/commons_promotion.py` records intents under the distinct `promote:oss-commons` task so they never block static records; open or unresolved intents block the next promotion. |
-| Promotion engine (stage, server-side verification, single activation, rollback) | Implemented with offline tests: lost stage and activation responses are resolved by observation under the call's own annotations, changed staged bindings abort before activation, and a failed live acceptance restores the predecessor exactly once. A rolled-back close — after a rollback or a pre-activation refusal — is written only when the predecessor is the live version and its release identity passed the same bounded live acceptance; otherwise the intent stays unresolved and blocking. The planned predecessor version, deployment id, generation and version lineage are re-read freshly immediately before the stage and again before the activation; any foreign change refuses with `stale_preconditions`, and an intervening foreign active version closes unresolved instead of being staged or activated over. |
+| Promotion engine (stage, server-side verification, single activation, rollback) | Implemented with offline tests: lost stage and activation responses are resolved by observation under the call's own annotations, changed staged bindings abort before activation, and a failed live acceptance restores the predecessor exactly once. A rolled-back close — after a rollback or a pre-activation refusal — is written only when the predecessor is the live version and its release identity passed the same bounded live acceptance; otherwise the intent stays unresolved and blocking. The planned predecessor version, deployment id, generation and version lineage are re-read freshly immediately before the stage and again before the activation; any foreign change refuses with `stale_preconditions`, and an intervening foreign active version closes unresolved instead of being staged or activated over. The restore is gated the same way on this call's own occupied pins — the activation reply's deployment record and the staged upload as the newest version — so a foreign redeployment of the same staged version or a newer foreign upload in the rollback window refuses with `promotion_unresolved` instead of being overrun, and a lost activation reply, which never named a deployment, refuses the restore rather than adopting the observed line. |
 | Fixed operator command (steps 3–7) | Implemented: `scripts/commons-promotion.py` derives the plan from live provider state (installed bindings become inherit entries; predecessor, compatibility date and current release identity are read from the active version), takes the candidate packet and commit as inputs, uses the same live API acceptance as publication, and reports one sanitized JSON outcome. Account identifiers and the provider token come from the environment and stay outside the repository. |
 | Live capture, baseline and engine mapping | Implemented with offline tests and live read validation: `capture_observation` composes the planner's normalized observation from bounded live reads, `plan_baseline` records the normalized state digest and refuses unowned pending versions before any intent, and `engine_plan` maps the planner output onto the engine contract (inherit bindings; `RELEASE_SHA` re-entered with the candidate commit). |
 | Candidate download and verification wiring | Implemented: `scripts/commons-promotion.py --from-rehearsal RUN_ID ATTEMPT COMMIT` locates the rehearsal's two artifacts by their exact names, downloads both through the repository's bounded transport, verifies them with the completed-run consumer against the checked-out source, rebuilds the predecessor packet from the live script bytes after binding them to the predecessor commit's Git blobs, plans against the live provider through `capture_observation`/`plan_baseline`/`build_plan`, and feeds the planner's output to the engine. The explicit `--packet` mode remains for operator rehearsals. |
@@ -157,11 +168,17 @@ implementation can be reviewed against a written contract.
   staged upload. Any other intervening change (for example a privileged
   operator activating or uploading another version) refuses with
   `stale_preconditions` before the mutation; a foreign active version then
-  closes the intent unresolved instead of being overrun, and a rollback only
-  ever restores the predecessor while this call's own staged version is still
-  active. Because the provider has no compare-and-set, a change interleaving
-  between that fresh read and the write itself can still slip through; the
-  one-writer operating limit above covers that residual window.
+  closes the intent unresolved instead of being overrun. The rollback window
+  is guarded by the same discipline on this call's own occupied pins: the
+  restore runs only while the staged version still serves, the deployment
+  record the activation reply named is still on top and the staged upload is
+  still the newest version — a foreign redeployment of the same staged
+  version or a newer foreign upload refuses with `promotion_unresolved`, and
+  after a lost activation reply no deployment is provably this call's own, so
+  no restore is attempted. Because the provider has no compare-and-set, a
+  change interleaving between any of those fresh reads and the write itself
+  can still slip through; the one-writer operating limit above covers that
+  residual window.
 
 Three contracts close the remaining open points of that wiring:
 

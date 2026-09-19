@@ -64,7 +64,9 @@ class FakeResponse:
 class FakeAdapter:
     """Synthetic provider: version listing, details, and single mutations."""
     def __init__(self, *, fail_stage=False, fail_activate=False, drop_binding=False,
-                 foreign_activation_after_stage=False, foreign_upload_after_stage=False):
+                 foreign_activation_after_stage=False, foreign_upload_after_stage=False,
+                 foreign_deployment_after_activation=False,
+                 foreign_upload_after_activation=False):
         self.active = VERSION_A
         self.latest = VERSION_A
         self.deployment_id = LIVE_DEPLOYMENT
@@ -75,21 +77,34 @@ class FakeAdapter:
         self.staged = None
         self.foreign_activation_after_stage = foreign_activation_after_stage
         self.foreign_upload_after_stage = foreign_upload_after_stage
+        self.foreign_deployment_after_activation = foreign_deployment_after_activation
+        self.foreign_upload_after_activation = foreign_upload_after_activation
         self._foreign_applied = False
+        self.activated_staged = False
+        self.deployment_seq = 0
 
     def _apply_foreign_change(self):
-        """A privileged operator mutates the target once, after this call staged."""
-        if self._foreign_applied or self.staged is None:
+        """A privileged operator mutates the target once, at the wired moment."""
+        if self._foreign_applied:
             return
-        self._foreign_applied = True
-        if self.foreign_activation_after_stage:
-            self.active = 'intervening-operator-version'
-            self.deployment_id = 'intervening-deployment'
-            self.latest = 'intervening-operator-version'
-            self.versions['intervening-operator-version'] = {'number': 9, 'annotations': {}}
-        elif self.foreign_upload_after_stage:
-            self.latest = 'foreign-pending-upload'
-            self.versions['foreign-pending-upload'] = {'number': 9, 'annotations': {}}
+        after_stage = self.foreign_activation_after_stage or self.foreign_upload_after_stage
+        in_rollback_window = (self.foreign_deployment_after_activation
+                              or self.foreign_upload_after_activation)
+        if (after_stage and self.staged is not None) or (in_rollback_window
+                                                         and self.activated_staged):
+            self._foreign_applied = True
+            if self.foreign_activation_after_stage:
+                self.active = 'intervening-operator-version'
+                self.deployment_id = 'intervening-deployment'
+                self.latest = 'intervening-operator-version'
+                self.versions['intervening-operator-version'] = {'number': 9, 'annotations': {}}
+            elif self.foreign_upload_after_stage or self.foreign_upload_after_activation:
+                self.latest = 'foreign-pending-upload'
+                self.versions['foreign-pending-upload'] = {'number': 9, 'annotations': {}}
+            else:
+                # A redeploy of the still-active staged version: a new
+                # deployment record without any version change.
+                self.deployment_id = 'operator-redeployed-the-staged-version'
 
     def observe(self):
         self._apply_foreign_change()
@@ -130,11 +145,18 @@ class FakeAdapter:
 
     def activate_version(self, version_id, message):
         self.calls.append('activate:' + version_id)
-        # A lost response mutates first and only then loses the reply.
+        # Every activation creates a new deployment record, newest first, and
+        # the reply names it; a lost response mutates first and only then
+        # loses the reply, so the record exists but its id was never returned.
         self.active = version_id
+        self.deployment_seq += 1
+        self.deployment_id = 'dep-{}-after-{}'.format(self.deployment_seq, version_id)
+        if version_id == self.staged:
+            self.activated_staged = True
         if self.fail_activate and version_id != VERSION_A:
             self.fail_activate = False
             raise ArtifactError('provider_request_failed')
+        return self.deployment_id
 
 
 class ScriptedOpener:
@@ -294,6 +316,111 @@ class PromotionTests(unittest.TestCase):
         result = promotion.promote(adapter, records, plan(), candidate(), lambda sha: True)
         self.assertTrue(result['promoted'])
         self.assertEqual(adapter.calls.count('activate:' + result['staged_version']), 1)
+
+    def test_foreign_deployment_in_rollback_window_refuses_restore_and_blocks(self):
+        adapter = FakeAdapter(foreign_deployment_after_activation=True)
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('unresolved')),
+                                          )
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return sha != candidate()['commit']
+        with self.assertRaisesRegex(ArtifactError, 'promotion_unresolved'):
+            promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
+        # The restore never ran: the operator's redeploy of the same staged
+        # version stayed the top deployment and the staged version still
+        # serves; the engine refused instead of overrunning the new line.
+        self.assertNotIn('activate:' + VERSION_A, adapter.calls)
+        self.assertEqual(adapter.deployment_id, 'operator-redeployed-the-staged-version')
+        self.assertEqual(adapter.active, adapter.staged)
+        self.assertEqual(accepted, [candidate()['commit']] * 3)
+        # The durable journal keeps the unresolved close and blocks the next
+        # promotion intent until an operator reconciles the record.
+        item = {'id': 7, 'environment': promotion.ENVIRONMENT, 'task': promotion.TASK,
+                'production_environment': True, 'payload': {'kind': 'commons-promotion-intent'}}
+        listed = FakeResponse([item], deployments.API + promotion.LIST)
+        statuses_url = deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1'
+        unresolved = FakeResponse([{'state': 'error', 'description': promotion.UNRESOLVED}], statuses_url)
+        journal = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                            ScriptedOpener([listed, unresolved]))
+        self.assertEqual(promotion.open_intent(journal), 7)
+        with self.assertRaisesRegex(ArtifactError, 'unfinished_promotion'):
+            promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                      ScriptedOpener([listed, unresolved])).start('4' * 40, {})
+
+    def test_foreign_upload_in_rollback_window_refuses_restore_and_keeps_upload(self):
+        adapter = FakeAdapter(foreign_upload_after_activation=True)
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('unresolved')),
+                                          )
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return sha != candidate()['commit']
+        with self.assertRaisesRegex(ArtifactError, 'promotion_unresolved'):
+            promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
+        # The restore never ran and the foreign pending version was neither
+        # adopted as this call's state nor removed; it stays the newest
+        # upload while the staged version keeps serving.
+        self.assertNotIn('activate:' + VERSION_A, adapter.calls)
+        self.assertEqual(adapter.latest, 'foreign-pending-upload')
+        self.assertIn('foreign-pending-upload', adapter.versions)
+        self.assertEqual(adapter.active, adapter.staged)
+        self.assertEqual(accepted, [candidate()['commit']] * 3)
+        item = {'id': 7, 'environment': promotion.ENVIRONMENT, 'task': promotion.TASK,
+                'production_environment': True, 'payload': {'kind': 'commons-promotion-intent'}}
+        listed = FakeResponse([item], deployments.API + promotion.LIST)
+        statuses_url = deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1'
+        unresolved = FakeResponse([{'state': 'error', 'description': promotion.UNRESOLVED}], statuses_url)
+        with self.assertRaisesRegex(ArtifactError, 'unfinished_promotion'):
+            promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                      ScriptedOpener([listed, unresolved])).start('4' * 40, {})
+
+    def test_lost_activation_reply_refuses_restore_without_invented_identity(self):
+        adapter = FakeAdapter(fail_activate=True)
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('unresolved')),
+                                          )
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return sha != candidate()['commit']
+        with self.assertRaisesRegex(ArtifactError, 'promotion_unresolved'):
+            promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
+        # The activation mutated but its reply — the only provable identity of
+        # the deployment it created — was lost, so the rollback has no
+        # admissible pin and must not invent one from the later observation.
+        self.assertNotIn('activate:' + VERSION_A, adapter.calls)
+        self.assertEqual(adapter.active, adapter.staged)
+        self.assertEqual(accepted, [candidate()['commit']] * 3)
+        item = {'id': 7, 'environment': promotion.ENVIRONMENT, 'task': promotion.TASK,
+                'production_environment': True, 'payload': {'kind': 'commons-promotion-intent'}}
+        listed = FakeResponse([item], deployments.API + promotion.LIST)
+        statuses_url = deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1'
+        unresolved = FakeResponse([{'state': 'error', 'description': promotion.UNRESOLVED}], statuses_url)
+        with self.assertRaisesRegex(ArtifactError, 'unfinished_promotion'):
+            promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                      ScriptedOpener([listed, unresolved])).start('4' * 40, {})
+
+    def test_lost_activation_reply_with_foreign_redeploy_adopts_no_pin(self):
+        adapter = FakeAdapter(fail_activate=True, foreign_deployment_after_activation=True)
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('unresolved')),
+                                          )
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return sha != candidate()['commit']
+        with self.assertRaisesRegex(ArtifactError, 'promotion_unresolved'):
+            promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
+        # The observation after the lost reply already showed the operator's
+        # redeployment; resolving the version level must not turn that record
+        # into this call's own identity, so no restore ran over it.
+        self.assertNotIn('activate:' + VERSION_A, adapter.calls)
+        self.assertEqual(adapter.deployment_id, 'operator-redeployed-the-staged-version')
+        self.assertEqual(adapter.active, adapter.staged)
+        self.assertEqual(accepted, [candidate()['commit']] * 3)
 
     def test_intervening_active_version_refuses_without_staging_or_overrunning(self):
         adapter = FakeAdapter()
