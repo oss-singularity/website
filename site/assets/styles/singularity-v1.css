@@ -204,11 +204,8 @@
 .room-section-heading > a { transition: color .15s, translate .15s; }
 .room-section-heading > a:hover { translate: 2px 0; }
 /* Entries read as floating panels, not mini-bands: flat surface, keyline
-   along the TOP edge, resting shadow — the section bands keep their left edge.
-   The home page paints a cyan→pink gradient bar onto .project-card tops; in
-   the room the keylines are the hue families, so that overlay is off here. */
-.room-table .project-card::before { content: none; }
-#work-public .room-entry, #projects .room-entry, #room-needs .room-entry, #room-offers .room-entry, #room-evidence .room-entry { background: var(--room-surface); border: 1px solid var(--room-border); border-radius: 14px; border-top: 2px solid color-mix(in srgb, var(--hue) 55%, var(--room-border)); box-shadow: var(--room-card-shadow); margin-block: 14px; padding: .95rem 1.1rem; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+   along the TOP edge, resting shadow — the section bands keep their left edge. */
+#work-public .room-entry, #projects .room-entry, #room-needs .room-entry, #room-offers .room-entry, #room-evidence .room-entry { background: var(--room-surface); border: 1px solid var(--room-border); border-radius: 14px; border-top: 2px solid color-mix(in srgb, var(--hue) 55%, var(--room-border)); box-shadow: var(--room-card-shadow); margin-block: 14px; overflow: visible; padding: .95rem 1.1rem; position: static; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
 #work-public .room-entry:hover, #projects .room-entry:hover, #room-needs .room-entry:hover, #room-offers .room-entry:hover, #room-evidence .room-entry:hover { border-color: color-mix(in srgb, var(--hue) 40%, var(--room-border)); border-top-color: var(--hue); box-shadow: var(--room-card-shadow-hover), 0 0 0 1px color-mix(in srgb, var(--hue) 18%, transparent); transform: translateY(-2px); }
 #work-public .room-entry:focus-within, #projects .room-entry:focus-within, #room-needs .room-entry:focus-within, #room-offers .room-entry:focus-within, #room-evidence .room-entry:focus-within { border-color: var(--room-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--room-accent) 30%, transparent); }
 #work-public .room-entry-state, #projects .room-entry-state, #room-needs .room-entry-state, #room-offers .room-entry-state, #room-evidence .room-entry-state { background: color-mix(in srgb, var(--hue) 10%, transparent); border: 1px solid color-mix(in srgb, var(--hue) 26%, transparent); border-radius: 999px; color: var(--hue); display: inline-block; font-size: .64rem; font-weight: 600; letter-spacing: .035em; margin: 0 0 .35rem; padding: .14rem .6rem; }

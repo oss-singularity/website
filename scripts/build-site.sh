@@ -21,7 +21,6 @@ rm -rf -- "$output"
 mkdir -p \
   "$output/.well-known" \
   "$output/assets/brand" \
-  "$output/assets/projects" \
   "$output/assets/scripts" \
   "$output/assets/social" \
   "$output/assets/styles" \
@@ -46,11 +45,9 @@ copy_file sitemap.xml sitemap.xml
 copy_file site.webmanifest site.webmanifest
 copy_file .well-known/security.txt .well-known/security.txt
 copy_file assets/brand/oss-singularity-mark.svg assets/brand/oss-singularity-mark.svg
-copy_file assets/projects/pdrive-control-center-v080.webp assets/projects/pdrive-control-center-v080.webp
-copy_file assets/projects/chatgpt-usage-v030.webp assets/projects/chatgpt-usage-v030.webp
-copy_file assets/projects/nemo-action-bar.webp assets/projects/nemo-action-bar.webp
 copy_file assets/scripts/reactive-field-v2.js assets/scripts/reactive-field-v2.js
 copy_file assets/scripts/theme-v1.js assets/scripts/theme-v1.js
+copy_file assets/scripts/road-so-far-v1.js assets/scripts/road-so-far-v1.js
 copy_file assets/social/oss-singularity-social-preview.png assets/social/oss-singularity-social-preview.png
 copy_file assets/styles/site-v2.css assets/styles/site-v2.css
 copy_file assets/styles/hub-v1.css assets/styles/hub-v1.css
