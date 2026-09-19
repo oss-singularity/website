@@ -64,17 +64,56 @@
     table.replaceChildren();
     const values = data.days.map(day => day.contributions + day.participations);
     const maximum = Math.max(1, ...values);
-    chart.append(svgElement("line", {x1: 8, x2: 552, y1: 125, y2: 125, class: "activity-baseline"}));
+    // Two smooth flow curves (same monotone envelope as the home journey
+    // chart): they never overshoot a daily step, so the drawing stays honest.
+    const W = 560, BASE = 118, TOP = 22, LEFT = 14, RIGHT = 546;
+    const x = index => LEFT + index * (RIGHT - LEFT) / (data.days.length - 1);
+    const y = value => BASE - value / maximum * (BASE - TOP);
+    const fmt = value => Math.round(value * 10) / 10;
+    const monotone = points => {
+      const n = points.length;
+      let d = `M${fmt(points[0].x)} ${fmt(points[0].y)}`;
+      if (n < 2) return d;
+      const dx = [], slope = [], tangent = [];
+      for (let i = 0; i < n - 1; i += 1) { dx[i] = points[i + 1].x - points[i].x; slope[i] = (points[i + 1].y - points[i].y) / dx[i]; }
+      tangent[0] = slope[0];
+      tangent[n - 1] = slope[n - 2];
+      for (let i = 1; i < n - 1; i += 1) tangent[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+      for (let i = 0; i < n - 1; i += 1) {
+        if (slope[i] === 0) { tangent[i] = 0; tangent[i + 1] = 0; continue; }
+        const a = tangent[i] / slope[i], b = tangent[i + 1] / slope[i], s = a * a + b * b;
+        if (s > 9) { const t = 3 / Math.sqrt(s); tangent[i] = t * a * slope[i]; tangent[i + 1] = t * b * slope[i]; }
+      }
+      for (let i = 0; i < n - 1; i += 1) {
+        const h = dx[i];
+        d += ` C${fmt(points[i].x + h / 3)} ${fmt(points[i].y + tangent[i] * h / 3)} ${fmt(points[i + 1].x - h / 3)} ${fmt(points[i + 1].y - tangent[i + 1] * h / 3)} ${fmt(points[i + 1].x)} ${fmt(points[i + 1].y)}`;
+      }
+      return d;
+    };
+    chart.append(svgElement("line", {x1: LEFT, x2: RIGHT, y1: BASE, y2: BASE, class: "activity-baseline"}));
+    const series = [
+      { key: "contributions", pick: day => day.contributions },
+      { key: "participations", pick: day => day.participations },
+    ];
+    for (const { key, pick } of series) {
+      const points = data.days.map((day, index) => ({ x: x(index), y: y(pick(day)) }));
+      chart.append(svgElement("path", { d: `${monotone(points)} L${fmt(points.at(-1).x)} ${BASE} L${fmt(points[0].x)} ${BASE} Z`, class: `activity-area activity-area-${key}` }));
+      chart.append(svgElement("path", { d: monotone(points), class: `activity-line activity-line-${key}` }));
+    }
     data.days.forEach((day, index) => {
-      const x = index * 80 + 23;
-      const workHeight = day.contributions / maximum * 84;
-      const participationHeight = day.participations / maximum * 84;
       const group = svgElement("g", {});
       group.append(svgElement("title", {}, `${day.date} UTC: ${day.contributions} work contributions, ${day.participations} needs or offers`));
-      if (workHeight) group.append(svgElement("rect", {x, y: 125 - workHeight, width: 34, height: workHeight, class: "activity-work"}));
-      if (participationHeight) group.append(svgElement("rect", {x, y: 125 - workHeight - participationHeight, width: 34, height: participationHeight, class: "activity-participation"}));
-      group.append(svgElement("text", {x: x + 17, y: 115 - workHeight - participationHeight, class: "activity-count"}, values[index]));
-      group.append(svgElement("text", {x: x + 17, y: 150, class: "activity-day"}, dayLabel(day.date)));
+      for (const { key, pick } of series) {
+        const value = pick(day);
+        if (!value) continue;
+        const dot = svgElement("circle", { cx: fmt(x(index)), cy: fmt(y(value)), r: 3.4, class: `activity-dot activity-dot-${key}` });
+        const tip = svgElement("title", {});
+        tip.textContent = `${dayLabel(day.date)} · ${value} ${key === "contributions" ? "work & evidence" : "needs & offers"}`;
+        dot.append(tip);
+        group.append(dot);
+      }
+      if (values[index]) group.append(svgElement("text", { x: fmt(x(index)), y: fmt(y(values[index]) - 11), class: "activity-count" }, values[index]));
+      group.append(svgElement("text", { x: fmt(x(index)), y: BASE + 26, class: "activity-day" }, dayLabel(day.date)));
       chart.append(group);
       const row = element("tr");
       const date = element("th", day.date);
@@ -83,10 +122,17 @@
       table.append(row);
     });
     const total = values.reduce((sum, value) => sum + value, 0);
-    if (!total) chart.append(svgElement("text", {x: 280, y: 72, class: "activity-empty"}, "No community entries were published in this seven-day window."));
-    document.getElementById("activity-summary").textContent = total
-      ? `${total.toLocaleString("en")} currently public community entries were published in this seven-day window.`
-      : "No community entries are currently public in this seven-day window. A shared mission is a good place to begin.";
+    if (!total) chart.append(svgElement("text", { x: 280, y: 66, class: "activity-empty" }, "Quiet this week — the next entry could be yours."));
+    const summaryLine = document.getElementById("activity-summary");
+    summaryLine.replaceChildren();
+    if (total) {
+      summaryLine.textContent = `${total.toLocaleString("en")} currently public community entries were published in this seven-day window.`;
+    } else {
+      summaryLine.append(element("span", "No community entries are currently public in this seven-day window. "));
+      const link = element("a", "Find a shared mission →");
+      link.href = "/singularity/";
+      summaryLine.append(link);
+    }
     document.getElementById("activity-window").textContent = `${data.days[0].date} – ${data.days[6].date} · UTC`;
     content.hidden = false;
   };

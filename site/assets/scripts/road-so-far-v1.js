@@ -145,7 +145,11 @@
       const listResponse = await fetch("/api/v1/projects?limit=50", { signal: controller.signal, credentials: "omit", cache: "no-store", headers: { Accept: "application/json" } });
       if (!listResponse.ok) throw new Error("Unavailable");
       const list = await listResponse.json();
-      if (!validList(list) || !list.items.length) throw new Error("No journey yet");
+      if (!validList(list)) throw new Error("Invalid list");
+      if (!list.items.length) {
+        status.textContent = "The curve begins with the first coordinated project. The roadmap tells the plan meanwhile.";
+        return;
+      }
       const details = await Promise.all(list.items.map(async project => {
         const response = await fetch(`/api/v1/projects/${encodeURIComponent(project.id)}`, { signal: controller.signal, credentials: "omit", cache: "no-store", headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error("Unavailable");
