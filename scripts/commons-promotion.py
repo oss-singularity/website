@@ -46,7 +46,8 @@ KNOWN_ERRORS = {
     'promotion_unresolved', 'invalid_promotion_outcome', 'invalid_plan',
     'staged_version_unverified', 'staged_bindings_changed', 'staged_modules_changed',
     'staged_settings_changed', 'invalid_bindings', 'provider_request_failed',
-    'ambiguous_staged_version', 'live_acceptance_failed', 'invalid_bindings',
+    'ambiguous_staged_version', 'live_acceptance_failed', 'rollback_acceptance_failed',
+    'invalid_bindings',
     'missing_credential', 'invalid_origin', 'http_transport_failed', 'api_unverified',
     'deployment_record_unconfirmed', 'invalid_deployment_route',
 }

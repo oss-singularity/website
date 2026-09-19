@@ -9,6 +9,9 @@ planning (procedure steps 1-2) are performed by the implemented contracts and
 are expected here as their already-verified results. Mutations are never
 repeated; a lost response is resolved by observing which version the deployment
 serves, and any step that cannot be resolved closes the intent as unresolved.
+A rolled-back close additionally requires this call's own passed live
+acceptance of the restored predecessor — provider state alone is no health
+check — and otherwise stays unresolved and blocking.
 """
 import re
 import time
@@ -447,7 +450,10 @@ def promote(adapter, intent, plan, candidate, accept, pause=2.0):
     the bounded live acceptance for an expected release identity and must raise
     on failure. Every mutation is attempted at most once per call; a lost
     response is resolved by observing the provider's state under this call's
-    own identity annotations.
+    own identity annotations. A rolled-back record claims a restored and
+    verified predecessor, so it is only ever written after this call's own
+    bounded live acceptance of the predecessor identity passed; the provider
+    serving the predecessor alone is not a health check.
     """
     predecessor = plan['predecessor_version']
     require(type(predecessor) is str and len(predecessor) > 0, 'invalid_plan')
@@ -456,6 +462,7 @@ def promote(adapter, intent, plan, candidate, accept, pause=2.0):
         'kind': 'commons-promotion-intent', 'schema_version': 1, 'commit': candidate['commit'],
         'predecessor_version': predecessor, 'plan_sha256': plan.get('plan_sha256'),
         'module_count': len(candidate['modules'])})
+    activated = False
     try:
         try:
             staged = adapter.stage_version(candidate['content'], candidate['commit'],
@@ -475,31 +482,48 @@ def promote(adapter, intent, plan, candidate, accept, pause=2.0):
         except ArtifactError:
             # One activation attempt only: resolve the outcome by observation.
             require(adapter.observe()['active_version'] == staged, 'promotion_unresolved')
+        activated = True
         try:
             accept_bounded(candidate['commit'], accept, pause=pause)
         except ArtifactError:
             # Rollback restores the predecessor exactly once, then re-accepts
-            # the previous release identity.
+            # the previous release identity; only a passed re-acceptance may
+            # close the intent as rolled back.
             require(adapter.observe()['active_version'] == staged, 'promotion_unresolved')
             try:
                 adapter.activate_version(predecessor, plan['message'] + ' (rollback)')
             except ArtifactError:
                 require(adapter.observe()['active_version'] == predecessor, 'promotion_unresolved')
-            accept_bounded(plan['release_sha'], accept, pause=pause)
+            try:
+                accept_bounded(plan['release_sha'], accept, pause=pause)
+            except ArtifactError as failure:
+                raise ArtifactError('rollback_acceptance_failed') from failure
             intent.finish(number, 'rolled_back')
             return {'promoted': False, 'staged_version': staged, 'deployment': number}
         intent.finish(number, 'promoted')
         return {'promoted': True, 'staged_version': staged, 'deployment': number}
     except ArtifactError as error:
-        # Nothing further is attempted: close as rolled back when the
-        # predecessor is the live version, otherwise the intent stays
-        # unresolved and blocks the next promotion. The refusal code
-        # accompanies the sanitized outcome so an operator can tell a
-        # pre-staging refusal apart from a live-acceptance rollback.
-        if adapter.observe()['active_version'] == predecessor:
-            intent.finish(number, 'rolled_back')
-            return {'promoted': False, 'staged_version': None, 'deployment': number,
-                    'error': error.code}
+        # Nothing further is attempted. Once this call activated the staged
+        # version, the target was changed by it, so without a passed
+        # predecessor re-acceptance above the intent stays unresolved and
+        # blocks the next promotion.
+        if not activated:
+            # Before activation this call never changed the active version:
+            # the intent may close as rolled back, but only with the same own
+            # evidence — the predecessor is still the live version and its
+            # release identity passes the bounded live acceptance. The
+            # refusal code accompanies the sanitized outcome so an operator
+            # can tell a pre-staging refusal apart from a live-acceptance
+            # rollback.
+            if adapter.observe()['active_version'] == predecessor:
+                try:
+                    accept_bounded(plan['release_sha'], accept, pause=pause)
+                except ArtifactError:
+                    intent.finish(number, 'unresolved')
+                    raise error from None
+                intent.finish(number, 'rolled_back')
+                return {'promoted': False, 'staged_version': None, 'deployment': number,
+                        'error': error.code}
         intent.finish(number, 'unresolved')
         raise
     except Exception:

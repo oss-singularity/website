@@ -126,7 +126,8 @@ def intent_outcomes(final):
             'plan_sha256': 'a' * 64, 'module_count': len(MODULES)}}
     statuses_url = deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1'
     state, description = {'promoted': ('success', promotion.PROMOTED),
-                          'rolled_back': ('failure', promotion.ROLLED_BACK)}[final]
+                          'rolled_back': ('failure', promotion.ROLLED_BACK),
+                          'unresolved': ('error', promotion.UNRESOLVED)}[final]
     return [
         FakeResponse([], deployments.API + promotion.LIST),
         FakeResponse({'id': 7}, deployments.API + deployments.BASE + '/deployments', status=201),
@@ -165,10 +166,35 @@ class PromotionTests(unittest.TestCase):
         records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
                                           ScriptedOpener(intent_outcomes('rolled_back')),
                                           )
-        result = promotion.promote(adapter, records, plan(), candidate(), lambda sha: True)
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return True
+        result = promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
         self.assertFalse(result['promoted'])
+        self.assertEqual(result['error'], 'staged_bindings_changed')
         self.assertNotIn('activate:', ' '.join(adapter.calls))
         self.assertEqual(adapter.active, VERSION_A)
+        # The rolled-back close carries its own evidence: the unchanged
+        # predecessor passed the same bounded live acceptance.
+        self.assertEqual(accepted, [plan()['release_sha']])
+
+    def test_pre_activation_refusal_without_predecessor_health_stays_unresolved(self):
+        adapter = FakeAdapter(drop_binding=True)
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('unresolved')),
+                                          )
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return False
+        with self.assertRaisesRegex(ArtifactError, 'staged_bindings_changed'):
+            promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
+        self.assertNotIn('activate:', ' '.join(adapter.calls))
+        self.assertEqual(adapter.active, VERSION_A)
+        # An unchanged predecessor that fails its own health check may not be
+        # claimed as restored and verified.
+        self.assertEqual(accepted, [plan()['release_sha']] * 3)
 
     def test_acceptance_retries_survive_edge_propagation(self):
         adapter = FakeAdapter()
@@ -192,13 +218,41 @@ class PromotionTests(unittest.TestCase):
         accepted = []
         def accept(sha):
             accepted.append(sha)
-            return False
+            return sha != candidate()['commit']
         result = promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
         self.assertFalse(result['promoted'])
         self.assertEqual(adapter.active, VERSION_A)
         self.assertEqual(adapter.calls.count('activate:' + VERSION_A), 1)
         self.assertEqual(accepted.count(candidate()['commit']), 3)
-        self.assertEqual(accepted.count(plan()['release_sha']), 3)
+        self.assertEqual(accepted.count(plan()['release_sha']), 1)
+
+    def test_failed_rollback_acceptance_stays_unresolved_and_blocks(self):
+        adapter = FakeAdapter()
+        records = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                          ScriptedOpener(intent_outcomes('unresolved')),
+                                          )
+        accepted = []
+        def accept(sha):
+            accepted.append(sha)
+            return False
+        with self.assertRaisesRegex(ArtifactError, 'rollback_acceptance_failed'):
+            promotion.promote(adapter, records, plan(), candidate(), accept, pause=0)
+        self.assertEqual(adapter.active, VERSION_A)
+        self.assertEqual(adapter.calls.count('activate:' + VERSION_A), 1)
+        self.assertEqual(accepted, [candidate()['commit']] * 3 + [plan()['release_sha']] * 3)
+        # The durable journal keeps the unresolved close, and the next
+        # promotion intent is refused until an operator reconciles the record.
+        item = {'id': 7, 'environment': promotion.ENVIRONMENT, 'task': promotion.TASK,
+                'production_environment': True, 'payload': {'kind': 'commons-promotion-intent'}}
+        listed = FakeResponse([item], deployments.API + promotion.LIST)
+        statuses_url = deployments.API + deployments.BASE + '/deployments/7/statuses?per_page=1&page=1'
+        unresolved = FakeResponse([{'state': 'error', 'description': promotion.UNRESOLVED}], statuses_url)
+        journal = promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                            ScriptedOpener([listed, unresolved]))
+        self.assertEqual(promotion.open_intent(journal), 7)
+        with self.assertRaisesRegex(ArtifactError, 'unfinished_promotion'):
+            promotion.PromotionIntent({'GH_TOKEN': 'synthetic-public-fixture'},
+                                      ScriptedOpener([listed, unresolved])).start('4' * 40, {})
 
     def test_lost_activation_is_observed_then_promoted(self):
         adapter = FakeAdapter(fail_activate=True)

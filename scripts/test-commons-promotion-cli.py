@@ -259,7 +259,8 @@ class _IntentOpener:
     """Deployment-API transport script; the confirmation GET echoes the posted payload."""
     def __init__(self, final, sha):
         state, description = {'promoted': ('success', promotion.PROMOTED),
-                              'rolled_back': ('failure', promotion.ROLLED_BACK)}[final]
+                              'rolled_back': ('failure', promotion.ROLLED_BACK),
+                              'unresolved': ('error', promotion.UNRESOLVED)}[final]
         self.sha = sha
         self.posted = None
         self.confirmations = [
@@ -394,12 +395,12 @@ class FromRehearsalTests(unittest.TestCase):
     def intent(self, final='promoted'):
         return promotion.PromotionIntent(ENV, _IntentOpener(final, SHA))
 
-    def invoke(self, provider, *, accept=None, argv=None, environ=None):
+    def invoke(self, provider, *, accept=None, argv=None, environ=None, final='promoted'):
         github = FakeGitHub(self.values, self.archives)
         arguments = argv or ['--from-rehearsal', str(RUN), str(ATTEMPT), SHA,
                              '--message', 'Promote the candidate', '--tag', 'promotion-tag']
         result = cli.main(argv=arguments, environ=environ or dict(ENV), github=github,
-                          fetch=github.get, provider=provider, intent=self.intent(),
+                          fetch=github.get, provider=provider, intent=self.intent(final),
                           accept=accept or (lambda sha: True))
         return result, github
 
@@ -433,6 +434,14 @@ class FromRehearsalTests(unittest.TestCase):
                            '--tag', 't'], environ=dict(ENV), github=github, fetch=github.get,
                      provider=provider, intent=self.intent(), accept=lambda sha: True)
         self.assertNotIn('stage', provider.calls)
+
+    def test_failed_rollback_acceptance_closes_unresolved_and_keeps_predecessor(self):
+        provider = self.provider()
+        with self.assertRaisesRegex(ArtifactError, 'rollback_acceptance_failed'):
+            self.invoke(provider, accept=lambda sha: False, final='unresolved')
+        self.assertEqual(provider.active, VERSION)
+        self.assertIn('activate:' + VERSION, provider.calls)
+        self.assertIn('activate:' + provider.staged, provider.calls)
 
     def test_candidate_commit_reuse_is_refused_by_the_planner(self):
         installed = [dict(item) for item in self.installed]
