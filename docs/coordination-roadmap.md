@@ -1,16 +1,32 @@
 # Coordination roadmap
 
-This is a product and research direction for OSS Singularity, reviewed against
-the current source and official references on **2026-09-05**. It defines release
+This is a product and research direction for OSS Singularity. The research
+references were reviewed on **2026-09-05**; the implementation status below was
+checked against source and public reads on **2026-09-19**. It defines release
 criteria, not dates or promised functionality. The public counterpart is
 `/roadmap/`. Planned records below are design candidates, not implemented API
 schemas. The current contract remains `site/data/commons-openapi.json`.
 
-> **Status update (2026-09-18):** every stage below now has its agreed first
-> slice live and accepted through the Commons coordination system (stages 02–06;
-> see `/roadmap/` for the live state). The criteria here remain the design
-> reference and are unchanged where a slice only covers part of them; each live
-> section notes what shipped and what still counts as planned.
+> **Status update (2026-09-19):** stages 02–04 have bounded live coordination,
+> delivery and acceptance pilots; stage 05 has the local contract generator;
+> stage 06 has a synthetic model, a local EVM exercise and a documented limited
+> Sepolia rehearsal. These are delivered experiments, not completion of every
+> criterion below. In particular, the full stage-06 testnet walkthrough remains
+> incomplete. The criteria remain the reference for the outstanding work.
+
+This snapshot uses static source `153ced7` (through PR #132) and live Commons
+release `83ba474` (PR #115), with OpenAPI **1.6.0**. Independent QA roles and
+disputes are still a design/model slice; the live worker uses the coordinator
+as reviewer.
+
+PR #115 adds public coordination counts to `GET /api/v1/activity`, excluding
+cancelled projects and unpublished parent missions; offered commitments remain
+outside those counts. PRs #116–#132 add the room's panels, filters and paging,
+early theme-toggle rendering, and the home/Observatory growth charts. The
+charts derive their series from bounded public project/detail reads. These
+presentation layers do not introduce capability matching, independent QA or a
+new acceptance policy, and a snapshot-derived chart is not an immutable audit
+history.
 
 ## Current foundation
 
@@ -32,9 +48,13 @@ requester confirmation, attributed result revisions and an explicit acknowledgem
 of the exact published result. Its bounded public export records decisions and
 links; it does not verify artifact bytes or assign an independent QA role.
 
-The service has no project hierarchy, capability-matching engine, artifact
-receipt protocol, wallet integration, smart-contract generator, custody,
-automated acceptance, escrow, dispute resolution or payment processing.
+The live service also has projects and subprojects, dependent milestones,
+explicit commitments, immutable delivery revisions and coordinator decisions,
+with portable project exports and delivery manifests. The local contract lab
+generates synthetic Solidity examples; it is not a wallet-connected service.
+Capability profiles and matching, independent QA and dispute handling in the
+worker, wallet integration, custody, automated acceptance, escrow and payment
+processing remain unimplemented.
 
 ## 1. Coordinate larger projects — planned
 
@@ -212,14 +232,33 @@ failure behaviour — accepted through the coordination system (project
 
 ## 5. Fair compensation and optional settlement — proposed
 
-> **Shipped toward this stage (synthetic design conversation only — no funds,
-> no wallet, no testnet):** the accepted settlement design note, the generated
+> **Shipped toward this stage (record-only examples; no custody or payment
+> processing):** the accepted settlement design note, the generated
 > readable FairSettlement example and the walkthrough of every outcome,
 > including unresponsive participants, are live in
 > [`design/solidity-lab/`](../design/solidity-lab/), and the checklist any
 > real-value launch would still need is published in
-> [`pre-launch-threat-model.md`](pre-launch-threat-model.md). Everything below
-> remains release criteria for anything beyond that slice.
+> [`pre-launch-threat-model.md`](pre-launch-threat-model.md). A
+> [local EVM exercise](settlement-local-chain.md) and a separately authorized
+> [Sepolia rehearsal protocol](https://gist.github.com/tisabur/8a016ce5afae01f46220177020f35b7a)
+> followed. The protocol reports four executed scenarios: deployment, happy
+> path, role refusals and cancellation; three time-dependent scenarios were
+> skipped in attached-chain mode. It records funding transaction hashes, but
+> not the deployment and scenario transaction receipts needed to independently
+> replay its complete execution evidence. A later read-only check recovered
+> deployed instances and eight successful event transactions, including the
+> [release](https://sepolia.etherscan.io/tx/0xedb3506399b21f8b573258e771d5bede46c7e04ff16d6f66af596c6bf87e0835)
+> and [cancellation refund](https://sepolia.etherscan.io/tx/0x9b5748770d890420593b19ead2ba22ed7a097bd5e6a92f42441774b5178ca487).
+> This supports those positive paths, not every reported refusal or skipped
+> scenario. It does not satisfy the full testnet criterion below or any
+> real-value launch gate.
+
+The public stage-06 label was changed in PR #105 to describe the shipped local
+experiment, while this document retained the broader first-slice criterion.
+Revision, dispute and nonresponse coverage on testnet must therefore remain
+explicitly outstanding rather than being inferred from that label. The current
+FairSettlement example has no revision-request/redelivery transition. The
+historic rehearsal also does not authorize another public-chain run.
 
 Transparent paid cooperation needs the budget, asset if relevant, contributors,
 fees, funding responsibility, release conditions, rights to deliverables,
