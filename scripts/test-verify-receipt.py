@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """Verify the delivery receipt helper against fixed fixtures."""
 
+import contextlib
 import hashlib
+import importlib.util
+import io
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
+from email.message import Message
 from pathlib import Path
+from urllib import request, response
 
 SCRIPT = Path(__file__).resolve().parent / "verify-receipt.py"
 ARTIFACT = b"OSS Singularity synthetic delivery artifact bytes for the verifier test.\n"
@@ -100,6 +105,94 @@ class VerifierTests(unittest.TestCase):
             self.assertEqual(not_manifest.returncode, 1)
             bad_hash = self.run_helper("--artifact", str(root / "artifact.bin"), "--digest", "z" * 64)
             self.assertEqual(bad_hash.returncode, 1)
+
+
+class RedirectBoundaryTests(unittest.TestCase):
+    """No network: urllib's real redirect engine with synthetic transports."""
+
+    @staticmethod
+    def load_module():
+        spec = importlib.util.spec_from_file_location("verify_receipt_under_test", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    @staticmethod
+    def answer(status: int, location: str | None = None, body: bytes = b"") -> object:
+        headers = Message()
+        if location:
+            headers["Location"] = location
+        out = response.addinfourl(io.BytesIO(body), headers, "synthetic", status)
+        out.msg = "Found" if status == 302 else "OK"
+        return out
+
+    def install(self, module, https_open, http_open) -> list[str]:
+        seen: list[str] = []
+
+        class SyntheticHTTPS(request.HTTPSHandler):
+            def https_open(self, req):
+                seen.append(req.full_url)
+                return https_open(req)
+
+        class SyntheticHTTP(request.HTTPHandler):
+            def http_open(self, req):
+                seen.append(req.full_url)
+                return http_open(req)
+
+        module._fetch_opener = request.build_opener(module.HTTPSOnlyRedirectHandler(), SyntheticHTTPS(), SyntheticHTTP())
+        return seen
+
+    def run_main(self, module, *arguments: str) -> tuple[int, str]:
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            code = module.main(list(arguments))
+        return code, buffer.getvalue()
+
+    def test_artifact_downgrade_redirect_is_refused_before_any_fetch(self) -> None:
+        module = self.load_module()
+        seen = self.install(module,
+                            lambda req: self.answer(302, "http://cleartext.invalid/artifact"),
+                            lambda req: self.answer(200, body=ARTIFACT))
+        code, output = self.run_main(module, "--artifact", "https://trusted.invalid/artifact", "--digest", DIGEST)
+        self.assertEqual(code, 1, output)
+        self.assertIn("HTTPS", output)
+        self.assertIn("refused", output)
+        self.assertEqual(seen, ["https://trusted.invalid/artifact"],
+                         "the cleartext hop must never receive a request")
+
+    def test_manifest_downgrade_redirect_is_refused_before_any_fetch(self) -> None:
+        module = self.load_module()
+        seen = self.install(module,
+                            lambda req: self.answer(302, "http://cleartext.invalid/manifest.json"),
+                            lambda req: self.answer(200, body=b"{}"))
+        code, output = self.run_main(module, "--manifest", "https://trusted.invalid/manifest.json")
+        self.assertEqual(code, 1, output)
+        self.assertIn("HTTPS", output)
+        self.assertEqual(seen, ["https://trusted.invalid/manifest.json"],
+                         "the cleartext hop must never receive a request")
+
+    def test_https_to_https_redirect_still_verifies(self) -> None:
+        module = self.load_module()
+        seen = self.install(module,
+                            lambda req: self.answer(302, "https://mirror.invalid/artifact")
+                            if req.full_url == "https://trusted.invalid/artifact" else self.answer(200, body=ARTIFACT),
+                            lambda req: self.answer(200, body=ARTIFACT))
+        code, output = self.run_main(module, "--artifact", "https://trusted.invalid/artifact", "--digest", DIGEST)
+        self.assertEqual(code, 0, output)
+        self.assertIn("verified", output)
+        self.assertEqual(seen, ["https://trusted.invalid/artifact", "https://mirror.invalid/artifact"])
+
+    def test_second_hop_downgrade_is_refused_after_a_safe_first_hop(self) -> None:
+        module = self.load_module()
+        seen = self.install(module,
+                            lambda req: self.answer(302, "https://mirror.invalid/artifact")
+                            if req.full_url == "https://trusted.invalid/artifact" else self.answer(302, "http://cleartext.invalid/artifact"),
+                            lambda req: self.answer(200, body=ARTIFACT))
+        code, output = self.run_main(module, "--artifact", "https://trusted.invalid/artifact", "--digest", DIGEST)
+        self.assertEqual(code, 1, output)
+        self.assertIn("HTTPS", output)
+        self.assertEqual(seen, ["https://trusted.invalid/artifact", "https://mirror.invalid/artifact"],
+                         "every hop is checked before it is fetched")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../worker.mjs';
 import { SQLiteD1 } from '../local-d1.mjs';
+import { digest } from '../security.mjs';
 
 const NOW = Date.parse('2026-09-16T12:00:00Z');
 
@@ -217,6 +218,78 @@ test('unknown projects and missing credentials behave like the rest of the API',
     purpose: 'A project cannot be created without an authenticated coordinator.',
   });
   assert.equal(unauthorized.status, 401, JSON.stringify(unauthorized.body ?? ''));
+});
+
+test('commitment metadata publishes only through a confirmed history', async t => {
+  const env = await environment(t);
+  const aria = await enroll(env, 'aria');
+  const kofi = await enroll(env, 'kofi');
+  const lex = await enroll(env, 'lex');
+  // A fourth enrollment would exceed the challenge rate limit, so the
+  // unrelated viewer identity is inserted directly like the fixtures are.
+  const strangerToken = `test_identity_${crypto.randomUUID().replaceAll('-', '')}`;
+  env.DB.sqlite.prepare('INSERT INTO identities VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(crypto.randomUUID(), 990, 'stranger', Date.now() - 40 * 86_400_000, Date.now(), Date.now(), await digest(strangerToken));
+  const project = await call(env, 'POST', '/api/v1/projects', {
+    mission_id: 'build-the-commons', title: 'Visibility pilot',
+    purpose: 'Keep never-confirmed commitment metadata with its participants.',
+  }, aria);
+  const projectId = project.body.id;
+  const milestone = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones`, {
+    title: 'Bound slice', purpose: 'One milestone carrying several commitment states.',
+    expected_artifact: 'An artifact used only to drive commitment states.',
+    acceptance: criteria, expected_version: project.body.version,
+  }, aria);
+  assert.equal(milestone.status, 201, JSON.stringify(milestone.body ?? ''));
+
+  // A confirmed commitment is public; declined and withdrawn ones never were
+  // confirmed and stay with their two bound participants.
+  const kept = await call(env, 'POST', `/api/v1/projects/${projectId}/commitments`,
+    { milestone_id: milestone.body.id, terms: 'volunteer' }, kofi);
+  await call(env, 'POST', `/api/v1/projects/${projectId}/commitments/${kept.body.id}/actions`, { action: 'confirm' }, aria);
+  const declined = await call(env, 'POST', `/api/v1/projects/${projectId}/commitments`,
+    { milestone_id: milestone.body.id, terms: 'volunteer' }, lex);
+  await call(env, 'POST', `/api/v1/projects/${projectId}/commitments/${declined.body.id}/actions`, { action: 'decline' }, aria);
+  const withdrawn = await call(env, 'POST', `/api/v1/projects/${projectId}/commitments`,
+    { milestone_id: milestone.body.id, terms: 'volunteer' }, lex);
+  await call(env, 'POST', `/api/v1/projects/${projectId}/commitments/${withdrawn.body.id}/actions`, { action: 'withdraw' }, lex);
+
+  const visibleIds = async token => new Set((await call(env, 'GET', `/api/v1/projects/${projectId}`, undefined, token)).body.commitments.map(c => c.id));
+  assert.deepEqual([...await visibleIds()], [kept.body.id], 'anonymous reads see only the confirmed commitment');
+  assert.deepEqual([...await visibleIds(strangerToken)], [kept.body.id],
+    'an unrelated authenticated identity sees the same public set');
+  assert.ok((await visibleIds(lex)).has(declined.body.id), 'the bound contributor still sees their own declined commitment');
+  assert.ok((await visibleIds(aria)).has(withdrawn.body.id), 'the bound coordinator still sees the withdrawn commitment');
+  const exportView = await call(env, 'GET', `/api/v1/projects/${projectId}/export`);
+  assert.deepEqual(exportView.body.commitments.map(c => c.id), [kept.body.id],
+    'the export carries the same public commitment set');
+
+  // A cancelled commitment is conservatively private even when it was
+  // confirmed before the project was cancelled: the row alone cannot prove
+  // that history, and no heuristic reconstruction exists.
+  const cancelledProject = await call(env, 'POST', '/api/v1/projects', {
+    mission_id: 'build-the-commons', title: 'Cancelled visibility',
+    purpose: 'A project whose confirmed commitments end cancelled, not public.',
+  }, aria);
+  const cancelledMilestone = await call(env, 'POST', `/api/v1/projects/${cancelledProject.body.id}/milestones`, {
+    title: 'Doomed slice', purpose: 'A milestone whose commitment ends cancelled.',
+    expected_artifact: 'An artifact the cancelled project never accepts.',
+    acceptance: criteria, expected_version: cancelledProject.body.version,
+  }, aria);
+  const confirmed = await call(env, 'POST', `/api/v1/projects/${cancelledProject.body.id}/commitments`,
+    { milestone_id: cancelledMilestone.body.id, terms: 'volunteer' }, kofi);
+  await call(env, 'POST', `/api/v1/projects/${cancelledProject.body.id}/commitments/${confirmed.body.id}/actions`, { action: 'confirm' }, aria);
+  const version = (await call(env, 'GET', `/api/v1/projects/${cancelledProject.body.id}`)).body.version;
+  await call(env, 'POST', `/api/v1/projects/${cancelledProject.body.id}/actions`,
+    { action: 'cancel', expected_version: version }, aria);
+  assert.equal((await call(env, 'GET', `/api/v1/projects/${cancelledProject.body.id}`)).status, 404,
+    'the cancelled project itself leaves the public reads');
+  assert.equal((await call(env, 'GET', `/api/v1/projects/${cancelledProject.body.id}`, undefined, kofi)).status, 404,
+    'the coordinator exception does not extend to the bound contributor');
+  const asCoordinator = await call(env, 'GET', `/api/v1/projects/${cancelledProject.body.id}`, undefined, aria);
+  assert.equal(asCoordinator.status, 200, JSON.stringify(asCoordinator.body ?? ''));
+  assert.ok(asCoordinator.body.commitments.some(c => c.id === confirmed.body.id && c.status === 'cancelled'),
+    'the bound coordinator keeps the cancelled commitment in the private view');
 });
 
 test('the activity coordination block mirrors public coordination state exactly', async t => {

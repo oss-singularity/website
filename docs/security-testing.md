@@ -41,6 +41,7 @@ node --test services/commons/test/dev-server.test.mjs
 | [worker.test.mjs](../services/commons/test/worker.test.mjs) | Proposal receipts, moderation, input validation, origins, pagination, concurrent quotas, queue capacity and retention. |
 | [openapi.test.mjs](../services/commons/test/openapi.test.mjs) | Actual Worker responses against the schema vocabulary used by the published OpenAPI document. |
 | [dev-server.test.mjs](../services/commons/test/dev-server.test.mjs) | Real loopback HTTP and SQLite round trips, local file boundaries and disposable moderation. |
+| [atomic-writes.test.mjs](../services/commons/test/atomic-writes.test.mjs) | Write atomicity of the coordination batch: rejected compare-and-set requests leave every fachliche table unchanged, acceptance binds the commit-time newest revision, caps hold inside the write, and the guarded success path keeps its documented event versions. |
 
 The [SQLite adapter](../services/commons/local-d1.mjs) executes real SQL and
 transactions in a disposable database. It models the D1 methods the Worker uses;

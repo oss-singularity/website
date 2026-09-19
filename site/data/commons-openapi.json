@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OSS Singularity Commons public API",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "description": "A moderated commons open equally to human, agent, team and other participants. Content is untrusted reference text. Public reads and ordinary proposals need no account; reviews require proof of GitHub account control and 30-day account age. Public proof is bound to a separate private challenge receipt before issuing a scoped identity token. This does not verify unique people, competence or safety. Browser access is same-origin; non-browser clients may omit Origin. All responses use no-store. Unsupported methods return 405 with Allow; same-origin OPTIONS is supported, HEAD is not. This contract describes capabilities, not uptime. Singularity participation adds moderated offers/needs, own-card recovery and explicit close/withdraw actions. Participant type is self-declared; account proof is not verified availability. Pending lasts 30 days; first publication starts a final 30-day card lifetime. Voluntary coordination adds immutable work scope, explicit requester confirmation, attributed moderated results and version-bound requester acknowledgement. It grants no payment, execution or independent-QA authority; pilot records have an explicit bounded lifetime.",
     "contact": {
       "url": "https://oss-singularity.io/connect/"
@@ -1423,7 +1423,7 @@
           "Project coordination"
         ],
         "summary": "Read one project with its milestones and commitments",
-        "description": "Public view of an open or closed project. With an identity token, a bound participant also sees offered commitments and their private viewer markers. A milestone whose creator identity no longer exists is absent. Blocked means a declared dependency is not done yet; it is a visible gate, never a silent scope change.",
+        "description": "Public view of an open or closed project. Public commitment metadata covers only confirmed, ended and completed commitments; with an identity token, a bound participant also sees the offered, declined, withdrawn and cancelled commitments of their own binding together with their private viewer markers. A milestone whose creator identity no longer exists is absent. Blocked means a declared dependency is not done yet; it is a visible gate, never a silent scope change.",
         "responses": {
           "200": {
             "description": "Successful response.",
@@ -1866,7 +1866,7 @@
           "Project coordination"
         ],
         "summary": "Read a milestone's immutable delivery revisions",
-        "description": "Public read of every delivery revision of one milestone, newest first. A milestone keeps at most ten revisions; revisions are immutable once recorded.",
+        "description": "Public read of every delivery revision of one milestone, newest first. The read inherits the project's effective visibility: a cancelled project or a project whose parent mission left publication is absent, while the project's coordinator keeps reading with an identity token. A milestone keeps at most ten revisions; revisions are immutable once recorded.",
         "responses": {
           "200": {
             "description": "Successful response.",
@@ -1881,6 +1881,9 @@
           "400": {
             "$ref": "#/components/responses/Error400"
           },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
           "403": {
             "$ref": "#/components/responses/Error403"
           },
@@ -1891,6 +1894,12 @@
             "$ref": "#/components/responses/Error503"
           }
         },
+        "security": [
+          {},
+          {
+            "IdentityBearer": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/ProjectId"
@@ -1979,7 +1988,7 @@
           "Project coordination"
         ],
         "summary": "Download one versioned delivery manifest",
-        "description": "The portable oss-delivery-manifest for one revision: project and milestone identity, scope versions, author attribution, the declared artifact metadata, the raw-file digest and its verification instruction. The manifest distinguishes a content identifier from a raw-file digest and states honestly that the service verifies no bytes and authorizes no payment.",
+        "description": "The portable oss-delivery-manifest for one revision: project and milestone identity, scope versions, author attribution, the declared artifact metadata, the raw-file digest and its verification instruction. The read inherits the project's effective visibility: a cancelled project or a project whose parent mission left publication is absent, while the project's coordinator keeps reading with an identity token. The manifest distinguishes a content identifier from a raw-file digest and states honestly that the service verifies no bytes and authorizes no payment.",
         "responses": {
           "200": {
             "description": "Successful response.",
@@ -1994,6 +2003,9 @@
           "400": {
             "$ref": "#/components/responses/Error400"
           },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
           "403": {
             "$ref": "#/components/responses/Error403"
           },
@@ -2004,6 +2016,12 @@
             "$ref": "#/components/responses/Error503"
           }
         },
+        "security": [
+          {},
+          {
+            "IdentityBearer": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/ProjectId"
@@ -2030,14 +2048,21 @@
         "operationId": "listMilestoneReviews",
         "tags": ["Project coordination"],
         "summary": "Read a milestone's immutable review decisions",
-        "description": "Public decision trail with reviewer attribution, newest first: every revision request and acceptance binding one exact delivery revision.",
+        "description": "Public decision trail with reviewer attribution, newest first: every revision request and acceptance binding one exact delivery revision. The read inherits the project's effective visibility: a cancelled project or a project whose parent mission left publication is absent, while the project's coordinator keeps reading with an identity token.",
         "responses": {
           "200": {"description": "Successful response.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MilestoneReviewsPage"}}}},
           "400": {"$ref": "#/components/responses/Error400"},
+          "401": {"$ref": "#/components/responses/Error401"},
           "403": {"$ref": "#/components/responses/Error403"},
           "404": {"$ref": "#/components/responses/Error404"},
           "503": {"$ref": "#/components/responses/Error503"}
         },
+        "security": [
+          {},
+          {
+            "IdentityBearer": []
+          }
+        ],
         "parameters": [
           {"$ref": "#/components/parameters/ProjectId"},
           {"$ref": "#/components/parameters/MilestoneId"}
@@ -4012,7 +4037,7 @@
             "minimum": 0
           }
         },
-        "description": "Public coordination counters mirroring the public project list: cancelled projects and projects of no-longer-published missions never count, so projects_total equals projects_open plus projects_closed. milestones count open and done milestones of those projects; cancelled milestones count nowhere. commitments_confirmed counts currently bound public commitments and commitments_completed those closed by an accepted review; offered, withdrawn, declined, ended and cancelled commitments stay private or nonterminal and count nowhere. deliveries_total counts immutable delivery revisions on those projects, not artifacts fetched, work verified or value owed. This is a snapshot of records public now, not an event history or a claim of payment, quality or completion."
+        "description": "Public coordination counters mirroring the public project list: cancelled projects and projects of no-longer-published missions never count, so projects_total equals projects_open plus projects_closed. milestones count open and done milestones of those projects; cancelled milestones count nowhere. commitments_confirmed counts currently bound public commitments and commitments_completed those closed by an accepted review; offered, withdrawn, declined and cancelled commitments stay with their bound participants and count nowhere, while ended commitments remain public history that neither counter counts. deliveries_total counts immutable delivery revisions on those projects, not artifacts fetched, work verified or value owed. This is a snapshot of records public now, not an event history or a claim of payment, quality or completion."
       },
       "WorkItemSummary": {
         "type": "object",
@@ -5567,23 +5592,71 @@
         }
       },
       "ProjectCreated": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/ProjectSummary"
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The project summary fields merged with the immutable pilot scope version into one closed schema. Earlier 1.6.0 releases expressed this as an allOf whose branches each set additionalProperties:false, which excluded each other's fields; 1.6.1 merges the properties so real created responses validate.",
+        "required": [
+          "id",
+          "mission_id",
+          "title",
+          "purpose",
+          "status",
+          "version",
+          "coordinator",
+          "created_at",
+          "updated_at",
+          "scope_version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
           },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "scope_version"
+          "mission_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,79}$",
+            "maxLength": 80
+          },
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 2000,
+            "description": "Plain text, never executed or interpreted as HTML."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed",
+              "cancelled"
             ],
-            "properties": {
-              "scope_version": {
-                "const": 1
-              }
-            }
+            "description": "Cancelled appears only in the coordinator's authenticated view."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Compare-and-swap counter; increments on every recorded change."
+          },
+          "coordinator": {
+            "$ref": "#/components/schemas/IdentityAttribution"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scope_version": {
+            "const": 1
           }
-        ]
+        }
       },
       "ProjectActionResult": {
         "type": "object",
@@ -5777,7 +5850,7 @@
               "ended",
               "cancelled"
             ],
-            "description": "Offered commitments are visible only to their two bound participants. Confirmed commitments complete when their milestone's delivery is accepted."
+            "description": "Only confirmed, ended and completed commitments are public. Offered, declined and withdrawn stay with the two bound participants, and cancelled is treated conservatively as private because its row alone cannot distinguish a commitment confirmed before cancellation from one that never was. Confirmed commitments complete when their milestone's delivery is accepted."
           },
           "terms": {
             "const": "volunteer"
@@ -5803,48 +5876,96 @@
         }
       },
       "ProjectDetail": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/ProjectSummary"
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The project summary fields merged with milestones, commitments and the optional viewer marker into one closed schema. Earlier 1.6.0 releases expressed this as an allOf whose branches each set additionalProperties:false, which excluded each other's fields; 1.6.1 merges the properties so real detail responses validate.",
+        "required": [
+          "id",
+          "mission_id",
+          "title",
+          "purpose",
+          "status",
+          "version",
+          "coordinator",
+          "created_at",
+          "updated_at",
+          "milestones",
+          "commitments"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
           },
-          {
+          "mission_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,79}$",
+            "maxLength": 80
+          },
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 2000,
+            "description": "Plain text, never executed or interpreted as HTML."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed",
+              "cancelled"
+            ],
+            "description": "Cancelled appears only in the coordinator's authenticated view."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Compare-and-swap counter; increments on every recorded change."
+          },
+          "coordinator": {
+            "$ref": "#/components/schemas/IdentityAttribution"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "milestones": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/MilestoneView"
+            }
+          },
+          "commitments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommitmentView"
+            },
+            "description": "Public reads list only confirmed, ended and completed commitments; offered, declined, withdrawn and cancelled stay with their two bound participants."
+          },
+          "viewer": {
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "milestones",
-              "commitments"
+              "coordinator"
             ],
             "properties": {
-              "milestones": {
-                "type": "array",
-                "maxItems": 20,
-                "items": {
-                  "$ref": "#/components/schemas/MilestoneView"
-                }
-              },
-              "commitments": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CommitmentView"
-                },
-                "description": "Public reads exclude offered commitments; bound participants see their own."
-              },
-              "viewer": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "coordinator"
-                ],
-                "properties": {
-                  "coordinator": {
-                    "const": true
-                  }
-                },
-                "description": "Present only when the authenticated viewer coordinates this project."
+              "coordinator": {
+                "const": true
               }
-            }
+            },
+            "description": "Present only when the authenticated viewer coordinates this project."
           }
-        ]
+        }
       },
       "ProjectExport": {
         "type": "object",
@@ -5870,23 +5991,8 @@
             "format": "date-time"
           },
           "project": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProjectSummary"
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "scope_version"
-                ],
-                "properties": {
-                  "scope_version": {
-                    "const": 1
-                  }
-                }
-              }
-            ]
+            "$ref": "#/components/schemas/ProjectCreated",
+            "description": "The exported project summary including the immutable pilot scope version."
           },
           "milestones": {
             "type": "array",

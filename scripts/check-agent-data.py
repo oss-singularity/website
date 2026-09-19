@@ -258,6 +258,9 @@ def validate_openapi(spec: dict) -> None:
         ("/api/v1/work-items/{id}/results", "post"): [{"IdentityBearer": []}],
         ("/api/v1/projects", "post"): [{"IdentityBearer": []}],
         ("/api/v1/projects/{id}", "get"): [{}, {"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries", "get"): [{}, {"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries/{revision}", "get"): [{}, {"IdentityBearer": []}],
+        ("/api/v1/projects/{id}/milestones/{milestone_id}/reviews", "get"): [{}, {"IdentityBearer": []}],
         ("/api/v1/projects/{id}/milestones", "post"): [{"IdentityBearer": []}],
         ("/api/v1/projects/{id}/milestones/{milestone_id}/actions", "post"): [{"IdentityBearer": []}],
         ("/api/v1/projects/{id}/commitments", "post"): [{"IdentityBearer": []}],
@@ -627,7 +630,10 @@ def self_test() -> int:
     invalid["paths"]["/api/v1/projects/{id}/matching"] = {"post": {}}
     rejected(lambda: validate_openapi(invalid))
     for path, method in (("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries", "post"),
-                         ("/api/v1/projects/{id}/milestones/{milestone_id}/reviews", "post")):
+                         ("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries", "get"),
+                         ("/api/v1/projects/{id}/milestones/{milestone_id}/deliveries/{revision}", "get"),
+                         ("/api/v1/projects/{id}/milestones/{milestone_id}/reviews", "post"),
+                         ("/api/v1/projects/{id}/milestones/{milestone_id}/reviews", "get")):
         invalid = copy.deepcopy(openapi)
         invalid["paths"][path][method]["security"] = []
         rejected(lambda: validate_openapi(invalid))

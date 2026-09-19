@@ -125,8 +125,12 @@ async function githubJson(path, env) {
     if (attempt.status === 404) invalid('The public GitHub proof or account could not be found.', 'gist_url');
     if (attempt.ok && !attempt.redirected) { result = attempt; break; }
     await attempt.body?.cancel();
-    const rateLimited = attempt.status === 403 || attempt.status === 429;
-    if (index === attempts.length - 1 || !rateLimited) {
+    // 401 rejects the optional read token itself (expired, revoked or
+    // malformed) and degrades to exactly one anonymous retry, like the quota
+    // answers 403/429. The anonymous attempt is always the last one, so a 401
+    // there fails closed; 404 stays a validation outcome without any retry.
+    const retryable = attempt.status === 401 || attempt.status === 403 || attempt.status === 429;
+    if (index === attempts.length - 1 || !retryable) {
       throw new ApiError(503, 'upstream_unavailable', 'GitHub verification is temporarily unavailable. Try again later.');
     }
   }

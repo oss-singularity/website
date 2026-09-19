@@ -255,3 +255,79 @@ test('declared retention validates honestly and manifests name their superseder'
   const newest = await call(env, 'GET', `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries/2`);
   assert.equal(newest.body.superseded_by_revision, null);
 });
+
+test('child reads inherit the effective project and parent mission visibility', async t => {
+  const env = await environment(t);
+  const aria = await enroll(env, 'aria');
+  const kofi = await enroll(env, 'kofi');
+  const lex = await enroll(env, 'lex');
+  const { projectId, milestoneId } = await coordinatedMilestone(env, aria, kofi);
+  const version = (await call(env, 'GET', `/api/v1/projects/${projectId}`)).body.version;
+  const delivery = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestoneId}/deliveries`, {
+    summary: 'A synthetic delivery whose receipts inherit the project visibility.',
+    artifact_url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.json',
+    artifact_media_type: 'application/json', artifact_size_bytes: 591,
+    integrity_digest: digest, expected_version: version,
+  }, kofi);
+  assert.equal(delivery.status, 201, JSON.stringify(delivery.body).slice(0, 220));
+  const review = await call(env, 'POST', `/api/v1/projects/${projectId}/milestones/${milestoneId}/reviews`, {
+    delivery_revision: 1, decision: 'revision_requested',
+    note: 'A synthetic review note before the project is cancelled.',
+    expected_version: 1,
+  }, aria);
+  assert.equal(review.status, 201, JSON.stringify(review.body).slice(0, 220));
+
+  const base = `/api/v1/projects/${projectId}/milestones/${milestoneId}`;
+  const childPaths = [`${base}/deliveries`, `${base}/deliveries/1`, `${base}/reviews`];
+  for (const path of childPaths) {
+    assert.equal((await call(env, 'GET', path)).status, 200, `precondition: ${path} is public while open`);
+  }
+
+  // Cancelling the project hides the whole subtree from the public; only its
+  // coordinator keeps reading the children, exactly like the project itself.
+  const current = (await call(env, 'GET', `/api/v1/projects/${projectId}`)).body.version;
+  const cancelled = await call(env, 'POST', `/api/v1/projects/${projectId}/actions`,
+    { action: 'cancel', expected_version: current }, aria);
+  assert.equal(cancelled.status, 200, JSON.stringify(cancelled.body).slice(0, 220));
+  for (const path of [...childPaths, `/api/v1/projects/${projectId}`]) {
+    assert.equal((await call(env, 'GET', path)).status, 404, `anonymous: ${path}`);
+    assert.equal((await call(env, 'GET', path, undefined, lex)).status, 404, `unrelated identity: ${path}`);
+  }
+  for (const path of childPaths) {
+    assert.equal((await call(env, 'GET', path, undefined, aria)).status, 200, `coordinator keeps: ${path}`);
+  }
+  const badToken = await call(env, 'GET', `${base}/deliveries`, undefined, 'not-a-real-identity-token');
+  assert.equal(badToken.status, 401, 'an invalid identity token is rejected before visibility applies');
+
+  // A project whose parent mission left publication disappears entirely, the
+  // coordinator included: the parent join hides it from everyone.
+  const missionId = crypto.randomUUID();
+  env.DB.sqlite.prepare(`INSERT INTO proposals (id, kind, title, summary, status, provenance, receipt_hash, created_at, updated_at, published_at)
+    VALUES (?, 'mission', 'Retired receipts mission', 'A mission whose project receipts disappear with it.', 'published', 'seed', NULL, ?, ?, ?)`).run(missionId, NOW, NOW, NOW);
+  const project = await call(env, 'POST', '/api/v1/projects', {
+    mission_id: missionId, title: 'Retired receipts pilot',
+    purpose: 'A project that leaves public view with its parent mission.',
+  }, aria);
+  assert.equal(project.status, 201, JSON.stringify(project.body).slice(0, 220));
+  const milestone = await call(env, 'POST', `/api/v1/projects/${project.body.id}/milestones`, {
+    title: 'Retired slice', purpose: 'A milestone whose receipts follow the mission status.',
+    expected_artifact: 'An artifact the retired mission no longer publishes.',
+    acceptance: criteria, expected_version: project.body.version,
+  }, aria);
+  const offer = await call(env, 'POST', `/api/v1/projects/${project.body.id}/commitments`,
+    { milestone_id: milestone.body.id, terms: 'volunteer' }, kofi);
+  await call(env, 'POST', `/api/v1/projects/${project.body.id}/commitments/${offer.body.id}/actions`, { action: 'confirm' }, aria);
+  const retiredDelivery = await call(env, 'POST', `/api/v1/projects/${project.body.id}/milestones/${milestone.body.id}/deliveries`, {
+    summary: 'A synthetic delivery that leaves public view with its mission.',
+    artifact_url: 'https://oss-singularity.io/data/synthetic-delivery-artifact.json',
+    artifact_media_type: 'application/json', artifact_size_bytes: 591,
+    integrity_digest: digest, expected_version: 2,
+  }, kofi);
+  assert.equal(retiredDelivery.status, 201, JSON.stringify(retiredDelivery.body).slice(0, 220));
+  env.DB.sqlite.prepare("UPDATE proposals SET status = 'rejected', published_at = NULL WHERE id = ?").run(missionId);
+  const retiredBase = `/api/v1/projects/${project.body.id}/milestones/${milestone.body.id}`;
+  for (const path of [`/api/v1/projects/${project.body.id}`, `${retiredBase}/deliveries`, `${retiredBase}/deliveries/1`, `${retiredBase}/reviews`]) {
+    assert.equal((await call(env, 'GET', path)).status, 404, `anonymous under unpublished mission: ${path}`);
+    assert.equal((await call(env, 'GET', path, undefined, aria)).status, 404, `coordinator under unpublished mission: ${path}`);
+  }
+});

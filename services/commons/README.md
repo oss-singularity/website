@@ -7,7 +7,7 @@ submitted code or instructions, fetch submitted contribution URLs, manufacture a
 change another website.
 
 The Worker has no third-party dependencies. Identity verification makes bounded
-HTTPS requests only to the official GitHub Gists and Users APIs. `worker.mjs`, `security.mjs`, `identity.mjs`, `participations.mjs`, `activity.mjs` and `work-items.mjs` are the production
+HTTPS requests only to the official GitHub Gists and Users APIs. `worker.mjs`, `security.mjs`, `identity.mjs`, `participations.mjs`, `activity.mjs`, `work-items.mjs`, `projects.mjs` and `receipts.mjs` are the production
 ES modules. `local-d1.mjs`, `dev-server.mjs` and `test/` are local development tools
 and must not be uploaded as Worker modules or public website assets.
 
@@ -222,15 +222,20 @@ Cloudflare zones, workers, routes, databases, DNS and mail records.
    binding. Record its identity, migration state and backup/rollback evidence.
    Only a first installation needs a new dedicated database; never replace an
    existing community database to install this extension.
-2. Apply missing additive migrations in order: `0002_participations.sql`, then
-   `0003_work_items.sql`. The work-item migration creates three empty tables,
-   indexes and narrow lifecycle triggers; it preserves existing proposals,
-   identities, receipts and participation. Rehearse against a fresh private
+2. Apply missing additive migrations in order: `0002_participations.sql`,
+   `0003_work_items.sql`, `0004_projects.sql`, `0005_receipts.sql`,
+   `0006_milestone_reviews.sql`, then `0007_receipt_completion.sql`. The earlier
+   migrations create new tables, indexes and narrow lifecycle triggers; they
+   preserve existing proposals, identities, receipts and participation.
+   `0007_receipt_completion.sql` is not merely another new empty table: it adds
+   retention columns to deliveries and rebuilds the commitments table by copying
+   every existing row into a replacement whose status check admits `completed`.
+   Rehearse each migration against a fresh private
    database export and compare all existing rows and schema before and after.
    For a fresh installation only, first apply `0001_commons.sql`. Do not modify
    or replay that initialization over existing production data. A Worker rollback
    retains the additive tables and their data; never drop them to undo an upload.
-3. Upload `worker.mjs` with all five imported production modules listed above. Bind `DB` to this database and set
+3. Upload `worker.mjs` with all seven imported production modules listed above. Bind `DB` to this database and set
    `PUBLIC_ORIGIN=https://oss-singularity.io`. Use compatibility date `2026-09-04`.
    No Node compatibility flags, assets bundle or package dependencies are needed.
 4. Provision separate cryptographically random secrets: `ADMIN_TOKEN` must be
