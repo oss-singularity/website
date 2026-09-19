@@ -151,6 +151,113 @@ class UnresponsiveParticipantTests(unittest.TestCase):
         self.assertIs(model.state, state.RELEASED)
 
 
+class OuterDeadlinePriorityTests(unittest.TestCase):
+    """Review A5: past the outer deadline the refund has exclusive priority.
+
+    The refund window and every release window are disjoint — proven at the
+    boundaries outer−1 / outer / outer+1 and in BOTH transaction orders for
+    each release path (accepted release, resolved release, release fallback).
+    """
+
+    def setUp(self) -> None:
+        self._fresh()
+
+    def _fresh(self, releases_fallback: bool = False) -> None:
+        # each _load_model() builds its own module, so model, Revert and State
+        # must always be reloaded together for assertIs/assertRaises to bind
+        self.model, self.revert, self.state = _load_model(releases_fallback)
+
+    def _refuses(self, action, failure: str) -> None:
+        with self.assertRaisesRegex(self.revert, failure):
+            action()
+
+    def test_accepted_release_boundaries_are_disjoint_from_the_refund(self) -> None:
+        for timestamp in (OUTER_DEADLINE - 1, OUTER_DEADLINE):
+            with self.subTest(f"release still works at {timestamp}"):
+                deliver_and_accept(self.model)
+                self.model.now = timestamp
+                self.model.release(HOLDER)
+                self.assertIs(self.model.state, self.state.RELEASED)
+                self._fresh()
+        with self.subTest("one tick past the deadline the release is refused"):
+            self._fresh()
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE + 1
+            self._refuses(lambda: self.model.release(HOLDER), "OuterDeadlinePassed")
+
+    def test_refund_boundaries_mirror_the_release_window(self) -> None:
+        deliver_and_accept(self.model)
+        self.model.now = OUTER_DEADLINE - 1
+        self._refuses(lambda: self.model.refund_after_outer_deadline(STRANGER), "OuterDeadlineNotPassed")
+        self.model.now = OUTER_DEADLINE
+        self._refuses(lambda: self.model.refund_after_outer_deadline(STRANGER), "OuterDeadlineNotPassed")
+        self.model.now = OUTER_DEADLINE + 1
+        self.model.refund_after_outer_deadline(STRANGER)
+        self.assertIs(self.model.state, self.state.REFUNDED)
+
+    def test_late_release_cannot_race_the_refund_in_either_order(self) -> None:
+        with self.subTest("release attempt first, refund second"):
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE + 1
+            self._refuses(lambda: self.model.release(HOLDER), "OuterDeadlinePassed")
+            self.model.refund_after_outer_deadline(STRANGER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+            self._refuses(lambda: self.model.release(HOLDER), "WrongState")  # terminal is final
+        with self.subTest("refund first, release attempt second"):
+            self._fresh()
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE + 1
+            self.model.refund_after_outer_deadline(STRANGER)
+            self._refuses(lambda: self.model.release(HOLDER), "WrongState")
+
+    def test_resolved_release_is_refused_past_the_outer_deadline(self) -> None:
+        with self.subTest("the last moment for a releasing resolution is the deadline itself"):
+            deliver_and_dispute(self.model)
+            self.model.resolve_dispute(HOLDER, releases=True)
+            self.model.now = OUTER_DEADLINE
+            self.model.execute_resolution(HOLDER)
+            self.assertIs(self.model.state, self.state.RELEASED)
+        with self.subTest("one tick later the refund wins, either order"):
+            self._fresh()
+            deliver_and_dispute(self.model)
+            self.model.resolve_dispute(HOLDER, releases=True)
+            self.model.now = OUTER_DEADLINE + 1
+            self._refuses(lambda: self.model.execute_resolution(HOLDER), "OuterDeadlinePassed")
+            self.model.refund_after_outer_deadline(STRANGER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+
+    def test_release_fallback_is_refused_past_the_outer_deadline(self) -> None:
+        self._fresh(releases_fallback=True)
+        with self.subTest("a releasing fallback still works below the outer deadline"):
+            deliver_and_dispute(self.model)
+            self.model.now = DISPUTE_DEADLINE + 1
+            self.model.apply_dispute_fallback(STRANGER)
+            self.assertIs(self.model.state, self.state.RELEASED)
+        with self.subTest("past the outer deadline the refund outranks the agreed fallback"):
+            self._fresh(releases_fallback=True)
+            deliver_and_dispute(self.model)
+            self.model.now = OUTER_DEADLINE + 1
+            self._refuses(lambda: self.model.apply_dispute_fallback(STRANGER), "OuterDeadlinePassed")
+            self.model.refund_after_outer_deadline(STRANGER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+
+    def test_refund_flavored_executions_survive_past_the_outer_deadline(self) -> None:
+        with self.subTest("a refunding resolution still executes"):
+            deliver_and_dispute(self.model)
+            self.model.resolve_dispute(HOLDER, releases=False)
+            self.model.now = OUTER_DEADLINE + 1
+            self.model.execute_resolution(HOLDER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+            self.assertEqual(self.model.refund_reason, "dispute resolution")
+        with self.subTest("a refunding fallback still executes"):
+            self._fresh()
+            deliver_and_dispute(self.model)
+            self.model.now = OUTER_DEADLINE + 1
+            self.model.apply_dispute_fallback(STRANGER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+            self.assertEqual(self.model.refund_reason, "dispute fallback")
+
+
 class GuardTests(unittest.TestCase):
     """Role, replay, staleness and deadline guards mirror the contract."""
 
@@ -250,7 +357,7 @@ class ParityTests(unittest.TestCase):
         source = CONTRACT.read_text()
         model_source = MODEL.read_text()
         failures = re.findall(r"error (\w+)\(", source)
-        self.assertEqual(len(failures), 10)
+        self.assertEqual(len(failures), 11)
         for failure in failures:
             self.assertIn(f'"{failure}"', model_source, f"model must name the failure {failure}")
 
