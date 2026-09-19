@@ -23,6 +23,22 @@
 .activity-dot { stroke: var(--bg); stroke-width: 1.5; }
 .activity-dot-contributions { fill: var(--cyan); filter: drop-shadow(0 0 4px rgba(101, 229, 255, .7)); }
 .activity-dot-participations { fill: var(--pink); filter: drop-shadow(0 0 4px rgba(255, 99, 200, .6)); }
+.activity-growth { border-top: 1px dashed var(--line); margin-top: 26px; padding-top: 16px; }
+.activity-growth h3 { font-size: 1rem; margin: 0; }
+.activity-growth svg { display: block; margin-top: 14px; overflow: visible; width: 100%; }
+/* three cumulative areas overlap on the flat run to today: keep the wash light */
+.activity-growth .activity-area { fill-opacity: .09; }
+.activity-grid { stroke: var(--line); stroke-dasharray: 3 6; stroke-width: 1; }
+.activity-grid-count, .activity-axis { fill: var(--dim); font-family: inherit; font-size: 11px; }
+.activity-area-milestones { fill: var(--cyan); }
+.activity-area-commitments { fill: var(--pink); }
+.activity-area-projects { fill: var(--green); }
+.activity-line-milestones { stroke: var(--cyan); }
+.activity-line-commitments { stroke: var(--pink); }
+.activity-line-projects { stroke: var(--green); }
+.activity-dot-milestones { fill: var(--cyan); filter: drop-shadow(0 0 4px rgba(101, 229, 255, .7)); }
+.activity-dot-commitments { fill: var(--pink); filter: drop-shadow(0 0 4px rgba(255, 99, 200, .6)); }
+.activity-dot-projects { fill: var(--green); filter: drop-shadow(0 0 4px rgba(108, 231, 183, .7)); }
 .activity-count, .activity-day { fill: var(--muted); font-family: inherit; font-size: 12px; text-anchor: middle; }
 .activity-count { fill: var(--text); font-variant-numeric: tabular-nums; }
 .activity-empty { fill: var(--muted); font-family: inherit; font-size: 13px; text-anchor: middle; }

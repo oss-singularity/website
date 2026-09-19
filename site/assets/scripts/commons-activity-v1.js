@@ -165,4 +165,122 @@
   refresh.addEventListener("click", load);
   addEventListener("pagehide", () => controllers.forEach(controller => controller.abort()), {once: true});
   load();
+
+  // The mission's curve: cumulative coordination growth drawn from public
+  // records. Unlike the seven-day window it is never empty while the commons
+  // grows, so the publications column always carries a living graph.
+  const growthPanel = document.getElementById("activity-growth");
+  const growthSvg = document.getElementById("activity-growth-chart");
+  const growthWindow = document.getElementById("activity-growth-window");
+  const growthSummary = document.getElementById("activity-growth-summary");
+  const idPattern = /^[a-z0-9][a-z0-9-]{0,79}$/;
+  const stamp = value => typeof value === "string" && value.length <= 32 && Number.isFinite(Date.parse(value)) ? Date.parse(value) : null;
+  const moment = value => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(value));
+  const fmt = value => Math.round(value * 10) / 10;
+  const growthSeries = [
+    { key: "milestones", label: "Milestones completed" },
+    { key: "commitments", label: "Commitments accepted" },
+    { key: "projects", label: "Projects coordinated" },
+  ];
+  const growthValidList = data => data && Array.isArray(data.items) && data.items.length > 0 && data.items.length <= 50
+    && (data.next_cursor === null || (typeof data.next_cursor === "string" && data.next_cursor.length <= 256))
+    && data.items.every(item => item && idPattern.test(item.id) && typeof item.mission_id === "string" && item.mission_id.length <= 80
+      && ["open", "closed", "cancelled"].includes(item.status) && stamp(item.created_at) !== null);
+  const growthValidDetail = data => data && idPattern.test(data.id) && ["open", "closed", "cancelled"].includes(data.status)
+    && stamp(data.created_at) !== null && Array.isArray(data.milestones) && data.milestones.length <= 20
+    && Array.isArray(data.commitments) && data.commitments.length <= 30
+    && data.milestones.every(item => item && ["open", "done", "cancelled"].includes(item.status) && stamp(item.updated_at) !== null)
+    && data.commitments.every(item => item && ["offered", "confirmed", "completed", "ended", "withdrawn", "declined", "cancelled"].includes(item.status) && stamp(item.updated_at) !== null);
+  // The same monotone envelope the journey chart draws: smooth curves that
+  // never overshoot a cumulative step.
+  const growthMonotone = points => {
+    const n = points.length;
+    let d = `M${fmt(points[0].x)} ${fmt(points[0].y)}`;
+    if (n < 2) return d;
+    const dx = [], slope = [], tangent = [];
+    for (let i = 0; i < n - 1; i += 1) { dx[i] = points[i + 1].x - points[i].x; slope[i] = (points[i + 1].y - points[i].y) / dx[i]; }
+    tangent[0] = slope[0];
+    tangent[n - 1] = slope[n - 2];
+    for (let i = 1; i < n - 1; i += 1) tangent[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+    for (let i = 0; i < n - 1; i += 1) {
+      if (slope[i] === 0) { tangent[i] = 0; tangent[i + 1] = 0; continue; }
+      const a = tangent[i] / slope[i], b = tangent[i + 1] / slope[i], s = a * a + b * b;
+      if (s > 9) { const t = 3 / Math.sqrt(s); tangent[i] = t * a * slope[i]; tangent[i + 1] = t * b * slope[i]; }
+    }
+    for (let i = 0; i < n - 1; i += 1) {
+      const h = dx[i];
+      d += ` C${fmt(points[i].x + h / 3)} ${fmt(points[i].y + tangent[i] * h / 3)} ${fmt(points[i + 1].x - h / 3)} ${fmt(points[i + 1].y - tangent[i + 1] * h / 3)} ${fmt(points[i + 1].x)} ${fmt(points[i + 1].y)}`;
+    }
+    return d;
+  };
+  const loadGrowth = async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const listResponse = await fetch("/api/v1/projects?limit=50", { signal: controller.signal, credentials: "omit", cache: "no-store", headers: { Accept: "application/json" } });
+      if (!listResponse.ok) throw new Error("Unavailable");
+      const list = await listResponse.json();
+      if (!growthValidList(list)) throw new Error("Invalid projects");
+      const details = await Promise.all(list.items.map(async project => {
+        const response = await fetch(`/api/v1/projects/${encodeURIComponent(project.id)}`, { signal: controller.signal, credentials: "omit", cache: "no-store", headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error("Unavailable");
+        const detail = await response.json();
+        if (!growthValidDetail(detail) || detail.id !== project.id) throw new Error("Invalid project");
+        return detail;
+      }));
+      const series = {};
+      for (const { key } of growthSeries) series[key] = [];
+      for (const project of details) {
+        series.projects.push(stamp(project.created_at));
+        for (const milestone of project.milestones) if (milestone.status === "done") series.milestones.push(stamp(milestone.updated_at));
+        for (const commitment of project.commitments) if (commitment.status === "completed") series.commitments.push(stamp(commitment.updated_at));
+      }
+      const totals = {};
+      for (const { key } of growthSeries) {
+        totals[key] = series[key].length;
+        series[key].sort((a, b) => a - b);
+        let last = -Infinity;
+        series[key] = series[key].map((value, index) => {
+          if (value <= last) value = last + 1;
+          last = value;
+          return { t: value, count: index + 1 };
+        });
+      }
+      const every = growthSeries.flatMap(({ key }) => series[key]).map(point => point.t);
+      const start = Math.min(...every);
+      const end = Math.max(Date.now(), Math.max(...every) + 1);
+      const x = value => 30 + (value - start) / (end - start) * (548 - 30);
+      const maximum = Math.max(1, ...growthSeries.map(({ key }) => series[key].length));
+      const y = value => 138 - value / maximum * (138 - 14);
+      growthSvg.replaceChildren();
+      growthSvg.append(svgElement("line", { x1: 30, x2: 548, y1: 138, y2: 138, class: "activity-baseline" }));
+      growthSvg.append(svgElement("line", { x1: 30, x2: 548, y1: fmt(y(maximum)), y2: fmt(y(maximum)), class: "activity-grid" }));
+      growthSvg.append(svgElement("text", { x: 24, y: fmt(y(maximum) + 4), class: "activity-grid-count", "text-anchor": "end" }, String(maximum)));
+      growthSvg.append(svgElement("text", { x: 24, y: 142, class: "activity-grid-count", "text-anchor": "end" }, "0"));
+      for (const { key, label } of growthSeries) {
+        if (!series[key].length) continue;
+        const points = series[key].map(point => ({ x: fmt(x(point.t)), y: fmt(y(point.count)) }));
+        // a cumulative count persists until today
+        const through = [...points, { x: 548, y: points.at(-1).y }];
+        growthSvg.append(svgElement("path", { d: `${growthMonotone(through)} L548 138 L${fmt(points[0].x)} 138 Z`, class: `activity-area activity-area-${key}` }));
+        growthSvg.append(svgElement("path", { d: growthMonotone(through), class: `activity-line activity-line-${key}` }));
+        series[key].forEach(point => {
+          const dot = svgElement("circle", { cx: fmt(x(point.t)), cy: fmt(y(point.count)), r: 3, class: `activity-dot activity-dot-${key}` });
+          const tip = svgElement("title", {});
+          tip.textContent = `${moment(point.t)} UTC — ${label} ${point.count}`;
+          dot.append(tip);
+          growthSvg.append(dot);
+        });
+      }
+      const startedDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(start));
+      growthSvg.append(svgElement("text", { x: 30, y: 160, class: "activity-axis" }, startedDay));
+      growthSvg.append(svgElement("text", { x: 548, y: 160, class: "activity-axis", "text-anchor": "end" }, "today"));
+      growthWindow.textContent = `${startedDay} – today · UTC`;
+      growthSummary.textContent = `${totals.milestones} milestones completed · ${totals.commitments} commitments accepted · ${totals.projects} projects coordinated — every point a public record.`;
+      growthPanel.hidden = false;
+    } catch {
+      growthPanel.hidden = true; // the shared home stays usable without the curve
+    } finally { clearTimeout(timeout); }
+  };
+  loadGrowth();
 })();
