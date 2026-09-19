@@ -84,6 +84,12 @@
 .road-key-commitments { background: var(--pink); }
 .road-key-projects { background: var(--green); }
 .road-summary { color: var(--text); font-weight: 600; }
+.road-events { border-top: 1px solid var(--line); margin-top: 10px; }
+.road-events summary { color: var(--cyan-soft); cursor: pointer; font-size: .8rem; padding-block: 10px; }
+.road-events table { border-collapse: collapse; font-size: .78rem; text-align: left; width: 100%; }
+.road-events caption { color: var(--muted); padding-block: 16px; text-align: left; }
+.road-events th, .road-events td { border-bottom: 1px solid var(--line); font-weight: 400; padding: 10px; }
+.road-events thead th { color: var(--cyan-soft); }
 .road-stages { border-top: 1px solid var(--line-soft); display: grid; gap: 14px; grid-template-columns: repeat(6, minmax(0, 1fr)); padding-top: 28px; }
 .road-stage { background: var(--home-card); border: 1px solid var(--line); border-radius: 12px; color: inherit; display: grid; gap: 5px; padding: 15px 16px; text-decoration: none; transition: border-color .18s ease, transform .18s ease, background .18s ease; }
 .road-stage:hover { background: var(--home-card-hover); border-color: var(--home-card-border-hover); transform: translateY(-3px); }
@@ -92,6 +98,7 @@
 .road-stage-state { color: var(--dim); font-size: .69rem; line-height: 1.4; }
 @media (max-width: 960px) { .road-stages { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .road-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); } .road-panel { padding: 14px 10px 8px; } }
+@media (max-width: 560px) { .road-events th, .road-events td, .activity-growth-events th, .activity-growth-events td { padding: 8px 6px; } }
 @media (prefers-reduced-motion: reduce) {
   .home-path, .home-path-community::before, .home-orbits .coordinates, .road-stage, .road-line, .road-area, .road-dot { transition: none; }
 }

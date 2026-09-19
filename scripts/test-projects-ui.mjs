@@ -349,6 +349,18 @@ test('the export re-fetches unauthenticated, validates the packet and fails clos
   assert.ok(ok.requests.at(-1).options.headers.Authorization === undefined);
 });
 
+test('a completed commitment exports and downloads like the backend sends it', async () => {
+  const completed = { id: id(41), milestone_id: id(30), project_id: id(1), contributor: actor(5), coordinator: actor(2), status: 'completed', terms: 'volunteer', scope_version: 1, created_at: timestamp, updated_at: timestamp };
+  const h = harness({ route: routes(project({ commitments: [completed] }), (path) => path.includes('/export')
+    ? { body: exportPacket({ commitments: [completed] }) } : undefined) });
+  await publicOpen(h);
+  await h.button('Download project export').click(); await flush();
+  assert.equal(h.downloads.length, 1, 'The milestone-completed status no longer rejects the export');
+  const packet = JSON.parse(await h.blobs.get(h.downloads[0].href).text());
+  assert.equal(packet.commitments[0].status, 'completed');
+  assert.match(h.text('project-detail-status'), /Project export downloaded/);
+});
+
 test('the model refuses offered commitments in public detail, viewer markers in public views and wrong export notices', () => {
   const { detail, exported, summary } = windowModel();
   assert.ok(detail(project(), false));
@@ -359,6 +371,14 @@ test('the model refuses offered commitments in public detail, viewer markers in 
   assert.ok(exported(exportPacket()));
   assert.ok(!exported(exportPacket({ notice: 'different' })));
   assert.ok(!exported(exportPacket({ commitments: [{ ...exportPacket().commitments[0], status: 'offered' }] })));
+});
+
+test('the detail contract carries deep commitment histories and stays bounded honestly', () => {
+  const { detail, exported } = windowModel();
+  const history = (count) => Array.from({ length: count }, (_, index) => commitment({ id: id(40 + index), status: index % 2 ? 'completed' : 'ended', updated_at: timestamp }));
+  assert.ok(detail(project({ commitments: history(61) })), '61 terminal commitments render — the invented 60 cap is gone');
+  assert.ok(exported(exportPacket({ commitments: history(150).map(({ project_id, ...rest }) => rest) })), 'The export follows the backend: no history cap at all');
+  assert.ok(!detail(project({ commitments: history(501) })), 'The render protection bound still fails closed beyond any honest history');
 });
 
 const artifactDigest = 'a'.repeat(64);

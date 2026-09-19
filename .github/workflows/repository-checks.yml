@@ -12,7 +12,7 @@ permissions:
 jobs:
   repository-baseline:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -24,8 +24,8 @@ jobs:
           node-version: '24'
       - name: Validate Commons service with real SQLite transactions
         run: node --test services/commons/test/*.test.mjs
-      - name: Validate public mission handoff and private-state boundaries
-        run: node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs scripts/test-work-items-ui.mjs scripts/test-projects-ui.mjs
+      - name: Validate public mission handoff, private-state boundaries and the UI suites
+        run: node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs scripts/test-work-items-ui.mjs scripts/test-projects-ui.mjs scripts/test-road-so-far.mjs scripts/test-commons-activity.mjs scripts/test-commons-growth-data.mjs
       - name: Check machine contract rejection cases
         run: python3 scripts/check-agent-data.py --self-test
       - name: Validate the delivery receipt verifier

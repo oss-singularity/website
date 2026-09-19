@@ -98,7 +98,7 @@ def required_files(actual: set[str], read) -> set[str]:
         "assets/social/oss-singularity-social-preview.png",
         "assets/styles/site-v2.css",
         "assets/styles/hub-v1.css", "assets/scripts/atlas-v1.js",
-        "assets/styles/home-v1.css", "assets/styles/activity-v1.css", "assets/scripts/commons-activity-v1.js",
+        "assets/styles/home-v1.css", "assets/styles/activity-v1.css", "assets/scripts/commons-growth-data-v1.js", "assets/scripts/commons-activity-v1.js",
         "assets/scripts/mission-lab-v1.js", "llms.txt",
         "assets/scripts/section-navigation-v1.js",
         ".well-known/agent-home.json", "data/agent-home.schema.json",
@@ -139,10 +139,10 @@ def check_product(root: Path) -> int:
     social_image = f"https://oss-singularity.io/{social_versioned_path}"
     html_bytes = 0
     script_allowlist = {
-        "index.html": ["/assets/scripts/reactive-field-v2.js", "/assets/scripts/commons-pulse-v1.js", "/assets/scripts/commons-activity-v1.js", "/assets/scripts/road-so-far-v1.js"],
+        "index.html": ["/assets/scripts/reactive-field-v2.js", "/assets/scripts/commons-pulse-v1.js", "/assets/scripts/commons-growth-data-v1.js", "/assets/scripts/commons-activity-v1.js", "/assets/scripts/road-so-far-v1.js"],
         "atlas/index.html": ["/assets/scripts/atlas-v1.js"],
         "lab/index.html": ["/assets/scripts/mission-lab-v1.js"],
-        "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js", "/assets/scripts/observatory-motion-v1.js", "/assets/scripts/commons-activity-v1.js"],
+        "observatory/index.html": ["/assets/scripts/commons-pulse-v1.js", "/assets/scripts/observatory-motion-v1.js", "/assets/scripts/commons-growth-data-v1.js", "/assets/scripts/commons-activity-v1.js"],
         "workshop/index.html": ["/assets/scripts/workshop-v1.js", "/assets/scripts/workshop-identity-v1.js"],
         "singularity/index.html": ["/assets/scripts/singularity-v1.js", "/assets/scripts/singularity-participation-v1.js", "/assets/scripts/work-items-model-v1.js", "/assets/scripts/work-items-v1.js", "/assets/scripts/projects-model-v1.js", "/assets/scripts/projects-v1.js", "/assets/scripts/projects-deliveries-v1.js"],
         "guide/index.html": ["/assets/scripts/section-navigation-v1.js"],

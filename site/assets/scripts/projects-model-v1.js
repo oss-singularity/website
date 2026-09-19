@@ -29,17 +29,25 @@
     && date(v.created_at) && date(v.updated_at) && profile(v.contributor) && profile(v.coordinator);
   // Public reads never include another participant's offered commitment;
   // an authenticated participant view may contain offered ones plus a viewer marker.
+  // The backend caps milestones at 20 per project but keeps no cap on a
+  // project's commitment history — only three may be nonterminal at once.
+  // This bound is a UI-side render protection far above any reachable honest
+  // history; crossing it fails closed instead of showing a partial room as
+  // the complete record.
+  const commitmentRenderLimit = 500;
   const detail = (v, privateView = false) => summary(v)
     && Array.isArray(v.milestones) && v.milestones.length <= 20 && v.milestones.every(milestone)
-    && Array.isArray(v.commitments) && v.commitments.length <= 60 && v.commitments.every(commitment)
+    && Array.isArray(v.commitments) && v.commitments.length <= commitmentRenderLimit && v.commitments.every(commitment)
     && v.commitments.every((c) => privateView || c.status !== "offered")
     && (privateView || v.viewer === undefined)
     && (v.viewer === undefined || (v.viewer && v.viewer.coordinator === true));
+  // The public export carries every bound commitment the backend sends —
+  // confirmed, ended and milestone-completed alike — with no history cap.
   const exported = (v) => v && v.schema_version === 1 && v.kind === "oss-project-export" && date(v.exported_at)
     && summary(v.project) && v.project.scope_version === 1
     && Array.isArray(v.milestones) && v.milestones.length <= 20 && v.milestones.every(milestone)
-    && Array.isArray(v.commitments) && v.commitments.length <= 60 && v.commitments.every((c) => commitment(c, true)
-      && ["confirmed", "ended"].includes(c.status))
+    && Array.isArray(v.commitments) && v.commitments.every((c) => commitment(c, true)
+      && ["confirmed", "ended", "completed"].includes(c.status))
     && v.notice === "An export records coordination decisions and identities; it verifies no artifact and authorizes no payment.";
   // Retention is optional during the transition: absent/null stays valid; a present
   // declaration must name a retaining role, a short ISO date or none, public access
