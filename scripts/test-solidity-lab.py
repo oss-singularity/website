@@ -85,6 +85,7 @@ class LabTests(unittest.TestCase):
             {**base, "delivery_digest": "zz" * 32},
             {**base, "deadline": -1},
             {**base, "deadline": True},   # bool is not an integer deadline (review A4)
+            {**base, "schema_version": True},  # bool is not a schema version (review L1)
             {**base, "deadline": 2**256},  # beyond the uint256 constant the contract declares
             {**base, "kind": "something-else"},
             {k: v for k, v in base.items() if k != "coordinator"},
@@ -267,6 +268,8 @@ class SettlementLabTests(unittest.TestCase):
             {**base, "outer_deadline": 0},
             {**base, "review_deadline": 2**256},  # beyond the uint256 constant
             {**base, "dispute_fallback": "keep"},
+            {k: v for k, v in base.items() if k != "dispute_fallback"},  # required field absent (review L2)
+            {**base, "schema_version": True},  # bool is not a schema version (review L1)
             {**base, "review_deadline": True},
         ]
         for case in cases:
@@ -276,6 +279,32 @@ class SettlementLabTests(unittest.TestCase):
                 result = subprocess.run([sys.executable, str(LAB), "--agreement", str(path), "--out", folder],
                                         capture_output=True, text=True, timeout=60)
                 self.assertEqual(result.returncode, 1, f"must refuse: {case}")
+
+    def test_hostile_versions_and_missing_required_fields_are_refused_cleanly(self) -> None:
+        """Reviews L1/L2: bool and float schema versions, and a missing
+        required dispute_fallback, must produce the normal labelled refusal —
+        never a raw traceback — before any file is written."""
+        settlement = json.loads(SETTLEMENT_AGREEMENT.read_text())
+        delivery = json.loads(AGREEMENT.read_text())
+        cases = (
+            ("settlement bool version", {**settlement, "schema_version": True}),
+            ("settlement float version", {**settlement, "schema_version": 1.0}),
+            ("settlement unsupported version", {**settlement, "schema_version": 2}),
+            ("settlement missing fallback", {k: v for k, v in settlement.items() if k != "dispute_fallback"}),
+            ("delivery bool version", {**delivery, "schema_version": True}),
+        )
+        for name, case in cases:
+            with tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / "agreement.json"
+                path.write_text(json.dumps(case))
+                result = subprocess.run([sys.executable, str(LAB), "--agreement", str(path), "--out", folder],
+                                        capture_output=True, text=True, timeout=60)
+                self.assertEqual(result.returncode, 1, f"must refuse: {name}")
+                self.assertTrue(result.stderr.startswith("invalid agreement:"),
+                                f"{name}: expected the clean validation refusal, got {result.stderr!r}")
+                self.assertNotIn("Traceback", result.stderr, f"{name}: must not leak a raw exception")
+                leftovers = sorted(p.name for p in Path(folder).iterdir() if p.name != "agreement.json")
+                self.assertEqual(leftovers, [], f"{name}: refusal must happen before generation writes any file")
 
 
 class CompilerTests(unittest.TestCase):

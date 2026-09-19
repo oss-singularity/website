@@ -27,7 +27,9 @@ agreement passes a closed schema check before generation: role addresses are
 validated 20-byte hex strings, roles must be distinct (compared
 case-insensitively), deadlines are true integers within the uint256 range,
 and title/note accept only printable characters within a length bound — so no
-unvalidated string ever reaches the generated Solidity source.
+unvalidated string ever reaches the generated Solidity source. The schema
+version itself must be a real integer of a supported version — bool and float
+never pass, mirroring the deadline rule.
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ SOLIDITY_VERSION = "^0.8.24"
 
 HEX_DIGITS = set("0123456789abcdef")
 DISPUTE_FALLBACKS = ("refund", "release")
+SUPPORTED_SCHEMA_VERSIONS = (1,)
 UINT256_MAX = 2**256 - 1  # every deadline becomes a uint256 constant in the contract
 TITLE_MAX_LENGTH = 80
 NOTE_MAX_LENGTH = 600
@@ -59,6 +62,15 @@ def _require_closed_document(document: dict, allowed: tuple[str, ...]) -> None:
     if unknown:
         raise ValueError(
             f"unknown agreement field(s) {unknown}; the input schema is closed: {list(allowed)}")
+
+
+def _require_schema_version(document: dict) -> None:
+    value = document.get("schema_version")
+    # bool is an int subclass (True == 1) and 1.0 == 1, so plain equality
+    # would accept both: demand a real integer of a supported version.
+    if not isinstance(value, int) or isinstance(value, bool) or value not in SUPPORTED_SCHEMA_VERSIONS:
+        raise ValueError(
+            f"schema_version must be an integer this lab supports, one of {list(SUPPORTED_SCHEMA_VERSIONS)}")
 
 
 def _require_text(document: dict, field: str, max_length: int) -> str:
@@ -110,8 +122,9 @@ def _require_distinct_roles(document: dict, fields: tuple[str, ...]) -> None:
 
 
 def _validate_delivery_agreement(document: dict) -> dict:
-    if document.get("kind") != "oss-solidity-lab-agreement" or document.get("schema_version") != 1:
+    if document.get("kind") != "oss-solidity-lab-agreement":
         raise ValueError("not an oss-solidity-lab-agreement (schema_version 1)")
+    _require_schema_version(document)
     _require_closed_document(document, DELIVERY_FIELDS)
     for field, limit in (("title", TITLE_MAX_LENGTH), ("note", NOTE_MAX_LENGTH)):
         _require_text(document, field, limit)
@@ -124,8 +137,9 @@ def _validate_delivery_agreement(document: dict) -> dict:
 
 
 def _validate_settlement_agreement(document: dict) -> dict:
-    if document.get("kind") != "oss-solidity-lab-settlement-agreement" or document.get("schema_version") != 1:
+    if document.get("kind") != "oss-solidity-lab-settlement-agreement":
         raise ValueError("not an oss-solidity-lab-settlement-agreement (schema_version 1)")
+    _require_schema_version(document)
     _require_closed_document(document, SETTLEMENT_FIELDS)
     for field, limit in (("title", TITLE_MAX_LENGTH), ("note", NOTE_MAX_LENGTH)):
         _require_text(document, field, limit)
@@ -138,7 +152,7 @@ def _validate_settlement_agreement(document: dict) -> dict:
     outer = _require_deadline(document, "outer_deadline")
     if not review < dispute < outer:
         raise ValueError("deadlines must ascend: review_deadline < dispute_deadline < outer_deadline")
-    if document["dispute_fallback"] not in DISPUTE_FALLBACKS:
+    if document.get("dispute_fallback") not in DISPUTE_FALLBACKS:
         raise ValueError(f"dispute_fallback must be one of {DISPUTE_FALLBACKS}")
     return document
 
