@@ -22,6 +22,24 @@ async function projectAndMilestone(db, projectId, milestoneId) {
   return row;
 }
 
+// Child reads inherit the effective visibility of their parents, the same
+// guard the project read applies: a cancelled project leaves public reads but
+// stays readable for its coordinator presenting an identity token, and a
+// project whose parent mission left publication disappears for everyone.
+async function readableProjectAndMilestone(request, env, projectId, milestoneId, now) {
+  const viewer = request.headers.has('authorization') ? await authenticateIdentity(request, env, now) : null;
+  const extra = viewer ? "(p.status != 'cancelled' OR p.coordinator_identity_id = ?)" : "p.status != 'cancelled'";
+  const row = await env.DB.prepare(`SELECT m.id AS milestone_id, p.version AS project_version
+    FROM milestones m
+    JOIN projects p ON p.id = m.project_id
+    JOIN proposals parent ON parent.id = p.mission_id
+    WHERE m.id = ? AND m.project_id = ? AND ${extra}
+      AND parent.status = 'published' AND parent.kind = 'mission'`)
+    .bind(...(viewer ? [milestoneId, projectId, viewer.id] : [milestoneId, projectId])).first();
+  if (!row) throw new ApiError(404, 'not_found', 'Milestone not found in this project.');
+  return row;
+}
+
 function deliveryView(row) {
   return {
     id: row.id, project_id: row.project_id, milestone_id: row.milestone_id, revision: row.revision,
@@ -142,7 +160,7 @@ export async function submitDelivery(request, env, projectId, milestoneId, now) 
 
 export async function listDeliveries(request, env, projectId, milestoneId, now) {
   if (new URL(request.url).search) invalid('This endpoint does not accept query parameters.');
-  await projectAndMilestone(env.DB, projectId, milestoneId);
+  await readableProjectAndMilestone(request, env, projectId, milestoneId, now);
   const rows = (await env.DB.prepare(`${deliverySelect} WHERE d.milestone_id = ? ORDER BY d.revision DESC`)
     .bind(milestoneId).all()).results;
   return response({ items: rows.map(deliveryView), next_cursor: null });
@@ -153,7 +171,7 @@ export async function deliveryManifest(request, env, projectId, milestoneId, rev
   if (!/^[1-9][0-9]{0,1}$/.test(String(revision)) || Number(revision) < 1 || Number(revision) > MAX_REVISIONS) {
     throw new ApiError(404, 'not_found', 'No such delivery revision.');
   }
-  const context = await projectAndMilestone(env.DB, projectId, milestoneId);
+  const context = await readableProjectAndMilestone(request, env, projectId, milestoneId, now);
   const row = await env.DB.prepare(`${deliverySelect} WHERE d.milestone_id = ? AND d.revision = ?`)
     .bind(milestoneId, Number(revision)).first();
   if (!row) throw new ApiError(404, 'not_found', 'No such delivery revision.');
@@ -300,7 +318,7 @@ export async function submitReview(request, env, projectId, milestoneId, now) {
 
 export async function listReviews(request, env, projectId, milestoneId, now) {
   if (new URL(request.url).search) invalid('This endpoint does not accept query parameters.');
-  await projectAndMilestone(env.DB, projectId, milestoneId);
+  await readableProjectAndMilestone(request, env, projectId, milestoneId, now);
   const rows = (await env.DB.prepare(`${reviewSelect} WHERE r.milestone_id = ? ORDER BY r.created_at DESC, r.id DESC`)
     .bind(milestoneId).all()).results;
   return response({ items: rows.map(reviewView), next_cursor: null });
