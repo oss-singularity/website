@@ -93,24 +93,27 @@ may move key material through a command line:
   exercises the keystore path end to end against a second private instance
   with freshly generated zero-value keystores.
 
-## Deadline priority: refund wins past the outer deadline
+## Deadline priority: refund wins from the outer deadline instant on
 
 The one precedence rule the settlement machine fixes (architecture review
-A5): the refund window and every release window are disjoint. Exactly when
-the permissionless `refundAfterOuterDeadline` becomes available
-(`block.timestamp > OUTER_DEADLINE`), every release-minting transition is
-refused with `OuterDeadlinePassed` — the plain `release` after acceptance, a
-releasing `executeResolution`, and a releasing `applyDisputeFallback` alike.
-Up to and including the deadline itself, releases remain possible and the
-refund is refused with `OuterDeadlineNotPassed`. A late release can never
-race the refund for the same state, whichever transaction is broadcast
-first; the Python model, the generated contract and the local-chain
-exercise all assert the same boundaries (outer−1, outer, outer+1) and both
-transaction orders. Executions that already end in a refund (a refunding
-resolution or a refunding fallback) stay allowed after the deadline — they
-cannot compete with the refund outcome they share. This contract records
-states only and moves no funds; nothing here claims an external transfer
-could be reverted — the priority rule governs the record, not any custody.
+A5): the refund window and every release window are disjoint, and the
+deadline instant itself already belongs to the refund. From
+`OUTER_DEADLINE` on (inclusive — exactly when the permissionless
+`refundAfterOuterDeadline` becomes available,
+`block.timestamp >= OUTER_DEADLINE`), every release-minting transition is
+refused with `OuterDeadlinePassed` — the plain `release` after acceptance,
+a releasing `executeResolution`, and a releasing `applyDisputeFallback`
+alike. Before the deadline, releases remain possible and the refund is
+refused with `OuterDeadlineNotPassed`. At every timestamp exactly one
+direction can act, so a release can never race the refund for the same
+state, whichever transaction is broadcast first; the Python model, the
+generated contract and the local-chain exercise all assert the same
+boundaries (outer−1, outer, outer+1) and both transaction orders.
+Executions that already end in a refund (a refunding resolution or a
+refunding fallback) stay allowed from the deadline on — they cannot
+compete with the refund outcome they share. This contract records states
+only and moves no funds; nothing here claims an external transfer could be
+reverted — the priority rule governs the record, not any custody.
 
 ## What the suite exercises
 

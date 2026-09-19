@@ -152,7 +152,9 @@ class UnresponsiveParticipantTests(unittest.TestCase):
 
 
 class OuterDeadlinePriorityTests(unittest.TestCase):
-    """Review A5: past the outer deadline the refund has exclusive priority.
+    """Review A5: from the outer deadline instant ON (inclusive) the refund
+    has exclusive priority — the mandated deadline instant itself already
+    belongs to the refund.
 
     The refund window and every release window are disjoint — proven at the
     boundaries outer−1 / outer / outer+1 and in BOTH transaction orders for
@@ -172,14 +174,17 @@ class OuterDeadlinePriorityTests(unittest.TestCase):
             action()
 
     def test_accepted_release_boundaries_are_disjoint_from_the_refund(self) -> None:
-        for timestamp in (OUTER_DEADLINE - 1, OUTER_DEADLINE):
-            with self.subTest(f"release still works at {timestamp}"):
-                deliver_and_accept(self.model)
-                self.model.now = timestamp
-                self.model.release(HOLDER)
-                self.assertIs(self.model.state, self.state.RELEASED)
-                self._fresh()
-        with self.subTest("one tick past the deadline the release is refused"):
+        with self.subTest("release still works one tick before the deadline"):
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE - 1
+            self.model.release(HOLDER)
+            self.assertIs(self.model.state, self.state.RELEASED)
+        with self.subTest("the deadline instant itself already refuses the release"):
+            self._fresh()
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE
+            self._refuses(lambda: self.model.release(HOLDER), "OuterDeadlinePassed")
+        with self.subTest("one tick later the same refusal holds"):
             self._fresh()
             deliver_and_accept(self.model)
             self.model.now = OUTER_DEADLINE + 1
@@ -190,66 +195,64 @@ class OuterDeadlinePriorityTests(unittest.TestCase):
         self.model.now = OUTER_DEADLINE - 1
         self._refuses(lambda: self.model.refund_after_outer_deadline(STRANGER), "OuterDeadlineNotPassed")
         self.model.now = OUTER_DEADLINE
-        self._refuses(lambda: self.model.refund_after_outer_deadline(STRANGER), "OuterDeadlineNotPassed")
-        self.model.now = OUTER_DEADLINE + 1
-        self.model.refund_after_outer_deadline(STRANGER)
+        self.model.refund_after_outer_deadline(STRANGER)  # the instant itself refunds
         self.assertIs(self.model.state, self.state.REFUNDED)
 
-    def test_late_release_cannot_race_the_refund_in_either_order(self) -> None:
-        with self.subTest("release attempt first, refund second"):
+    def test_release_cannot_race_the_refund_at_the_instant_in_either_order(self) -> None:
+        with self.subTest("release attempt first, refund second — at the deadline instant"):
             deliver_and_accept(self.model)
-            self.model.now = OUTER_DEADLINE + 1
+            self.model.now = OUTER_DEADLINE
             self._refuses(lambda: self.model.release(HOLDER), "OuterDeadlinePassed")
             self.model.refund_after_outer_deadline(STRANGER)
             self.assertIs(self.model.state, self.state.REFUNDED)
             self._refuses(lambda: self.model.release(HOLDER), "WrongState")  # terminal is final
-        with self.subTest("refund first, release attempt second"):
+        with self.subTest("refund first, release attempt second — one tick later"):
             self._fresh()
             deliver_and_accept(self.model)
             self.model.now = OUTER_DEADLINE + 1
             self.model.refund_after_outer_deadline(STRANGER)
             self._refuses(lambda: self.model.release(HOLDER), "WrongState")
 
-    def test_resolved_release_is_refused_past_the_outer_deadline(self) -> None:
-        with self.subTest("the last moment for a releasing resolution is the deadline itself"):
+    def test_resolved_release_is_refused_from_the_outer_deadline_on(self) -> None:
+        with self.subTest("the last moment for a releasing resolution is one tick before the deadline"):
             deliver_and_dispute(self.model)
             self.model.resolve_dispute(HOLDER, releases=True)
-            self.model.now = OUTER_DEADLINE
+            self.model.now = OUTER_DEADLINE - 1
             self.model.execute_resolution(HOLDER)
             self.assertIs(self.model.state, self.state.RELEASED)
-        with self.subTest("one tick later the refund wins, either order"):
+        with self.subTest("the deadline instant itself refuses it and the refund wins"):
             self._fresh()
             deliver_and_dispute(self.model)
             self.model.resolve_dispute(HOLDER, releases=True)
-            self.model.now = OUTER_DEADLINE + 1
+            self.model.now = OUTER_DEADLINE
             self._refuses(lambda: self.model.execute_resolution(HOLDER), "OuterDeadlinePassed")
             self.model.refund_after_outer_deadline(STRANGER)
             self.assertIs(self.model.state, self.state.REFUNDED)
 
-    def test_release_fallback_is_refused_past_the_outer_deadline(self) -> None:
+    def test_release_fallback_is_refused_from_the_outer_deadline_on(self) -> None:
         self._fresh(releases_fallback=True)
         with self.subTest("a releasing fallback still works below the outer deadline"):
             deliver_and_dispute(self.model)
             self.model.now = DISPUTE_DEADLINE + 1
             self.model.apply_dispute_fallback(STRANGER)
             self.assertIs(self.model.state, self.state.RELEASED)
-        with self.subTest("past the outer deadline the refund outranks the agreed fallback"):
+        with self.subTest("the deadline instant itself outranks the agreed fallback"):
             self._fresh(releases_fallback=True)
             deliver_and_dispute(self.model)
-            self.model.now = OUTER_DEADLINE + 1
+            self.model.now = OUTER_DEADLINE
             self._refuses(lambda: self.model.apply_dispute_fallback(STRANGER), "OuterDeadlinePassed")
             self.model.refund_after_outer_deadline(STRANGER)
             self.assertIs(self.model.state, self.state.REFUNDED)
 
-    def test_refund_flavored_executions_survive_past_the_outer_deadline(self) -> None:
-        with self.subTest("a refunding resolution still executes"):
+    def test_refund_flavored_executions_survive_from_the_outer_deadline_on(self) -> None:
+        with self.subTest("a refunding resolution still executes at the instant"):
             deliver_and_dispute(self.model)
             self.model.resolve_dispute(HOLDER, releases=False)
-            self.model.now = OUTER_DEADLINE + 1
+            self.model.now = OUTER_DEADLINE
             self.model.execute_resolution(HOLDER)
             self.assertIs(self.model.state, self.state.REFUNDED)
             self.assertEqual(self.model.refund_reason, "dispute resolution")
-        with self.subTest("a refunding fallback still executes"):
+        with self.subTest("a refunding fallback still executes one tick later"):
             self._fresh()
             deliver_and_dispute(self.model)
             self.model.now = OUTER_DEADLINE + 1
@@ -315,11 +318,11 @@ class GuardTests(unittest.TestCase):
 
     def test_outer_deadline_refund_needs_the_deadline_and_a_live_state(self) -> None:
         self.model.record_funding(HOLDER)
-        self.model.now = OUTER_DEADLINE
+        self.model.now = OUTER_DEADLINE - 1
         with self.assertRaises(self.revert):
             self.model.refund_after_outer_deadline(STRANGER)  # not yet
-        self.model.now = OUTER_DEADLINE + 1
-        self.model.refund_after_outer_deadline(STRANGER)
+        self.model.now = OUTER_DEADLINE
+        self.model.refund_after_outer_deadline(STRANGER)  # from the instant itself
         with self.assertRaises(self.revert):
             self.model.refund_after_outer_deadline(STRANGER)  # terminal is final
 

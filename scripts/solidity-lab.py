@@ -343,7 +343,7 @@ contract FairSettlement {{
     // ---- Named deadlines: every waiting state has one ----
     uint256 public constant REVIEW_DEADLINE = {agreement['review_deadline']};   // delivery not reviewed → dispute path, never silent release
     uint256 public constant DISPUTE_DEADLINE = {agreement['dispute_deadline']}; // dispute unresolved → the agreement's fallback
-    uint256 public constant OUTER_DEADLINE = {agreement['outer_deadline']};     // past it the refund path has EXCLUSIVE priority
+    uint256 public constant OUTER_DEADLINE = {agreement['outer_deadline']};     // from it (inclusive) the refund path has EXCLUSIVE priority
 
     // ---- The fallback outcome the agreement fixed for a deadlocked dispute ----
     bool public constant DISPUTE_FALLBACK_RELEASES = {fallback_releases}; // {agreement['dispute_fallback']}
@@ -433,18 +433,19 @@ contract FairSettlement {{
     }}
 
     /// @notice The holder executes the release its custody rules require once
-    ///         acceptance has satisfied the release condition — strictly
-    ///         before the outer deadline. From the moment the refund path
-    ///         opens, no new release can succeed: refund has priority. The
-    ///         transfer itself happens in the holder's separate, audited
-    ///         system; this record only marks the outcome.
+    ///         acceptance has satisfied the release condition — before the
+    ///         outer deadline. From the deadline instant itself on (the
+    ///         moment the refund path opens), no new release can succeed:
+    ///         refund has priority. The transfer itself happens in the
+    ///         holder's separate, audited system; this record only marks
+    ///         the outcome.
     /// @dev    Signature (): no arguments. Reverts for anyone but the holder,
-    ///         when the settlement has not been accepted, or once the outer
-    ///         deadline has passed (OuterDeadlinePassed — the refund window
+    ///         when the settlement has not been accepted, or from the outer
+    ///         deadline instant on (OuterDeadlinePassed — the refund window
     ///         and the release window are disjoint).
     function release() external onlyHolder {{
         if (state != State.accepted) revert WrongState(state);
-        if (block.timestamp > OUTER_DEADLINE) revert OuterDeadlinePassed(block.timestamp, OUTER_DEADLINE);
+        if (block.timestamp >= OUTER_DEADLINE) revert OuterDeadlinePassed(block.timestamp, OUTER_DEADLINE);
         state = State.released;
         emit Released(msg.sender);
     }}
@@ -477,16 +478,16 @@ contract FairSettlement {{
 
     /// @notice The holder executes the recorded resolution: released or
     ///         refunded, exactly as resolved. A releasing execution is
-    ///         refused once the outer deadline has passed — the refund path
+    ///         refused from the outer deadline instant on — the refund path
     ///         has priority from then on; a refunding execution still
     ///         reaches its (already refund) outcome. The transfer itself
     ///         stays in the holder's custody system.
     /// @dev    Signature (): no arguments. Reverts for anyone but the holder,
     ///         when no resolution has been recorded, or when the resolution
-    ///         releases and the outer deadline has passed.
+    ///         releases from the outer deadline instant on.
     function executeResolution() external onlyHolder {{
         if (state != State.resolved) revert WrongState(state);
-        if (resolutionReleases && block.timestamp > OUTER_DEADLINE) revert OuterDeadlinePassed(block.timestamp, OUTER_DEADLINE);
+        if (resolutionReleases && block.timestamp >= OUTER_DEADLINE) revert OuterDeadlinePassed(block.timestamp, OUTER_DEADLINE);
         if (resolutionReleases) {{
             state = State.released;
             emit Released(msg.sender);
@@ -499,23 +500,25 @@ contract FairSettlement {{
     // ---- Timeouts: every waiting state names a deadline and a default ----
     // A timeout produces a DEFINED outcome; it never mints authority. The two
     // paths below are therefore deliberately permissionless: they can only
-    // ever reach the outcome the agreement already fixed. Past the outer
-    // deadline the refund path has EXCLUSIVE priority: every release-minting
-    // transition is refused exactly when the refund becomes available, so a
-    // late release can never race the refund for the same state.
+    // ever reach the outcome the agreement already fixed. From the outer
+    // deadline instant (inclusive) the refund path has EXCLUSIVE priority:
+    // every release-minting transition is refused exactly when the refund
+    // becomes available, so a release can never race the refund for the
+    // same state.
 
     /// @notice Past the dispute window the agreed fallback replaces a
     ///         silent holder: the settlement takes the outcome fixed in the
     ///         agreement ({agreement['dispute_fallback']}) without needing anyone's cooperation —
     ///         unless that outcome is a release and the outer deadline has
-    ///         passed: the refund priority outranks even the agreed fallback.
+    ///         been reached: the refund priority outranks even the agreed
+    ///         fallback.
     /// @dev    Signature (): no arguments. Reverts while the settlement is not
     ///         disputed, while the dispute window is still open, or when the
-    ///         fallback releases and the outer deadline has passed.
+    ///         fallback releases from the outer deadline instant on.
     function applyDisputeFallback() external {{
         if (state != State.disputed) revert WrongState(state);
         if (block.timestamp <= DISPUTE_DEADLINE) revert DisputeWindowStillOpen(block.timestamp, DISPUTE_DEADLINE);
-        if (DISPUTE_FALLBACK_RELEASES && block.timestamp > OUTER_DEADLINE) revert OuterDeadlinePassed(block.timestamp, OUTER_DEADLINE);
+        if (DISPUTE_FALLBACK_RELEASES && block.timestamp >= OUTER_DEADLINE) revert OuterDeadlinePassed(block.timestamp, OUTER_DEADLINE);
         if (DISPUTE_FALLBACK_RELEASES) {{
             state = State.released;
             emit Released(msg.sender);
@@ -525,15 +528,16 @@ contract FairSettlement {{
         }}
     }}
 
-    /// @notice Past the outer deadline, funds unreleased take the refund
-    ///         path from every non-terminal state: the budget flows back
-    ///         rather than sitting withheld indefinitely. From that moment
-    ///         on this is the only outcome — every release path is closed.
+    /// @notice From the outer deadline instant on (inclusive), funds
+    ///         unreleased take the refund path from every non-terminal
+    ///         state: the budget flows back rather than sitting withheld
+    ///         indefinitely. From that moment on this is the only outcome —
+    ///         every release path is closed.
     /// @dev    Signature (): no arguments. Reverts before the outer deadline
     ///         and on terminal states (nothing left to refund).
     function refundAfterOuterDeadline() external {{
         if (state == State.none || state == State.released || state == State.refunded) revert WrongState(state);
-        if (block.timestamp <= OUTER_DEADLINE) revert OuterDeadlineNotPassed(block.timestamp, OUTER_DEADLINE);
+        if (block.timestamp < OUTER_DEADLINE) revert OuterDeadlineNotPassed(block.timestamp, OUTER_DEADLINE);
         state = State.refunded;
         emit Refunded("outer deadline", msg.sender);
     }}
@@ -573,7 +577,7 @@ never holds funds and never gains custody.
     funded → delivered → disputed → resolved → released | refunded
     funded → refunded            (cancellation before delivery)
     any waiting state past its deadline → the outcome the agreement already fixed
-    past the outer deadline → refund only; no new release can succeed
+    from the outer deadline on → refund only; no new release can succeed
 
 ## States, named exactly as the design note names them
 
@@ -595,7 +599,7 @@ never holds funds and never gains custody.
 | `recordFunding()` | a call declaring the budget sits with the holder | that funding exists — a declaration about the holder's custody, never a transfer | holder only |
 | `recordDelivery(uint16 revision)` | a call naming the next revision number | that the contributor recorded revision N referencing the declared digest | contributor only |
 | `accept(uint16 revision)` | a call naming the newest revision | that acceptance binds exactly that revision before the review deadline — the release condition | coordinator only |
-| `release()` | a call executing the release | that the holder released the budget after acceptance satisfied its condition — strictly before the outer deadline | holder only |
+| `release()` | a call executing the release | that the holder released the budget after acceptance satisfied its condition — before the outer deadline | holder only |
 | `openDispute(string calldata reason)` | a call naming the reason for the dispute | that one party opened the agreed dispute path while the work awaits review | contributor or coordinator only |
 | `resolveDispute(bool releases)` | a call declaring which way the resolution goes | that the holder recorded the resolution inside the dispute window | holder only |
 | `executeResolution()` | a call executing the recorded resolution | that the holder carried out the resolution: released or refunded, exactly as resolved — a releasing execution only before the outer deadline | holder only |
@@ -616,17 +620,19 @@ Every waiting state names a deadline and a defined default outcome:
 - funds unreleased by `OUTER_DEADLINE` → the refund path via
   `refundAfterOuterDeadline`, from every non-terminal state
 
-**Refund priority past the outer deadline** — the one precedence rule this
-machine fixes: the refund window and every release window are disjoint.
-Exactly when `refundAfterOuterDeadline` becomes available
-(`block.timestamp > OUTER_DEADLINE`), every release-minting transition is
+**Refund priority from the outer deadline on** — the one precedence rule
+this machine fixes: the refund window and every release window are disjoint.
+Exactly from the outer deadline instant itself (inclusive — the moment
+`refundAfterOuterDeadline` becomes available,
+`block.timestamp >= OUTER_DEADLINE`), every release-minting transition is
 refused with `OuterDeadlinePassed` — `release`, a releasing
-`executeResolution`, and a releasing `applyDisputeFallback` alike. Up to and
-including the deadline itself, releases remain possible and the refund is
-refused (`OuterDeadlineNotPassed`). A late release can therefore never race
-the refund for the same state, whichever transaction arrives first.
-Executions that already end in a refund stay allowed after the deadline:
-they cannot compete with the refund outcome they share.
+`executeResolution`, and a releasing `applyDisputeFallback` alike. Before
+the deadline, releases remain possible and the refund is refused
+(`OuterDeadlineNotPassed`). At every timestamp exactly one direction can
+act, so a release can never race the refund for the same state, whichever
+transaction arrives first. Executions that already end in a refund stay
+allowed from the deadline on: they cannot compete with the refund outcome
+they share.
 
 A timeout produces a DEFINED outcome; it never mints authority. The timeout
 paths are permissionless on purpose: they can only ever reach the outcome the
@@ -641,8 +647,8 @@ agreement already fixed, so no caller gains control over the settlement.
 - `NotNewestRevision` — stale revisions are refused, not silently superseded.
 - `DeadlinePassed` — acceptance after the review deadline and resolutions after the dispute deadline are refused.
 - `DisputeWindowStillOpen` — the agreed fallback exists only for a dispute that outlived its window.
-- `OuterDeadlineNotPassed` — the refund path exists only once the outer deadline has actually passed.
-- `OuterDeadlinePassed` — every release path closes exactly then: once the refund is available, no new release can succeed.
+- `OuterDeadlineNotPassed` — the refund path exists only from the outer deadline instant onward (inclusive).
+- `OuterDeadlinePassed` — every release path closes exactly from that instant on: once the refund is available, no new release can succeed.
 
 ## Honest boundaries
 

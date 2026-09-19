@@ -576,25 +576,35 @@ class AnvilSettlementTests(unittest.TestCase):
         self.assertEqual(self._state(), STATE["refunded"])
 
     def test_outer_deadline_release_boundaries_on_chain(self) -> None:
-        """Review A5: release and refund windows are disjoint at the exact
-        boundaries outer−1 / outer / outer+1, read back from mined blocks."""
+        """Review A5, the mandated instant: from the outer deadline ON
+        (inclusive) every release is refused and the refund is available —
+        proven at outer−1 / outer / outer+1 with block timestamps read back
+        from the mined blocks."""
         outer = self.AGREEMENT_DATA["outer_deadline"]
-        for timestamp in (outer - 1, outer):
-            with self.subTest(f"release still succeeds at block time {timestamp}"):
-                self.contract = self._deploy(self.BYTECODE)
-                self._jump_to(int(time.time()))  # the shared clock restarts per scenario
-                self._deliver_and_accept()
-                self._next_block_at(timestamp)
-                self._send_ok_in_block("holder", "release()", timestamp)
-                self.assertEqual(self._state(), STATE["released"])
-        with self.subTest("the refund is still refused exactly on the deadline"):
+        with self.subTest("release still succeeds one tick before the deadline"):
+            self.contract = self._deploy(self.BYTECODE)
+            self._jump_to(int(time.time()))  # the shared clock restarts per scenario
+            self._deliver_and_accept()
+            self._next_block_at(outer - 1)
+            self._send_ok_in_block("holder", "release()", outer - 1)
+            self.assertEqual(self._state(), STATE["released"])
+        with self.subTest("the refund is still refused one tick before the deadline"):
             self.contract = self._deploy(self.BYTECODE)
             self._jump_to(int(time.time()))
             self._deliver()
-            self._next_block_at(outer)
+            self._next_block_at(outer - 1)
             self._send_reverts("coordinator", "refundAfterOuterDeadline()",
                                selector="OuterDeadlineNotPassed(uint256,uint256)")
-        with self.subTest("one tick past it, the release is refused and the refund wins"):
+        with self.subTest("the deadline instant itself refuses the release and refunds"):
+            self.contract = self._deploy(self.BYTECODE)
+            self._jump_to(int(time.time()))
+            self._deliver_and_accept()
+            self._next_block_at(outer)
+            self._send_reverts("holder", "release()",
+                               selector="OuterDeadlinePassed(uint256,uint256)")
+            self._send_ok_in_block("coordinator", "refundAfterOuterDeadline()", outer)
+            self.assertEqual(self._state(), STATE["refunded"])
+        with self.subTest("one tick later the same refusal and refund hold"):
             self.contract = self._deploy(self.BYTECODE)
             self._jump_to(int(time.time()))
             self._deliver_and_accept()
@@ -605,31 +615,31 @@ class AnvilSettlementTests(unittest.TestCase):
             self.assertEqual(self._state(), STATE["refunded"])
 
     def test_late_release_cannot_race_the_refund_on_chain(self) -> None:
-        """Review A5, the other transaction order: refund first, then the
-        release attempt — the terminal state is final."""
+        """Review A5, the other transaction order at the deadline instant:
+        refund first, then the release attempt — the terminal state is final."""
         outer = self.AGREEMENT_DATA["outer_deadline"]
         self._deliver_and_accept()
-        self._next_block_at(outer + 1)
-        self._send_ok_in_block("coordinator", "refundAfterOuterDeadline()", outer + 1)
+        self._next_block_at(outer)
+        self._send_ok_in_block("coordinator", "refundAfterOuterDeadline()", outer)
         self.assertEqual(self._state(), STATE["refunded"])
         self._send_reverts("holder", "release()", naming="WrongState")
 
-    def test_resolved_release_refused_past_the_outer_deadline_on_chain(self) -> None:
-        """Review A5: a resolution that releases can no longer execute once
-        the refund window is open."""
+    def test_resolved_release_refused_from_the_outer_deadline_on_chain(self) -> None:
+        """Review A5: a resolution that releases can no longer execute from
+        the deadline instant on — the refund wins in the same block."""
         outer = self.AGREEMENT_DATA["outer_deadline"]
         self._deliver()
         self._send_ok("contributor", "openDispute(string)", "evidence unclear")
         self._send_ok("holder", "resolveDispute(bool)", "true")
-        self._next_block_at(outer + 1)
+        self._next_block_at(outer)
         self._send_reverts("holder", "executeResolution()",
                            selector="OuterDeadlinePassed(uint256,uint256)")
-        self._send_ok_in_block("coordinator", "refundAfterOuterDeadline()", outer + 1)
+        self._send_ok_in_block("coordinator", "refundAfterOuterDeadline()", outer)
         self.assertEqual(self._state(), STATE["refunded"])
 
     def test_release_fallback_variant_boundaries_on_chain(self) -> None:
         """Review A5: even the AGREED release fallback loses to the refund
-        priority past the outer deadline; below it, it still releases."""
+        priority from the deadline instant on; below it, it still releases."""
         outer = self.AGREEMENT_DATA["outer_deadline"]
         dispute = self.AGREEMENT_DATA["dispute_deadline"]
         with self.subTest("the release fallback still works inside its window"):
@@ -640,15 +650,15 @@ class AnvilSettlementTests(unittest.TestCase):
             self._next_block_at(dispute + 1)
             self._send_ok_in_block("coordinator", "applyDisputeFallback()", dispute + 1)
             self.assertEqual(self._state(), STATE["released"])
-        with self.subTest("past the outer deadline the refund outranks the agreed fallback"):
+        with self.subTest("the deadline instant itself outranks the agreed fallback"):
             self.contract = self._deploy(self.VARIANT_BYTECODE)
             self._jump_to(int(time.time()))
             self._deliver()
             self._send_ok("contributor", "openDispute(string)", "holder silent")
-            self._next_block_at(outer + 1)
+            self._next_block_at(outer)
             self._send_reverts("coordinator", "applyDisputeFallback()",
                                selector="OuterDeadlinePassed(uint256,uint256)")
-            self._send_ok_in_block("coordinator", "refundAfterOuterDeadline()", outer + 1)
+            self._send_ok_in_block("coordinator", "refundAfterOuterDeadline()", outer)
             self.assertEqual(self._state(), STATE["refunded"])
 
     def test_cancellation_refunds_before_delivery(self) -> None:
@@ -787,7 +797,7 @@ TIME_SCENARIOS = frozenset({
     "test_outer_deadline_refunds_from_delivered",
     "test_outer_deadline_release_boundaries_on_chain",
     "test_late_release_cannot_race_the_refund_on_chain",
-    "test_resolved_release_refused_past_the_outer_deadline_on_chain",
+    "test_resolved_release_refused_from_the_outer_deadline_on_chain",
     "test_release_fallback_variant_boundaries_on_chain",
 })
 
