@@ -135,6 +135,8 @@
     }
     document.getElementById("activity-window").textContent = `${data.days[0].date} – ${data.days[6].date} · UTC`;
     content.hidden = false;
+    document.getElementById("activity-charts").hidden = false;
+    document.getElementById("activity-details").hidden = false;
   };
   const load = async () => {
     if (loading) return;
