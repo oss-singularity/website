@@ -277,34 +277,36 @@ export async function projectAction(request, env, projectId, now) {
   if (!['close', 'cancel'].includes(body.action)) invalid('action must be close or cancel.', 'action');
   version(body.expected_version);
   const status = body.action === 'close' ? 'closed' : 'cancelled';
-  // The follow-up statements only run in the state a successful compare-and-set
-  // just produced. When that guard matches outside this write the project is
-  // already terminal, so no open milestone or commitment remains for them to
-  // touch. The event additionally deduplicates on the terminal action itself:
-  // a project leaves 'open' at most once per terminal action, so a replayed
-  // request cannot append a second close or cancel event.
+  // Every statement of the batch, the terminal event included, repeats the exact
+  // compare-and-set predicate while the project row still holds that pre-state;
+  // the transition itself runs last and consumes it. A rejected replay can
+  // therefore never match, not even on legacy rows where a terminal project
+  // still holds open children or lacks its terminal event: the guard demands
+  // status 'open', which no terminal row satisfies. The event stamps
+  // version + 2 because it runs before the transition: the row still reads
+  // expected_version, and this batch moves it to expected_version + 1 — the
+  // same value the event carried when it was written after the transition.
   const results = await env.DB.batch([
-    env.DB.prepare(`UPDATE projects SET status = ?, version = version + 1, updated_at = ?
-      WHERE id = ? AND version = ? AND status = 'open'
-      RETURNING id, mission_id, title, status, version, updated_at`).bind(status, now, projectId, body.expected_version),
     env.DB.prepare(`UPDATE milestones SET status = 'cancelled', version = version + 1, updated_at = ?
       WHERE project_id = ? AND status = 'open'
-        AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND version = ? AND status = ?)`)
-      .bind(now, projectId, projectId, body.expected_version + 1, status),
+        AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND version = ? AND status = 'open')`)
+      .bind(now, projectId, projectId, body.expected_version),
     env.DB.prepare(`UPDATE commitments SET status = 'cancelled', updated_at = ?
       WHERE project_id = ? AND status IN ('offered','confirmed')
         AND milestone_id IN (SELECT id FROM milestones WHERE project_id = ? AND status != 'done')
-        AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND version = ? AND status = ?)`)
-      .bind(now, projectId, projectId, projectId, body.expected_version + 1, status),
+        AND EXISTS (SELECT 1 FROM projects WHERE id = ? AND version = ? AND status = 'open')`)
+      .bind(now, projectId, projectId, projectId, body.expected_version),
     env.DB.prepare(`INSERT INTO project_events (id, project_id, version, action, actor_kind, actor_identity_id, created_at)
-      SELECT ${sqlUuid}, id, version + 1, ?, 'identity', ?, ? FROM projects WHERE id = ? AND version = ? AND status = ?
-        AND NOT EXISTS (SELECT 1 FROM project_events WHERE project_id = ? AND action = ?)`)
-      .bind(body.action, actor.id, now, projectId, body.expected_version + 1, status, projectId, body.action),
+      SELECT ${sqlUuid}, id, version + 2, ?, 'identity', ?, ? FROM projects WHERE id = ? AND version = ? AND status = 'open'`)
+      .bind(body.action, actor.id, now, projectId, body.expected_version),
+    env.DB.prepare(`UPDATE projects SET status = ?, version = version + 1, updated_at = ?
+      WHERE id = ? AND version = ? AND status = 'open'
+      RETURNING id, mission_id, title, status, version, updated_at`).bind(status, now, projectId, body.expected_version),
   ]);
-  if (results[0].meta.changes !== 1) {
+  if (results[3].meta.changes !== 1) {
     conflict409('version_conflict', 'The project changed since you read it. Reload and retry.');
   }
-  const closed = results[0].results[0];
+  const closed = results[3].results[0];
   return response({ id: closed.id, mission_id: closed.mission_id, title: closed.title,
     status: closed.status, version: closed.version, updated_at: iso(closed.updated_at) });
 }

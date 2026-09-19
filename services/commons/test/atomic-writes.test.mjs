@@ -335,6 +335,37 @@ test('replayed terminal actions stay idempotent: one close, one close event', as
   assert.deepEqual(snapshot(env), before, 'the replay appended no second close event and touched nothing');
 });
 
+test('a close replay on an inconsistent terminal legacy project changes nothing', async t => {
+  const env = await environment(t);
+  const coordinator = await enroll(env, 'atomic-coordinator');
+  const contributor = await enroll(env, 'atomic-contributor');
+  const ids = await reviewableProject(env, coordinator, contributor);
+  // Legacy damage: the project is terminal at version 2 while an old bug left
+  // the milestone open, the commitment confirmed and the terminal event absent.
+  env.DB.sqlite.prepare("UPDATE projects SET status = 'closed', version = 2 WHERE id = ?").run(ids.projectId);
+  env.DB.sqlite.prepare("DELETE FROM project_events WHERE project_id = ? AND action = 'close'").run(ids.projectId);
+  const before = snapshot(env);
+  const replay = await call(env, 'POST', `/api/v1/projects/${ids.projectId}/actions`, { action: 'close', expected_version: 1 }, coordinator);
+  assert.equal(replay.status, 409);
+  assert.equal(replay.body.error.code, 'version_conflict');
+  assert.deepEqual(snapshot(env), before,
+    'the rejected replay cancelled no leftover open child and appended no terminal event');
+});
+
+test('a cancel replay on an inconsistent terminal legacy project changes nothing', async t => {
+  const env = await environment(t);
+  const coordinator = await enroll(env, 'atomic-coordinator');
+  const contributor = await enroll(env, 'atomic-contributor');
+  const ids = await reviewableProject(env, coordinator, contributor);
+  env.DB.sqlite.prepare("UPDATE projects SET status = 'cancelled', version = 2 WHERE id = ?").run(ids.projectId);
+  env.DB.sqlite.prepare("DELETE FROM project_events WHERE project_id = ? AND action = 'cancel'").run(ids.projectId);
+  const before = snapshot(env);
+  const replay = await call(env, 'POST', `/api/v1/projects/${ids.projectId}/actions`, { action: 'cancel', expected_version: 1 }, coordinator);
+  assert.equal(replay.status, 404, 'a cancelled project stays hidden from this route for everyone');
+  assert.deepEqual(snapshot(env), before,
+    'the rejected replay left the leftover open milestone and confirmed commitment untouched');
+});
+
 test('a repeated exact acceptance is refused without a second completion', async t => {
   const env = await environment(t);
   const coordinator = await enroll(env, 'atomic-coordinator');
