@@ -6,10 +6,27 @@ open until the promotion closes, one staged upload whose server-side detail is
 verified before activation, one activation attempt, bounded live acceptance and
 one rollback through predecessor-version restore. Candidate consumption and
 planning (procedure steps 1-2) are performed by the implemented contracts and
-are expected here as their already-verified results. Mutations are never
-repeated; a lost response is resolved by observing which version the deployment
-serves, and any step that cannot be resolved closes the intent as unresolved.
+are expected here as their already-verified results. The planned pins —
+predecessor version, deployment, generation and version lineage — are re-read
+freshly immediately before every mutation, so an intervening foreign change
+refuses instead of being overrun; the restore is gated the same way on this
+call's own occupied pins, first among them the deployment id its activation
+reply named, which is the only provable identity of that activation. The
+provider offers no compare-and-set, so this closes the planning-to-mutation
+window, not the read-to-write instant (the documented single-writer operating
+limit). Mutations are never repeated; a lost response is resolved by observing
+which version the deployment serves — a version-level resolution only, because
+without the activation reply no deployment record is provably this call's own,
+so a lost activation response leaves the rollback without an admissible pin
+and closes unresolved instead of restoring — and any step that cannot be
+resolved closes the intent as unresolved. The
+predecessor packet is only built from live bytes that match the recorded
+predecessor commit's independently fetched Git blobs. A rolled-back close
+additionally requires this call's own passed live acceptance of the restored
+predecessor — provider state alone is no health check — and otherwise stays
+unresolved and blocking.
 """
+import hashlib
 import re
 import time
 
@@ -35,6 +52,11 @@ EXPECTED_SECRET_TYPES = {'secret_text'}
 # refuses here, and widening it is a reviewed contract change, not a silent one.
 WORKER_HANDLERS = {'handlers': ['fetch', 'scheduled'],
                    'named_handlers': ['cleanup', 'safeUrl']}
+
+# The recursive tree read is the only Git-object evidence source; the same
+# bound as the candidate consumer's source identity.
+MAX_TREE_ENTRIES = 4096
+TREE_PREFIX = 'services/commons/'
 
 
 def open_intent(deployments):
@@ -193,14 +215,69 @@ def provider_generation(observation):
     return number
 
 
-def reconstruct_predecessor(content, commit):
-    """Rebuild the predecessor packet from the live predecessor version's content.
+def fresh_preconditions(adapter, plan, staged=None):
+    """Re-read the planned live pins immediately before a mutation; refuse stale ones.
 
-    The provider's multipart form is parsed into its modules, the packet is
-    rebuilt against the recorded predecessor commit, and unpack binds the
-    result: live bytes that do not belong to that commit refuse here. The
-    packet is never taken from the candidate.
+    The provider has no compare-and-set, so this read closes the window between
+    planning and the next mutation, not the instant between the read and the
+    write itself — a privileged change interleaving there can still slip
+    through, which is why the single-writer operating limit is documented
+    rather than an atomic lock claimed. What it does enforce: the planned
+    predecessor version is still the active one, its deployment record is
+    unchanged, the active version's generation still matches the baseline, and
+    the newest uploaded version is still the predecessor — or this call's own
+    staged upload when one already happened. Any other foreign version,
+    activation or upload refuses before the mutation is attempted.
     """
+    live = adapter.observe()
+    require(type(live) is dict and type(live.get('active_version')) is str,
+            'provider_state_unverified')
+    require(live['active_version'] == plan['predecessor_version'], 'stale_preconditions')
+    deployments = live.get('deployments')
+    require(type(deployments) is list and 0 < len(deployments) <= 64
+            and type(deployments[0]) is dict
+            and deployments[0].get('id') == plan['predecessor_deployment_id'],
+            'stale_preconditions')
+    allowed_latest = {plan['predecessor_version']}
+    if staged is not None:
+        allowed_latest.add(staged)
+    require(live.get('latest_version_id') in allowed_latest, 'stale_preconditions')
+    require(provider_generation(live) == plan['predecessor_generation'], 'stale_preconditions')
+    return live
+
+
+def fresh_rollback_pins(adapter, staged, own_deployment):
+    """Re-read this call's own occupied pins immediately before the restore.
+
+    The restore mutation may only run against the exact line this call
+    occupied: the staged version still serving, the deployment record the
+    activation reply named still on top, and this call's staged upload still
+    the newest version. That reply is the only provable identity of the
+    activation — a deployment observed after a lost response could equally be
+    a foreign redeploy of the same version — so an absent pin refuses instead
+    of adopting whatever the later observation happens to show. As with the
+    pre-mutation checks, the provider offers no compare-and-set: this closes
+    the window between the activation and the restore, not the instant
+    between this read and the write itself (the documented single-writer
+    operating limit).
+    """
+    require(type(own_deployment) is str and len(own_deployment) > 0,
+            'promotion_unresolved')
+    live = adapter.observe()
+    require(type(live) is dict and type(live.get('active_version')) is str,
+            'provider_state_unverified')
+    require(live['active_version'] == staged, 'promotion_unresolved')
+    deployments = live.get('deployments')
+    require(type(deployments) is list and 0 < len(deployments) <= 64
+            and type(deployments[0]) is dict
+            and deployments[0].get('id') == own_deployment,
+            'promotion_unresolved')
+    require(live.get('latest_version_id') == staged, 'promotion_unresolved')
+    return live
+
+
+def parse_predecessor_modules(content):
+    """Parse the provider's multipart form into its exact live module bytes."""
     require(type(content) is bytes and content.startswith(b'--') and b'\r\n' in content,
             'invalid_candidate')
     boundary = content.split(b'\r\n', 1)[0][2:]
@@ -218,11 +295,74 @@ def reconstruct_predecessor(content, commit):
     # A well-formed provider form terminates with its closing boundary; a
     # truncated upload or trailing junk after it refuses here.
     require(content.rstrip(b'\r\n').endswith(b'--' + boundary + b'--'), 'invalid_candidate')
-    # The live predecessor carries the previously installed module profile: a
-    # subset of the current contract that every module digest binds to this
-    # commit. The candidate side keeps the strict full-module allowlist.
+    return files
+
+
+def git_blob(raw):
+    """The Git blob object id of the given bytes, as GitHub tree entries report it."""
+    return hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+
+
+def predecessor_evidence(files, commit, github):
+    """Bind the parsed live predecessor modules to the commit's independent Git blobs.
+
+    A descriptor derived from the live bytes would only certify itself, so the
+    bytes are instead compared against the Git objects of the recorded
+    predecessor commit. The usual CI checkout is shallow and cannot contain
+    that older commit locally; the evidence therefore comes from exactly two
+    bounded reads through the same trusted repository transport the candidate
+    side uses — the commit's tree and its recursive entries. Missing,
+    malformed or truncated evidence refuses (fail-closed); the installed
+    module profile must be exactly that commit's production modules, which is
+    how an older, smaller profile stays verifiable against its own commit.
+    """
+    require(type(files) is dict and 0 < len(files) <= 32 and set(files) <= artifact.MODULES,
+            'module_allowlist_mismatch')
+    sha = artifact.commit(commit)
+    value = github.get(BASE + '/git/commits/' + sha)
+    require(type(value) is dict and value.get('sha') == sha
+            and type(value.get('tree')) is dict, 'predecessor_source_unverified')
+    tree_sha = artifact.commit(value['tree'].get('sha'))
+    listing = github.get(BASE + '/git/trees/' + tree_sha + '?recursive=1')
+    require(type(listing) is dict and listing.get('sha') == tree_sha
+            and listing.get('truncated') is False and type(listing.get('tree')) is list
+            and 0 < len(listing['tree']) <= MAX_TREE_ENTRIES, 'predecessor_source_unverified')
+    entries = {}
+    for entry in listing['tree']:
+        require(type(entry) is dict and type(entry.get('path')) is str
+                and 0 < len(entry['path']) <= 1024 and entry['path'] not in entries,
+                'predecessor_source_unverified')
+        entries[entry['path']] = entry
+    tree_modules = {path[len(TREE_PREFIX):] for path in entries
+                    if path.startswith(TREE_PREFIX) and path.count('/') == 2
+                    and path.endswith('.mjs')}
+    # Local development modules live in the same tree but are never installed;
+    # only the contract's production names can form the installed profile.
+    require(set(files) == tree_modules & artifact.MODULES, 'predecessor_source_mismatch')
+    blobs = {}
+    for name in sorted(files):
+        entry = entries.get(TREE_PREFIX + name)
+        observed = entry.get('sha') if type(entry) is dict else None
+        require(type(entry) is dict and entry.get('type') == 'blob' and entry.get('mode') == '100644'
+                and type(observed) is str and len(observed) == 40, 'predecessor_source_mismatch')
+        require(observed == git_blob(files[name]), 'predecessor_source_mismatch')
+        blobs[name] = observed
+    return {'commit': sha, 'git_tree': tree_sha, 'module_blobs': blobs}
+
+
+def reconstruct_predecessor(content, commit, github):
+    """Rebuild the predecessor packet from live bytes bound to the commit's Git blobs.
+
+    The provider's multipart form is parsed into its modules, and the bytes are
+    verified against the independently fetched Git blobs of the recorded
+    predecessor commit before any packet or descriptor is built: live bytes
+    that do not belong to that commit refuse here, including bytes changed
+    under an unchanged RELEASE_SHA. The packet is never taken from the
+    candidate.
+    """
+    files = parse_predecessor_modules(content)
+    _evidence = predecessor_evidence(files, commit, github)
     profile = frozenset(files)
-    require(profile <= artifact.MODULES, 'module_allowlist_mismatch')
     packet = artifact.packet(files, commit, rehearsal.SCHEMA_SHA256, modules=profile)
     restored, _descriptor = artifact.unpack(packet, commit, rehearsal.SCHEMA_SHA256, modules=profile)
     require(restored == files, 'invalid_candidate')
@@ -269,7 +409,7 @@ def capture_observation(adapter, predecessor_descriptor, schema_query):
     block, and workers.dev exposure is read from the script-scoped subdomain
     endpoint. The installed modules come from the reconstructed predecessor
     descriptor, which `reconstruct_predecessor` already bound to the live
-    script bytes and commit.
+    script bytes, the recorded commit and that commit's independent Git blobs.
     """
     require(type(predecessor_descriptor) is dict
             and type(predecessor_descriptor.get('modules')) is dict, 'invalid_candidate')
@@ -395,11 +535,17 @@ def engine_plan(candidate_commit, planned, message, tag):
     predecessor = planned.get('predecessor')
     require(type(predecessor) is dict and type(predecessor.get('version_id')) is str
             and predecessor['version_id'], 'invalid_plan')
+    deployment_id = predecessor.get('deployment_id')
+    require(type(deployment_id) is str and deployment_id, 'invalid_plan')
+    generation = planned.get('expected_generation')
+    require(type(generation) is int and 1 <= generation < 2**63 - 1, 'invalid_plan')
     change = planned.get('release_sha_change')
     require(type(change) is dict and change.get('before') != candidate_commit, 'invalid_plan')
     require(type(planned.get('plan_sha256')) is str and len(planned['plan_sha256']) == 64,
             'invalid_plan')
     return {'predecessor_version': predecessor['version_id'],
+            'predecessor_deployment_id': deployment_id,
+            'predecessor_generation': generation,
             'release_sha': change['before'], 'message': message, 'tag': tag,
             'bindings': bindings,
             'installed_bindings': [{'name': name, **value} for name, value in sorted(desired.items())],
@@ -441,22 +587,45 @@ def accept_bounded(expected, accept, attempts=3, pause=2.0):
 def promote(adapter, intent, plan, candidate, accept, pause=2.0):
     """Run one promotion against an open target; close the intent whatever happens.
 
-    `plan` supplies the predecessor version, the staged content and settings,
-    the current live release sha and the expectation fingerprints; `candidate`
-    supplies the commit, module names and packet content; `accept(sha)` performs
-    the bounded live acceptance for an expected release identity and must raise
-    on failure. Every mutation is attempted at most once per call; a lost
-    response is resolved by observing the provider's state under this call's
-    own identity annotations.
+    `plan` supplies the predecessor version, deployment and generation pins,
+    the staged content and settings, the current live release sha and the
+    expectation fingerprints; `candidate` supplies the commit, module names and
+    packet content; `accept(sha)` performs the bounded live acceptance for an
+    expected release identity and must raise on failure. The planned pins are
+    re-read freshly immediately before the stage and the activation mutation;
+    a state changed by anyone else — including another privileged operator —
+    refuses instead of being overrun. Every mutation is attempted at most once
+    per call; a lost response is resolved by observing the provider's state
+    under this call's own identity annotations — at version level for the
+    activation, whose deployment record is only provably this call's own from
+    its reply, so after a lost activation response no restore is attempted and
+    the intent closes unresolved. The restore itself is gated on this call's
+    own occupied pins — the activation's deployment record and the staged
+    upload as the newest version — re-read fresh, so a foreign deployment of
+    the same staged version or a newer foreign upload refuses instead of
+    being overrun. A rolled-back record claims a restored and verified
+    predecessor, so it is only ever written after this call's own bounded live
+    acceptance of the predecessor identity passed; the provider serving the
+    predecessor alone is not a health check.
     """
     predecessor = plan['predecessor_version']
     require(type(predecessor) is str and len(predecessor) > 0, 'invalid_plan')
     require(type(plan.get('release_sha')) is str, 'invalid_plan')
+    require(type(plan.get('predecessor_generation')) is int
+            and 1 <= plan['predecessor_generation'] < 2**63 - 1, 'invalid_plan')
+    require(type(plan.get('predecessor_deployment_id')) is str
+            and len(plan['predecessor_deployment_id']) > 0, 'invalid_plan')
     number = intent.start(candidate['commit'], {
         'kind': 'commons-promotion-intent', 'schema_version': 1, 'commit': candidate['commit'],
-        'predecessor_version': predecessor, 'plan_sha256': plan.get('plan_sha256'),
+        'predecessor_version': predecessor,
+        'predecessor_deployment_id': plan['predecessor_deployment_id'],
+        'predecessor_generation': plan['predecessor_generation'],
+        'plan_sha256': plan.get('plan_sha256'),
         'module_count': len(candidate['modules'])})
+    activated = False
+    own_deployment = None
     try:
+        fresh_preconditions(adapter, plan)
         try:
             staged = adapter.stage_version(candidate['content'], candidate['commit'],
                                            plan['message'], plan['tag'], bindings=plan['bindings'],
@@ -470,36 +639,68 @@ def promote(adapter, intent, plan, candidate, accept, pause=2.0):
         verify_staged(adapter.version_detail(staged), plan['installed_bindings'],
                       plan['compatibility_date'],
                       {'workers/message': plan['message'], 'workers/tag': plan['tag']})
+        # The only state change permitted since the pre-stage check is this
+        # call's own staged upload; anything else refuses before activation.
+        fresh_preconditions(adapter, plan, staged=staged)
         try:
-            adapter.activate_version(staged, plan['message'])
+            own_deployment = adapter.activate_version(staged, plan['message'])
         except ArtifactError:
             # One activation attempt only: resolve the outcome by observation.
+            # That resolution is version-level — which version serves. The
+            # deployment line's ownership is not resolved at all: without the
+            # reply no deployment id is provably this call's own, so the
+            # rollback below must refuse rather than adopt the observed line.
             require(adapter.observe()['active_version'] == staged, 'promotion_unresolved')
+        else:
+            require(type(own_deployment) is str and len(own_deployment) > 0,
+                    'provider_state_unverified')
+        activated = True
         try:
             accept_bounded(candidate['commit'], accept, pause=pause)
         except ArtifactError:
             # Rollback restores the predecessor exactly once, then re-accepts
-            # the previous release identity.
-            require(adapter.observe()['active_version'] == staged, 'promotion_unresolved')
+            # the previous release identity; only a passed re-acceptance may
+            # close the intent as rolled back. The restore only runs against
+            # this call's own occupied pins — the activation's deployment
+            # record and the staged upload as the newest version — re-read
+            # fresh: a foreign deployment of the same staged version, a newer
+            # foreign upload or any other activation refuses instead of being
+            # overrun, and a lost activation reply never supplied the pin.
+            fresh_rollback_pins(adapter, staged, own_deployment)
             try:
                 adapter.activate_version(predecessor, plan['message'] + ' (rollback)')
             except ArtifactError:
                 require(adapter.observe()['active_version'] == predecessor, 'promotion_unresolved')
-            accept_bounded(plan['release_sha'], accept, pause=pause)
+            try:
+                accept_bounded(plan['release_sha'], accept, pause=pause)
+            except ArtifactError as failure:
+                raise ArtifactError('rollback_acceptance_failed') from failure
             intent.finish(number, 'rolled_back')
             return {'promoted': False, 'staged_version': staged, 'deployment': number}
         intent.finish(number, 'promoted')
         return {'promoted': True, 'staged_version': staged, 'deployment': number}
     except ArtifactError as error:
-        # Nothing further is attempted: close as rolled back when the
-        # predecessor is the live version, otherwise the intent stays
-        # unresolved and blocks the next promotion. The refusal code
-        # accompanies the sanitized outcome so an operator can tell a
-        # pre-staging refusal apart from a live-acceptance rollback.
-        if adapter.observe()['active_version'] == predecessor:
-            intent.finish(number, 'rolled_back')
-            return {'promoted': False, 'staged_version': None, 'deployment': number,
-                    'error': error.code}
+        # Nothing further is attempted. Once this call activated the staged
+        # version, the target was changed by it, so without a passed
+        # predecessor re-acceptance above the intent stays unresolved and
+        # blocks the next promotion.
+        if not activated:
+            # Before activation this call never changed the active version:
+            # the intent may close as rolled back, but only with the same own
+            # evidence — the predecessor is still the live version and its
+            # release identity passes the bounded live acceptance. The
+            # refusal code accompanies the sanitized outcome so an operator
+            # can tell a pre-staging refusal apart from a live-acceptance
+            # rollback.
+            if adapter.observe()['active_version'] == predecessor:
+                try:
+                    accept_bounded(plan['release_sha'], accept, pause=pause)
+                except ArtifactError:
+                    intent.finish(number, 'unresolved')
+                    raise error from None
+                intent.finish(number, 'rolled_back')
+                return {'promoted': False, 'staged_version': None, 'deployment': number,
+                        'error': error.code}
         intent.finish(number, 'unresolved')
         raise
     except Exception:

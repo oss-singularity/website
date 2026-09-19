@@ -120,7 +120,7 @@ publication and recovery:
 | [Remote observer](release-static-observer.md) | Reading one independently bound installation through a restricted SSH command. |
 | [Remote writer](release-static-remote.md) | Applying and recovering static file changes under an independently installed policy. |
 | [Static publication](release-publication.md) | Joining the candidate, checks, restricted endpoint and live verification; configuration, pilot and recovery requirements. |
-| [Commons artifacts](release-commons-artifacts.md) | Packaging the six production modules, pinning the existing schema profile and independently checking the captured bytes. This is the offline foundation for separate Worker promotion. |
+| [Commons artifacts](release-commons-artifacts.md) | Packaging the eight production modules, pinning the existing schema profile and independently checking the captured bytes. This is the offline foundation for separate Worker promotion. |
 | [Commons rehearsal](release-commons-rehearsal.md) | Transporting a code packet through a separate canonical GitHub workflow and recording its observed identity without deployment authority. |
 | [Commons candidate verification](release-commons-candidates.md) | Binding a completed attempt, both archives, independently rebuilt source and required-check provenance. |
 | [Commons code planner](release-commons-plan.md) | Computing version-bound code changes, resource preservation and conditional rollback requirements from captured inputs. |

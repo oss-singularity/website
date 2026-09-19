@@ -1,7 +1,7 @@
 # Commons release rehearsal
 
 The [Commons rehearsal workflow](../.github/workflows/commons-release-rehearsal.yml)
-packages the six production modules, uploads the packet, downloads that exact
+packages the eight production modules, uploads the packet, downloads that exact
 artifact ID and checks its bytes against a fresh source capture. It records the
 observed GitHub artifact identity in a separate receipt. This is a preparation
 stage for Worker releases; it cannot publish code or modify a database.

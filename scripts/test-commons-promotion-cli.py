@@ -6,10 +6,12 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import re
 import shutil
 import sqlite3
+import subprocess
 import tempfile
 import unittest
 import warnings
@@ -61,7 +63,10 @@ class PacketTests(unittest.TestCase):
 
 
 class DeriveTests(unittest.TestCase):
-    observation = {'active_version': 'v-live', 'versions': {}}
+    observation = {'active_version': 'v-live', 'latest_version_id': 'v-live',
+                   'versions': {'v-live': {'number': 5, 'metadata': {}, 'annotations': {}}},
+                   'deployments': [{'id': 'dep-live', 'strategy': 'percentage',
+                                    'versions': [{'version_id': 'v-live', 'percentage': 100}]}]}
     detail = {'resources': {
         'bindings': [
             {'name': 'DB', 'type': 'd1', 'id': 'd1-uuid'},
@@ -75,6 +80,8 @@ class DeriveTests(unittest.TestCase):
     def test_derive_plan_inherits_bindings_and_reads_current_identity(self):
         plan = cli.derive_plan(self.observation, self.detail, 'message', 'tag')
         self.assertEqual(plan['predecessor_version'], 'v-live')
+        self.assertEqual(plan['predecessor_deployment_id'], 'dep-live')
+        self.assertEqual(plan['predecessor_generation'], 5)
         self.assertEqual(plan['release_sha'], '1' * 40)
         self.assertEqual(plan['bindings'], [
             {'name': 'DB', 'type': 'inherit'}, {'name': 'ADMIN_TOKEN', 'type': 'inherit'}, {'name': 'GITHUB_READ_TOKEN', 'type': 'inherit'},
@@ -87,6 +94,12 @@ class DeriveTests(unittest.TestCase):
                        {'resources': {'bindings': [], 'script_runtime': {}}}]:
             with self.assertRaises(ArtifactError):
                 cli.derive_plan(self.observation, detail, 'm', 't')
+        for observation in [
+                {**self.observation, 'deployments': []},
+                {**self.observation, 'versions': {}},
+                {key: value for key, value in self.observation.items() if key != 'deployments'}]:
+            with self.assertRaisesRegex(ArtifactError, 'provider_state_unverified'):
+                cli.derive_plan(observation, self.detail, 'm', 't')
 
 
 class OutputTests(unittest.TestCase):
@@ -144,15 +157,34 @@ def schema_rows():
         return [dict(row) for row in database.execute(artifact.SCHEMA_QUERY)]
 
 
-def module_content():
-    """The live provider's multipart script form, built from the real modules."""
+def source_modules():
     files, _migrations = artifact.source_inputs(ROOT / 'services/commons')
+    return files
+
+
+def multipart_form(files):
+    """The live provider's multipart script form for the given module bytes."""
     boundary = '----CfWorkerUploadFixture'
     parts = b''
     for name in sorted(files):
         parts += (f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{name}"'
                   f'\r\nContent-Type: application/javascript+module\r\n\r\n').encode() + files[name] + b'\r\n'
     return parts + f'--{boundary}--'.encode()
+
+
+def module_content():
+    return multipart_form(source_modules())
+
+
+def git_objects(values, commit, tree_sha, files):
+    """Synthetic Git commit/tree objects binding the given module bytes by blob id."""
+    entries = [{'path': 'services/commons/' + name, 'mode': '100644', 'type': 'blob',
+                'sha': hashlib.sha1(b'blob ' + str(len(files[name])).encode()
+                                    + b'\0' + files[name]).hexdigest()}
+               for name in sorted(files)]
+    values[consumer.checks.BASE + '/git/commits/' + commit] = {'sha': commit, 'tree': {'sha': tree_sha}}
+    values[consumer.checks.BASE + '/git/trees/' + tree_sha + '?recursive=1'] = {
+        'sha': tree_sha, 'truncated': False, 'tree': entries}
 
 
 class FakeGitHub:
@@ -171,9 +203,11 @@ class FakeGitHub:
 
 class FakeProvider:
     """Synthetic target with live response shapes and single mutations."""
-    def __init__(self, rows, installed, content, routes, *, latest=VERSION):
+    def __init__(self, rows, installed, content, routes, *, latest=VERSION,
+                 foreign_latest_after_stage=False, foreign_deployment_after_activation=False):
         self.active = VERSION
         self.latest = latest
+        self.deployment_id = DEPLOYMENT
         self.installed = installed
         self.content = content
         self.rows = rows
@@ -182,18 +216,38 @@ class FakeProvider:
         self.staged_detail = None
         self.staged = None
         self.staged_annotations = None
+        self.foreign_latest_after_stage = foreign_latest_after_stage
+        self.foreign_deployment_after_activation = foreign_deployment_after_activation
+        self._foreign_applied = False
+        self._foreign_window_applied = False
+        self.activated_staged = False
+        self.deployment_seq = 0
 
     def observe(self):
         self.calls.append('observe')
         versions = {VERSION: {'number': 3, 'metadata': {}, 'annotations': {}}}
+        latest = self.latest
         if self.staged is not None:
             versions[self.staged] = {'number': 4, 'metadata': {},
                                      'annotations': {'workers/message': 'm', 'workers/tag': 't'}}
+            latest = self.staged
+            if self.foreign_latest_after_stage and not self._foreign_applied:
+                self._foreign_applied = True
+                versions['foreign-pending-upload'] = {'number': 5, 'metadata': {}, 'annotations': {}}
+                latest = 'foreign-pending-upload'
+        deployment_id = self.deployment_id
+        if (self.activated_staged and self.foreign_deployment_after_activation
+                and not self._foreign_window_applied):
+            # A privileged operator redeploys the still-active staged version
+            # inside the rollback window: a new deployment record, no version
+            # change, no reply to this call.
+            self._foreign_window_applied = True
+            self.deployment_id = deployment_id = 'operator-redeployed-the-staged-version'
         return {'active_version': self.active, 'versions': versions,
-                'latest_version_id': self.staged if self.staged is not None else self.latest,
+                'latest_version_id': latest,
                 'account_id': ENV['COMMONS_ACCOUNT_ID'], 'zone_id': ENV['COMMONS_ZONE_ID'],
                 'script_name': cli.SCRIPT_NAME,
-                'deployments': [{'id': DEPLOYMENT, 'strategy': 'percentage',
+                'deployments': [{'id': deployment_id, 'strategy': 'percentage',
                                  'versions': [{'version_id': self.active, 'percentage': 100}]}],
                 'routes': [dict(route) for route in self.routes],
                 'schedules': [{'cron': '17 * * * *', 'created_on': '2026-09-05T08:07:13.971361Z'}],
@@ -252,14 +306,22 @@ class FakeProvider:
 
     def activate_version(self, version_id, _message):
         self.calls.append('activate:' + version_id)
+        # Every activation creates a new deployment record, newest first, and
+        # the reply names it (the lost-response variants raise instead).
         self.active = version_id
+        self.deployment_seq += 1
+        self.deployment_id = 'dep-{}-after-{}'.format(self.deployment_seq, version_id)
+        if version_id == self.staged:
+            self.activated_staged = True
+        return self.deployment_id
 
 
 class _IntentOpener:
     """Deployment-API transport script; the confirmation GET echoes the posted payload."""
     def __init__(self, final, sha):
         state, description = {'promoted': ('success', promotion.PROMOTED),
-                              'rolled_back': ('failure', promotion.ROLLED_BACK)}[final]
+                              'rolled_back': ('failure', promotion.ROLLED_BACK),
+                              'unresolved': ('error', promotion.UNRESOLVED)}[final]
         self.sha = sha
         self.posted = None
         self.confirmations = [
@@ -343,7 +405,8 @@ class FromRehearsalTests(unittest.TestCase):
         ]
         cls.routes = [{'id': 'c' * 32, 'pattern': 'oss-singularity.io/api/*',
                        'script': cli.SCRIPT_NAME, 'request_limit_fail_open': False}]
-        cls.content = module_content()
+        cls.modules = source_modules()
+        cls.content = multipart_form(cls.modules)
 
     def setUp(self):
         values = check_fixtures.fixture()
@@ -385,6 +448,9 @@ class FromRehearsalTests(unittest.TestCase):
         values[consumer.checks.BASE + '/git/commits/' + SHA] = {'sha': SHA, 'tree': {'sha': 'd' * 40}}
         values[consumer.checks.BASE + '/git/trees/' + 'd' * 40 + '?recursive=1'] = {
             'sha': 'd' * 40, 'truncated': False, 'tree': entries}
+        # The live predecessor claims LIVE_SHA; its own Git objects bind the
+        # installed module bytes independently of those bytes themselves.
+        git_objects(values, LIVE_SHA, '5' * 40, self.modules)
         self.values = values
         self.archives = {CANDIDATE: self.candidate_zip, RECEIPT: self.receipt_zip}
 
@@ -394,12 +460,12 @@ class FromRehearsalTests(unittest.TestCase):
     def intent(self, final='promoted'):
         return promotion.PromotionIntent(ENV, _IntentOpener(final, SHA))
 
-    def invoke(self, provider, *, accept=None, argv=None, environ=None):
+    def invoke(self, provider, *, accept=None, argv=None, environ=None, final='promoted'):
         github = FakeGitHub(self.values, self.archives)
         arguments = argv or ['--from-rehearsal', str(RUN), str(ATTEMPT), SHA,
                              '--message', 'Promote the candidate', '--tag', 'promotion-tag']
         result = cli.main(argv=arguments, environ=environ or dict(ENV), github=github,
-                          fetch=github.get, provider=provider, intent=self.intent(),
+                          fetch=github.get, provider=provider, intent=self.intent(final),
                           accept=accept or (lambda sha: True))
         return result, github
 
@@ -434,6 +500,25 @@ class FromRehearsalTests(unittest.TestCase):
                      provider=provider, intent=self.intent(), accept=lambda sha: True)
         self.assertNotIn('stage', provider.calls)
 
+    def test_failed_rollback_acceptance_closes_unresolved_and_keeps_predecessor(self):
+        provider = self.provider()
+        with self.assertRaisesRegex(ArtifactError, 'rollback_acceptance_failed'):
+            self.invoke(provider, accept=lambda sha: False, final='unresolved')
+        self.assertEqual(provider.active, VERSION)
+        self.assertIn('activate:' + VERSION, provider.calls)
+        self.assertIn('activate:' + provider.staged, provider.calls)
+
+    def test_foreign_deployment_in_rollback_window_closes_unresolved_without_restore(self):
+        provider = self.provider(foreign_deployment_after_activation=True)
+        with self.assertRaisesRegex(ArtifactError, 'promotion_unresolved'):
+            self.invoke(provider, accept=lambda sha: sha != SHA, final='unresolved')
+        # The wired command's engine refused the restore: the operator's
+        # redeployment of the same staged version stayed the top deployment,
+        # the staged version keeps serving, and no predecessor activation ran.
+        self.assertNotIn('activate:' + VERSION, provider.calls)
+        self.assertEqual(provider.deployment_id, 'operator-redeployed-the-staged-version')
+        self.assertEqual(provider.active, provider.staged)
+
     def test_candidate_commit_reuse_is_refused_by_the_planner(self):
         installed = [dict(item) for item in self.installed]
         next(item for item in installed if item['name'] == 'RELEASE_SHA')['text'] = SHA
@@ -460,6 +545,88 @@ class FromRehearsalTests(unittest.TestCase):
         self.assertNotIn('download:' + str(CANDIDATE), github.calls)
         self.assertNotIn('stage', provider.calls)
 
+    def test_predecessor_drift_under_unchanged_release_sha_refuses(self):
+        provider = self.provider()
+        real = self.modules['worker.mjs']
+        provider.content = provider.content.replace(
+            real, real + b'\n// provider drift retaining the claimed RELEASE_SHA\n', 1)
+        github = FakeGitHub(self.values, self.archives)
+        with self.assertRaisesRegex(ArtifactError, 'predecessor_source_mismatch'):
+            cli.main(argv=['--from-rehearsal', str(RUN), str(ATTEMPT), SHA, '--message', 'm',
+                           '--tag', 't'], environ=dict(ENV), github=github, fetch=github.get,
+                     provider=provider, intent=self.intent(), accept=lambda sha: True)
+        # The drifted bytes never became a baseline, a rollback target or a
+        # staged upload; no promotion intent was recorded.
+        self.assertIn('content', provider.calls)
+        self.assertNotIn('stage', provider.calls)
+        self.assertNotIn('activate:', ' '.join(provider.calls))
+        self.assertTrue(any(route.endswith('/git/commits/' + LIVE_SHA) for route in github.calls))
+
+    def test_missing_predecessor_git_evidence_fails_closed(self):
+        provider = self.provider()
+        github = FakeGitHub(self.values, self.archives)
+        class NoPredecessorEvidence(FakeGitHub):
+            def get(self, route, _environ=None):
+                if route.endswith('/git/commits/' + LIVE_SHA):
+                    raise ArtifactError('github_read_failed')
+                return FakeGitHub.get(self, route, _environ)
+        blocked = NoPredecessorEvidence(self.values, self.archives)
+        with self.assertRaisesRegex(ArtifactError, 'github_read_failed'):
+            cli.main(argv=['--from-rehearsal', str(RUN), str(ATTEMPT), SHA, '--message', 'm',
+                           '--tag', 't'], environ=dict(ENV), github=blocked, fetch=blocked.get,
+                     provider=provider, intent=self.intent(), accept=lambda sha: True)
+        self.assertNotIn('stage', provider.calls)
+
+    def test_older_predecessor_profile_promotes_additive_modules(self):
+        older = {'worker.mjs', 'security.mjs', 'identity.mjs', 'participations.mjs',
+                 'activity.mjs', 'work-items.mjs'}
+        older_commit = '6' * 40
+        installed = [dict(item) for item in self.installed]
+        next(item for item in installed if item['name'] == 'RELEASE_SHA')['text'] = older_commit
+        values = deepcopy(self.values)
+        git_objects(values, older_commit, '7' * 40,
+                    {name: self.modules[name] for name in older})
+        provider = FakeProvider(self.rows, installed,
+                                multipart_form({name: self.modules[name] for name in older}),
+                                self.routes)
+        github = FakeGitHub(values, self.archives)
+        result = cli.main(argv=['--from-rehearsal', str(RUN), str(ATTEMPT), SHA, '--message', 'm',
+                                '--tag', 't'], environ=dict(ENV), github=github, fetch=github.get,
+                          provider=provider, intent=self.intent(), accept=lambda sha: True)
+        self.assertTrue(result['promoted'])
+        self.assertIn('activate:' + provider.staged, provider.calls)
+        self.assertTrue(any(route.endswith('/git/commits/' + older_commit)
+                            for route in github.calls))
+
+    def test_stale_predecessor_after_intent_refuses_without_overrunning(self):
+        provider = self.provider()
+        github = FakeGitHub(self.values, self.archives)
+        records = self.intent('unresolved')
+        inner_start = records.start
+        def intervening_start(sha, payload):
+            provider.active = 'intervening-operator-version'
+            provider.calls.append('external-activation:intervening-operator-version')
+            return inner_start(sha, payload)
+        records.start = intervening_start
+        with self.assertRaisesRegex(ArtifactError, 'stale_preconditions'):
+            cli.main(argv=['--from-rehearsal', str(RUN), str(ATTEMPT), SHA, '--message', 'm',
+                           '--tag', 't'], environ=dict(ENV), github=github, fetch=github.get,
+                     provider=provider, intent=records, accept=lambda sha: True)
+        # A privileged operator activated another version between planning and
+        # staging; the engine refused instead of overrunning it.
+        self.assertNotIn('stage', provider.calls)
+        self.assertNotIn('activate:', ' '.join(provider.calls))
+        self.assertEqual(provider.active, 'intervening-operator-version')
+
+    def test_foreign_upload_while_staging_aborts_before_activation(self):
+        provider = self.provider(foreign_latest_after_stage=True)
+        result, github = self.invoke(provider, final='rolled_back')
+        self.assertFalse(result['promoted'])
+        self.assertEqual(result['error'], 'stale_preconditions')
+        self.assertEqual(provider.active, VERSION)
+        self.assertIn('stage', provider.calls)
+        self.assertNotIn('activate:' + provider.staged, provider.calls)
+
 
 class _FakeResponse:
     def __init__(self, value, url, status=200):
@@ -477,6 +644,81 @@ class _FakeResponse:
 
     def __exit__(self, *_):
         return False
+
+
+class WorkflowContractTests(unittest.TestCase):
+    """The dispatch workflow passes its inputs as data, never as shell source."""
+
+    WORKFLOW = ROOT / '.github/workflows/commons-promotion.yml'
+
+    def run_scripts(self):
+        """Every literal `run: |` block of the workflow, dedented to source."""
+        lines = self.WORKFLOW.read_text().splitlines()
+        blocks, index = [], 0
+        while index < len(lines):
+            line = lines[index]
+            lead = len(line) - len(line.lstrip())
+            if line.strip() == 'run: |':
+                block = []
+                index += 1
+                while index < len(lines):
+                    inner = lines[index]
+                    inner_lead = len(inner) - len(inner.lstrip())
+                    if inner.strip() and inner_lead <= lead:
+                        break
+                    block.append(inner[lead + 2:])
+                    index += 1
+                blocks.append('\n'.join(block))
+            else:
+                index += 1
+        return blocks
+
+    def test_dispatch_inputs_enter_only_as_fixed_environment_names(self):
+        for script in self.run_scripts():
+            self.assertNotIn('${{', script)
+        text = self.WORKFLOW.read_text()
+        for name in ['run_id', 'run_attempt', 'commit', 'message', 'tag']:
+            self.assertIn(f'PROMOTION_{name.upper()}: ${{{{ inputs.{name} }}}}', text)
+        script = next(block for block in self.run_scripts() if 'commons-promotion.py' in block)
+        for name in ['RUN_ID', 'RUN_ATTEMPT', 'COMMIT', 'MESSAGE', 'TAG']:
+            self.assertIn(f'"$PROMOTION_{name}"', script)
+
+    def test_hostile_dispatch_inputs_reach_the_command_as_data(self):
+        script = next(block for block in self.run_scripts() if 'commons-promotion.py' in block)
+        hostile = {
+            'PROMOTION_RUN_ID': '35369851512 $(printf R3_PARAMETER_SENTINEL >&2)',
+            'PROMOTION_RUN_ATTEMPT': '1`printf R3_BACKTICK_SENTINEL >&2`',
+            'PROMOTION_COMMIT': 'a"' * 5 + '$(printf R3_COMMIT_SENTINEL >&2)',
+            'PROMOTION_MESSAGE': 'release $(printf R3_MESSAGE_SENTINEL >&2) `printf R3_ALT_SENTINEL >&2`'
+                                 ' "double" \'single\' $HOME $PATH\nsecond `pwd` line',
+            'PROMOTION_TAG': 'tag-"quoted"-$(pwd)-`pwd`\nline 2 $USER',
+        }
+        with tempfile.TemporaryDirectory(prefix='oss-promotion-workflow-') as folder:
+            root = Path(folder)
+            capture, report = root / 'argv.bin', root / 'commons-promotion-report.json'
+            stub = root / 'python3'
+            stub.write_text('#!/bin/sh\nprintf "%s\\0" "$@" > "$FAKE_PYTHON_CAPTURE"\n'
+                            'echo workflow-report-marker\n')
+            stub.chmod(0o755)
+            environment = dict(os.environ)
+            environment.update(hostile)
+            environment['PATH'] = str(root) + os.pathsep + environment.get('PATH', '')
+            environment['RUNNER_TEMP'] = str(root)
+            environment['FAKE_PYTHON_CAPTURE'] = str(capture)
+            completed = subprocess.run(['bash', '-c', script], capture_output=True, text=True,
+                                       env=environment, cwd=root, timeout=60)
+            captured_argv = capture.read_bytes().split(b'\0')[:-1]
+            captured_report = report.read_text()
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        # No substitution, backtick execution or expansion happened anywhere.
+        self.assertEqual(completed.stderr, '')
+        self.assertEqual(completed.stdout, '')
+        expected = ['scripts/commons-promotion.py', '--from-rehearsal',
+                    hostile['PROMOTION_RUN_ID'], hostile['PROMOTION_RUN_ATTEMPT'],
+                    hostile['PROMOTION_COMMIT'], '--message', hostile['PROMOTION_MESSAGE'],
+                    '--tag', hostile['PROMOTION_TAG']]
+        self.assertEqual([value.encode() for value in expected], captured_argv)
+        self.assertEqual(captured_report, 'workflow-report-marker\n')
 
 
 if __name__ == '__main__':

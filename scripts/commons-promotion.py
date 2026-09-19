@@ -46,7 +46,9 @@ KNOWN_ERRORS = {
     'promotion_unresolved', 'invalid_promotion_outcome', 'invalid_plan',
     'staged_version_unverified', 'staged_bindings_changed', 'staged_modules_changed',
     'staged_settings_changed', 'invalid_bindings', 'provider_request_failed',
-    'ambiguous_staged_version', 'live_acceptance_failed', 'invalid_bindings',
+    'ambiguous_staged_version', 'live_acceptance_failed', 'rollback_acceptance_failed',
+    'predecessor_source_unverified', 'predecessor_source_mismatch', 'stale_preconditions',
+    'invalid_bindings',
     'missing_credential', 'invalid_origin', 'http_transport_failed', 'api_unverified',
     'deployment_record_unconfirmed', 'invalid_deployment_route',
 }
@@ -123,8 +125,15 @@ def derive_plan(observation, active_detail, message, tag):
         if item.get('name') == 'RELEASE_SHA':
             release_sha = item.get('text')
     require(type(release_sha) is str and len(release_sha) == 40, 'provider_state_unverified')
+    deployment = observation.get('deployments')
+    require(type(deployment) is list and 0 < len(deployment) <= 64
+            and type(deployment[0]) is dict and type(deployment[0].get('id')) is str,
+            'provider_state_unverified')
     return {
-        'predecessor_version': observation['active_version'], 'release_sha': release_sha,
+        'predecessor_version': observation['active_version'],
+        'predecessor_deployment_id': deployment[0]['id'],
+        'predecessor_generation': engine.provider_generation(observation),
+        'release_sha': release_sha,
         'message': message, 'tag': tag,
         'bindings': [{'name': item['name'], 'type': 'inherit'} for item in installed],
         'installed_bindings': installed, 'main_module': None,
@@ -140,9 +149,10 @@ def consume_and_plan(commit, run_id, attempt, message, tag, environ, provider, g
     Locates the rehearsal's packet and receipt by their exact names, downloads
     both through the repository's bounded transport, verifies them with the
     implemented candidate consumer against the checkout's own source, rebuilds
-    the predecessor packet from the live script bytes, composes the planner
-    observation and baseline, and returns the verified candidate plus the
-    engine plan mapped from the planner's authoritative output.
+    the predecessor packet from the live script bytes bound to the predecessor
+    commit's independently fetched Git blobs, composes the planner observation
+    and baseline, and returns the verified candidate plus the engine plan
+    mapped from the planner's authoritative output.
     """
     commit = artifact.commit(commit)
     ids = engine.rehearsal_artifacts(github, commit, run_id, attempt)
@@ -171,7 +181,8 @@ def consume_and_plan(commit, run_id, attempt, message, tag, environ, provider, g
                         if type(item) is dict and item.get('name') == 'RELEASE_SHA']
         require(len(release_shas) == 1 and type(release_shas[0]) is str, 'provider_state_unverified')
         release_sha = release_shas[0]
-        predecessor_packet = engine.reconstruct_predecessor(provider.script_content(), release_sha)
+        predecessor_packet = engine.reconstruct_predecessor(provider.script_content(), release_sha,
+                                                            github)
         _files, descriptor = artifact.unpack(predecessor_packet, release_sha, rehearsal.SCHEMA_SHA256, modules=None)
         captured = engine.capture_observation(provider, descriptor, artifact.SCHEMA_QUERY)
         matching = [route for route in captured['observation']['routes']

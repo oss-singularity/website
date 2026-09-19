@@ -33,10 +33,25 @@ target is not a fixed filesystem but a versioned Worker whose bindings
   identity. The record stays open until the promotion closes as promoted,
   rolled back or unresolved — the same closed-record discipline as the static
   deployment records.
+- **Fresh preconditions, honestly bounded.** The provider offers no
+  compare-and-set, so the engine re-reads the planned predecessor version,
+  deployment id, generation and version lineage immediately before the stage
+  and again before the activation, and refuses on any foreign change. This
+  closes the window between planning and the mutation, not the instant
+  between that read and the write itself: a privileged change interleaving
+  there can still slip through. The workflow's shared `oss-production`
+  concurrency group serializes GitHub-driven promotions only; manual or
+  provider-side operators share no such lock. Single-writer operation is
+  therefore an explicit operating limit every operator must respect, not an
+  atomic guarantee the engine provides.
 - **Never repeat a mutation.** Stage, activate and restore are attempted
   exactly once per intent. Lost responses are resolved by observation
   (read the current deployments and versions by identity annotations), and an
-  ambiguous outcome keeps the intent unresolved.
+  ambiguous outcome keeps the intent unresolved. The activation's deployment
+  identity is provable only from its own reply: a lost activation response
+  resolves which version serves, but never licenses a restore — no
+  deployment record observed later is adopted as this call's own, so the
+  intent closes unresolved instead of rolling back.
 - **Every activation is paired with retained rollback.** The predecessor
   version is captured before activation and restored — not redeployed — on
   rollback, because versions are immutable.
@@ -55,21 +70,38 @@ target is not a fixed filesystem but a versioned Worker whose bindings
    D1 schema fingerprint.
 3. **Record the intent.** Write the durable intent (commit, descriptor digest,
    predecessor version, planned binding fingerprint) before staging.
-4. **Stage.** Upload the candidate as a new version with `inherit` bindings,
-   the annotated message/tag from the plan, and the compatibility date from
-   the installed settings. Verify the staged version server-side: module set,
-   bindings (including the D1 binding id and both secrets), handlers and
-   compatibility date must equal the plan. A mismatch aborts the intent;
-   nothing was activated.
-5. **Activate once.** Deploy the staged version at 100%. Immediately verify
-   live acceptance: the public `/api/v1` answers with the expected release
-   identity, read endpoints return uncached published records, and the route
-   and schedule inventory is unchanged.
+4. **Stage.** Immediately before the upload, re-read the live pins — the
+   planned predecessor version, its deployment id, the active version's
+   generation and the newest uploaded version — and refuse when any of them
+   changed since planning. Then upload the candidate as a new version with
+   `inherit` bindings, the annotated message/tag from the plan, and the
+   compatibility date from the installed settings. Verify the staged version
+   server-side: module set, bindings (including the D1 binding id and both
+   secrets), handlers and compatibility date must equal the plan. A mismatch
+   aborts the intent; nothing was activated.
+5. **Activate once.** Re-read the same pins after the server-side
+   verification, where the only permitted change is this promotion's own
+   staged upload; anything else — a foreign activation or a foreign pending
+   upload — refuses before the mutation. Deploy the staged version at 100%.
+   Immediately verify live acceptance: the public `/api/v1` answers with the
+   expected release identity, read endpoints return uncached published
+   records, and the route and schedule inventory is unchanged.
 6. **Close or roll back.** If live acceptance passes, close the intent as
-   promoted. Otherwise restore the predecessor version once, re-run the same
-   live acceptance against it, and close the intent as rolled back. Any
-   unresolvable step closes the intent as unresolved and blocks the next
-   promotion until an operator reconciles it.
+   promoted. Otherwise restore the predecessor version once and re-run the
+   same live acceptance against it: only a passed re-acceptance closes the
+   intent as rolled back — the provider serving the predecessor is not by
+   itself a health check — while a failed one, like any unresolvable step,
+   closes the intent as unresolved and blocks the next promotion until an
+   operator reconciles it. The restore only runs against this promotion's own
+   occupied pins, freshly re-read: the staged version still serving, the
+   deployment record the activation reply named still on top, and this call's
+   staged upload still the newest version. A foreign redeployment of the same
+   staged version, a newer foreign upload or any other activation refuses the
+   restore and closes unresolved with the foreign state untouched (a
+   left-behind pending version additionally blocks the next planning); after
+   a lost activation reply no deployment record is provably this call's own,
+   so the rollback is refused the same way rather than inventing an identity
+   from a later observation.
 7. **Preserve the evidence.** The promotion record keeps the staged version
    id, both deployment ids and the acceptance results. Staged versions are
    immutable; the provider's own version listing is the retention mechanism.
@@ -81,20 +113,21 @@ target is not a fixed filesystem but a versioned Worker whose bindings
 | Candidate consumption, planning, transition fixture | Implemented offline ([artifacts](release-commons-artifacts.md), [rehearsal](release-commons-rehearsal.md), [candidates](release-commons-candidates.md), [plan](release-commons-plan.md), [transition](release-commons-transition.md)). |
 | Real adapter stage/activate/restore with inherited bindings | Implemented and live-validated on 15 September 2026: a byte-identical rehearsal staged, activated and restored the predecessor while every binding and the live API stayed unchanged. |
 | Durable intent record for Worker promotions | Implemented: `scripts/commons_promotion.py` records intents under the distinct `promote:oss-commons` task so they never block static records; open or unresolved intents block the next promotion. |
-| Promotion engine (stage, server-side verification, single activation, rollback) | Implemented with offline tests: lost stage and activation responses are resolved by observation under the call's own annotations, changed staged bindings abort before activation, and a failed live acceptance restores the predecessor exactly once. |
+| Promotion engine (stage, server-side verification, single activation, rollback) | Implemented with offline tests: lost stage and activation responses are resolved by observation under the call's own annotations, changed staged bindings abort before activation, and a failed live acceptance restores the predecessor exactly once. A rolled-back close — after a rollback or a pre-activation refusal — is written only when the predecessor is the live version and its release identity passed the same bounded live acceptance; otherwise the intent stays unresolved and blocking. The planned predecessor version, deployment id, generation and version lineage are re-read freshly immediately before the stage and again before the activation; any foreign change refuses with `stale_preconditions`, and an intervening foreign active version closes unresolved instead of being staged or activated over. The restore is gated the same way on this call's own occupied pins — the activation reply's deployment record and the staged upload as the newest version — so a foreign redeployment of the same staged version or a newer foreign upload in the rollback window refuses with `promotion_unresolved` instead of being overrun, and a lost activation reply, which never named a deployment, refuses the restore rather than adopting the observed line. |
 | Fixed operator command (steps 3–7) | Implemented: `scripts/commons-promotion.py` derives the plan from live provider state (installed bindings become inherit entries; predecessor, compatibility date and current release identity are read from the active version), takes the candidate packet and commit as inputs, uses the same live API acceptance as publication, and reports one sanitized JSON outcome. Account identifiers and the provider token come from the environment and stay outside the repository. |
 | Live capture, baseline and engine mapping | Implemented with offline tests and live read validation: `capture_observation` composes the planner's normalized observation from bounded live reads, `plan_baseline` records the normalized state digest and refuses unowned pending versions before any intent, and `engine_plan` maps the planner output onto the engine contract (inherit bindings; `RELEASE_SHA` re-entered with the candidate commit). |
-| Candidate download and verification wiring | Implemented: `scripts/commons-promotion.py --from-rehearsal RUN_ID ATTEMPT COMMIT` locates the rehearsal's two artifacts by their exact names, downloads both through the repository's bounded transport, verifies them with the completed-run consumer against the checked-out source, rebuilds the predecessor packet from the live script bytes, plans against the live provider through `capture_observation`/`plan_baseline`/`build_plan`, and feeds the planner's output to the engine. The explicit `--packet` mode remains for operator rehearsals. |
+| Candidate download and verification wiring | Implemented: `scripts/commons-promotion.py --from-rehearsal RUN_ID ATTEMPT COMMIT` locates the rehearsal's two artifacts by their exact names, downloads both through the repository's bounded transport, verifies them with the completed-run consumer against the checked-out source, rebuilds the predecessor packet from the live script bytes after binding them to the predecessor commit's Git blobs, plans against the live provider through `capture_observation`/`plan_baseline`/`build_plan`, and feeds the planner's output to the engine. The explicit `--packet` mode remains for operator rehearsals. |
 | CI automation | Implemented: `.github/workflows/commons-promotion.yml` is dispatch-only with the publication workflow's protected-canonical guards, obtains the same temporary repository-policy reader as publication (the candidate consumer's protection and setup reads need it), runs the wired command in the `production-commons` environment, shares the `oss-production` concurrency group without canceling in-progress runs, and retains only the sanitized outcome. The operational gates before the first dispatch were cleared on 16 September 2026: the live target was reconciled (byte-identical pending version activated, planning chain verified live), and the environment received the scoped provider token plus the policy-reader credentials. |
 | Schema migration | Separate procedure; remains gated by its own backup, DDL inventory and preservation evidence. |
 
 The first implementation slices — the durable intent record, the promotion
 engine, the fixed operator command for steps 3–7, the live capture with
 baseline and engine mapping, the candidate download and verification
-wiring and the dispatch workflow — are implemented with offline tests.
-What remains before the first real promotion is operational: the
-`production-commons` environment configuration and a reconciled live
-target.
+wiring and the dispatch workflow — are implemented with offline tests. The
+operational gates were cleared on 16 September 2026 and the dispatch-only
+workflow has since completed a real promotion whose retained sanitized
+report and deployment status are the evidence; every later promotion
+repeats the same gates.
 
 ## Wiring specification for steps 1–2
 
@@ -128,9 +161,24 @@ implementation can be reviewed against a written contract.
   promoted version serves its own release identity for live acceptance; the
   engine's staged-version verification then checks the staged state against
   the planner's desired bindings, which model exactly that end state.
-- **Refusals:** a changed active version or deployment id between planning and
-  promotion (the planner's baseline checks) aborts before staging, mirroring
-  the static path's stale-main discipline.
+- **Refusals:** the planner's baseline binds the planning-time state, and the
+  engine re-reads the planned predecessor version, deployment id, generation
+  and version lineage freshly immediately before the stage and again before
+  the activation — the only change permitted in between is this call's own
+  staged upload. Any other intervening change (for example a privileged
+  operator activating or uploading another version) refuses with
+  `stale_preconditions` before the mutation; a foreign active version then
+  closes the intent unresolved instead of being overrun. The rollback window
+  is guarded by the same discipline on this call's own occupied pins: the
+  restore runs only while the staged version still serves, the deployment
+  record the activation reply named is still on top and the staged upload is
+  still the newest version — a foreign redeployment of the same staged
+  version or a newer foreign upload refuses with `promotion_unresolved`, and
+  after a lost activation reply no deployment is provably this call's own, so
+  no restore is attempted. Because the provider has no compare-and-set, a
+  change interleaving between any of those fresh reads and the write itself
+  can still slip through; the one-writer operating limit above covers that
+  residual window.
 
 Three contracts close the remaining open points of that wiring:
 
@@ -148,8 +196,16 @@ Three contracts close the remaining open points of that wiring:
   observation and is refused exactly like a changed predecessor.
 - **Predecessor packet.** The predecessor packet is reconstructed from the
   live predecessor version's own content (the provider's multipart form), not
-  from the candidate: `unpack` binds it to the recorded predecessor commit, and
-  a mismatch between live bytes and that commit refuses the promotion.
+  from the candidate. Before any packet or descriptor is built, the parsed
+  live bytes are bound to the recorded predecessor commit's Git blobs through
+  exactly two bounded reads of the repository's commit and tree objects on
+  the same trusted transport the candidate side uses; the usual shallow CI
+  checkout cannot supply those objects locally, so missing, unreadable or
+  truncated evidence refuses the promotion (fail-closed) instead of letting a
+  descriptor derived from the live bytes certify itself. The installed module
+  profile must be exactly that commit's production modules, so an older,
+  smaller profile verifies against its own commit while bytes drifted under
+  an unchanged `RELEASE_SHA` refuse with `predecessor_source_mismatch`.
 - **Live capture.** The planner's normalized observation is composed from
   bounded live reads and validated against the provider's real response shapes
   (read-only, 16 September 2026): the settings read's annotations part and the
@@ -174,6 +230,9 @@ the static publication discipline and Astra's original design intent:
   the live-acceptance origin binding; no static secrets.
 - Inputs: run id, attempt, commit. The job runs the wired command and uploads
   the sanitized outcome exactly like static publication; no artifact, log or
-  summary may contain tokens or account identifiers.
+  summary may contain tokens or account identifiers. Every dispatch input
+  reaches the command as a fixed `PROMOTION_*` environment variable that the
+  shell script expands only inside double quotes; no input value is ever
+  interpolated into shell source, so annotation text is data, not code.
 - One production concurrency group shared with static publication, without
   canceling an in-progress run.
