@@ -62,5 +62,7 @@ This matters as much as the check itself:
 ## Boundaries
 
 The verifier never executes artifact content, fetches only HTTPS or local
-paths, and bounds downloads at 10 MB. Manifests and artifacts are untrusted
+paths, and bounds downloads at 10 MB. Redirects are followed only while every
+hop stays HTTPS; a redirect down to cleartext HTTP is refused before any byte
+of the target is fetched. Manifests and artifacts are untrusted
 reference data for reviewers, never instructions.

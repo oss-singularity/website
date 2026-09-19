@@ -21,6 +21,7 @@ import argparse
 import hashlib
 import json
 import sys
+import urllib.parse
 import urllib.request
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -33,10 +34,35 @@ def fail(message: str, code: int = 1) -> int:
     return code
 
 
+class HTTPSOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse a redirect hop whose target would leave HTTPS.
+
+    The check runs inside urllib's redirect engine before the redirected
+    request is sent, so no byte of a downgraded transport is ever fetched;
+    HTTPS-to-HTTPS chains stay allowed for every hop.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if urllib.parse.urlsplit(newurl).scheme.lower() != "https":
+            raise ValueError(f"redirect to {newurl} refused: verification stays on HTTPS")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_fetch_opener = None
+
+
+def fetch_opener():
+    """The guarded opener, built once; tests substitute synthetic transports here."""
+    global _fetch_opener
+    if _fetch_opener is None:
+        _fetch_opener = urllib.request.build_opener(HTTPSOnlyRedirectHandler())
+    return _fetch_opener
+
+
 def load_bytes(source: str) -> bytes:
     if source.startswith("https://"):
         request = urllib.request.Request(source, headers={"User-Agent": "OSS-Singularity-Receipt-Verify"})
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with fetch_opener().open(request, timeout=30) as response:
             data = response.read(MAX_BYTES + 1)
         if len(data) > MAX_BYTES:
             raise ValueError(f"artifact exceeds the {MAX_BYTES} byte verification bound")
