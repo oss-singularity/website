@@ -35,4 +35,16 @@ fi
 
 "$repo_root/scripts/check-site.sh"
 
+ui_report=$(mktemp)
+if ! node --test scripts/test-mission-handoff.mjs scripts/test-theme.mjs \
+    scripts/test-work-items-ui.mjs scripts/test-projects-ui.mjs \
+    scripts/test-road-so-far.mjs scripts/test-commons-activity.mjs \
+    scripts/test-commons-growth-data.mjs > "$ui_report"; then
+    cat "$ui_report"
+    rm -f "$ui_report"
+    printf 'UI test suites failed\n' >&2
+    exit 1
+fi
+rm -f "$ui_report"
+
 printf 'repository baseline checks passed\n'
