@@ -20,6 +20,12 @@ const MAX_DEPENDENCIES = 10;
 const MAX_DEPTH = 2;
 const MAX_NONTERMINAL_COMMITMENTS = 3;
 const MAX_OPEN_PROJECTS = 10;
+// Public commitment metadata is bound to a confirmed history: confirmed, ended
+// and completed are public. offered, declined and withdrawn stay with the two
+// bound participants, and cancelled is conservatively private because its row
+// alone cannot distinguish a commitment confirmed before cancellation from one
+// that never was — no heuristic reconstruction of earlier confirmation.
+const PUBLIC_COMMITMENT_STATUSES = ['confirmed', 'ended', 'completed'];
 
 export async function coordinatorOf(db, projectId, actorId) {
   if (!actorId) return false;
@@ -91,9 +97,11 @@ async function commitmentsFor(db, projectId, viewer, now) {
     WHERE c.project_id = ? ORDER BY c.created_at, c.id`).bind(projectId).all()).results;
   return rows.filter(row => row.identity_exists).map(row => {
     const participant = viewer && [row.contributor_identity_id, row.coordinator_identity_id].includes(viewer.id);
-    // An offered commitment is visible only to its two bound participants;
-    // the public view sees a commitment once it is confirmed.
-    if (row.status === 'offered' && !participant) return null;
+    // An offered commitment is visible only to its two bound participants, and
+    // so are the states that never reached confirmation. The public view sees
+    // a commitment only through its confirmed history: confirmed, ended or
+    // completed.
+    if (!participant && !PUBLIC_COMMITMENT_STATUSES.includes(row.status)) return null;
     const profiled = { ...row,
       contributor_profile: { identity_id: row.contributor_identity_id, github_id: row.contributor_github_id,
         github_login: row.contributor_github_login, github_url: `https://github.com/${row.contributor_github_login}`,
@@ -175,7 +183,7 @@ export async function readProject(request, env, id, now, mode = 'public') {
     status: row.status, version: row.version, coordinator: profile(row, row.coordinator_identity_id),
     created_at: iso(row.created_at), updated_at: iso(row.updated_at),
     milestones: milestones.rows.map(milestone => milestoneView(milestone, milestones.dependencies, milestones.blocked, isCoordinator || (viewer && milestones.rows.some(m => m.created_by_identity_id === viewer.id)))),
-    commitments: commitments.filter(view => view.status !== 'offered' || (viewer && [view.contributor?.identity_id, view.coordinator?.identity_id].includes(viewer.id))),
+    commitments,
   };
   if (isCoordinator) project.viewer = { coordinator: true };
   return response(project);
@@ -463,7 +471,7 @@ export async function projectExport(request, env, id, now) {
       status: row.status, scope_version: 1, version: row.version,
       coordinator: profile(row, row.coordinator_identity_id), created_at: iso(row.created_at), updated_at: iso(row.updated_at) },
     milestones: milestones.rows.map(milestone => milestoneView(milestone, milestones.dependencies, milestones.blocked, true)),
-    commitments: commitments.filter(view => ['confirmed', 'ended', 'completed'].includes(view.status))
+    commitments: commitments.filter(view => PUBLIC_COMMITMENT_STATUSES.includes(view.status))
       .map(({ id: commitmentId, milestone_id, contributor, coordinator, status, terms, scope_version, created_at, updated_at }) =>
         ({ id: commitmentId, milestone_id, contributor, coordinator, status, terms, scope_version, created_at, updated_at })),
     notice: 'An export records coordination decisions and identities; it verifies no artifact and authorizes no payment.',
