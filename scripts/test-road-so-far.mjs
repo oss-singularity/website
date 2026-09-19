@@ -47,6 +47,7 @@ function page({ list, details, failList = false, failDetailId = null, reduced = 
   nodes.get('road-content').hidden = true;
   const document = {
     getElementById: (id) => { assert.ok(nodes.has(id), `Unexpected element access: ${id}`); return nodes.get(id); },
+    createElement: (tag) => new FakeNode(tag),
     createElementNS: (ns, tag) => { assert.equal(ns, 'http://www.w3.org/2000/svg'); return new FakeNode(tag); },
   };
   const requests = [];
@@ -84,9 +85,13 @@ const project = (id, createdHoursAgo, { milestones = [], commitments = [] } = {}
   status: 'closed', version: 1, created_at: new Date(Date.now() - createdHoursAgo * HOUR).toISOString(),
   updated_at: new Date(Date.now() - createdHoursAgo * HOUR).toISOString(), milestones, commitments,
 });
+// One shared creation moment for every fixture project: separate Date.now()
+// calls can straddle a millisecond under load, which would turn the shared
+// project-start dot into two and make the joint-jump assertions racy.
+const CREATED_AT = new Date(Date.now() - 3 * DAY).toISOString();
 const detail = (id, { doneAt = [], completedAt = [] } = {}) => ({
   id, status: 'closed',
-  created_at: new Date(Date.now() - 3 * DAY).toISOString(),
+  created_at: CREATED_AT,
   updated_at: new Date().toISOString(),
   milestones: doneAt.map((at, index) => ({ id: `m-${id}-${index}`, status: 'done', updated_at: at })),
   commitments: completedAt.map((at, index) => ({ id: `c-${id}-${index}`, status: 'completed', updated_at: at })),
@@ -98,6 +103,18 @@ const fixture = (ids, details) => ({
 
 const countTags = (node, tag) => node.children.filter((child) => child.tagName === tag.toUpperCase()).length;
 const withClass = (node, cls) => node.children.filter((child) => classesOf(child).has(cls));
+const deepText = (node) => [node.textContent, ...node.children.map(deepText)].filter(Boolean).join(' ').trim();
+const descendants = (node, tag) => {
+  const found = [];
+  const walk = (parent) => { for (const child of parent.children) { if (child.tagName === tag.toUpperCase()) found.push(child); walk(child); } };
+  walk(node);
+  return found;
+};
+const eventsTable = (p) => {
+  const details = p.content.children.find((child) => child.tagName === 'DETAILS');
+  assert.ok(details, 'The journey carries a collapsible event table');
+  return details;
+};
 
 test('the journey draws three cumulative series from public records', async () => {
   const a = 'proj-a', b = 'proj-b';
@@ -122,8 +139,51 @@ test('the journey draws three cumulative series from public records', async () =
   assert.equal(dots.length, 6, 'One dot per distinct moment across all three series — the two projects share one created moment, milestones keep three, commitments two');
   for (const dot of dots) assert.equal(dot.children.length, 1, 'Each dot carries a tooltip');
   assert.match(p.summary.textContent, /2 coordinated projects · 3 milestones completed · 2 commitments accepted — public records, across the first \d+ days\./);
-  assert.equal(p.status.textContent, 'Every point is a public record — hover a dot for its moment.');
+  assert.equal(p.status.textContent, 'Every point is a public record — hover a dot or open the event table for its moment.');
   assert.deepEqual(p.requests.filter((url) => !url.includes('/projects?')).length, 2, 'One detail request per listed project');
+});
+
+test('every axis value and date label is real text, never an empty node', async () => {
+  const a = 'proj-a';
+  const data = fixture([a], { [a]: detail(a, { doneAt: [new Date(Date.now() - DAY).toISOString()] }) });
+  const p = page({ list: data.list, details: data.details });
+  await flush();
+  const texts = descendants(p.chart.children[0], 'text');
+  assert.equal(texts.length, 5, 'Three grid values and two date labels are set as SVG text');
+  const labels = texts.map((node) => String(node.textContent));
+  assert.deepEqual(labels.slice(0, 3), ['0', '1', '1'], 'The grid counts carry their values');
+  assert.match(labels[3], /^[A-Z][a-z]{2} \d+$/, 'The start date is readable at the chart');
+  assert.match(labels[4], /today$/, 'The end marker is readable at the chart');
+});
+
+test('event moments open through one collapsed table, with no trap and no forced stops', async () => {
+  const earlier = new Date(Date.now() - 2 * DAY).toISOString();
+  const shared = new Date(Date.now() - DAY).toISOString();
+  const data = fixture(['proj-a', 'proj-b'], {
+    'proj-a': detail('proj-a', { doneAt: [earlier], completedAt: [shared, shared] }),
+    'proj-b': detail('proj-b', { doneAt: [shared] }),
+  });
+  const p = page({ list: data.list, details: data.details });
+  await flush();
+  const details = eventsTable(p);
+  assert.match(deepText(details.children[0]), /Every point's moment/, 'The summary names what opening reveals');
+  const rows = descendants(details, 'tbody')[0].children;
+  assert.equal(rows.length, 4, 'One row per drawn point: the joint projects jump, two milestones, the joint commitments jump');
+  for (const dot of withClass(p.chart.children[0], 'road-dot')) {
+    assert.equal('tabindex' in dot.attributes, false, 'Dots stay unfocusable — the table is the keyboard path, not hundreds of stops');
+  }
+  const text = rows.map(deepText).join('\n');
+  assert.match(text, /Projects coordinated\s*2/, 'The joint projects jump names its cumulative count');
+  assert.match(text, /Commitments accepted\s*2/, 'The joint commitments jump names its cumulative count');
+  assert.match(text, /Milestones completed\s*1/, 'Milestone moments carry their counts');
+  const header = deepText(descendants(details, 'thead')[0]);
+  assert.match(header, /Moment/);
+  assert.match(header, /Record/);
+  assert.match(header, /Cumulative count/);
+  const moments = rows.map((row) => deepText(row.children[0]));
+  const fmtMoment = (value) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }).format(new Date(value));
+  const created = data.details['proj-a'].created_at;
+  assert.deepEqual(moments, [fmtMoment(created), fmtMoment(earlier), fmtMoment(shared), fmtMoment(shared)], 'Rows run in record order, oldest first');
 });
 
 test('simultaneous completions stay one honest joint jump, never a NaN path', async () => {
@@ -153,6 +213,7 @@ test('a project with 61 terminal commitments still draws the full record', async
   assert.equal(p.content.hidden, false, 'The invented 30/60 history caps are gone');
   assert.match(p.summary.textContent, /61 commitments accepted/);
   assert.equal(withClass(p.chart.children[0], 'road-dot-commitments').length, 61);
+  assert.equal(descendants(eventsTable(p), 'tbody')[0].children.length, 62, 'The event table lists every moment too — 61 commitments plus the project start');
 });
 
 test('cursor pages are followed so 51 projects draw as 51, not a silent excerpt', async () => {

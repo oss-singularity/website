@@ -99,6 +99,14 @@ const activityJson = (projects) => {
 const growthPaths = (p) => p.get('activity-growth-chart').children
   .filter((child) => child.tagName === 'PATH')
   .map((child) => child.attributes.d);
+const findTag = (node, tag) => {
+  for (const child of node.children) {
+    if (child.tagName === tag) return child;
+    const found = findTag(child, tag);
+    if (found) return found;
+  }
+  return null;
+};
 
 test('the seven-day window and the mission curve share one record read', async () => {
   const done = iso(now() - DAY), completed = iso(now() - DAY + 60000);
@@ -189,6 +197,33 @@ test('a failed refresh keeps the drawn curve instead of blanking it', async () =
   assert.equal(p.get('activity-growth').hidden, false, 'The earlier curve stays on a failed refresh');
   assert.equal(p.text('activity-growth-summary'), drawn);
   assert.match(p.text('activity-status'), /Refresh failed\. The earlier snapshot is still shown/);
+});
+
+test('the mission curve exposes its moments through one collapsed table', async () => {
+  const doneA = iso(now() - 2 * DAY), doneB = iso(now() - DAY), shared = iso(now() - DAY + 60000);
+  const first = project(1, {
+    createdOffset: 3 * DAY,
+    milestones: [{ id: 'm-1', status: 'done', updated_at: doneA }],
+    commitments: [{ id: 'c-1', status: 'completed', updated_at: shared }, { id: 'c-2', status: 'completed', updated_at: shared }],
+  });
+  let list = [first];
+  const p = panel({ get projects() { return list; } });
+  await flush();
+  const details = findTag(p.get('activity-growth'), 'DETAILS');
+  assert.ok(details, 'The curve carries a collapsible event table');
+  assert.match(details.textContent, /Every point's moment — the full event table/);
+  assert.match(details.textContent, /a snapshot of what is public right now/, 'The caption keeps the snapshot honesty');
+  assert.match(findTag(details, 'THEAD').textContent, /Moment.*Record.*Cumulative count/);
+  const rows = findTag(details, 'TBODY').children;
+  assert.equal(rows.length, 3, 'One row per drawn point: the project start, the milestone, the joint commitments jump');
+  assert.match(rows[2].textContent, /Commitments accepted2/, 'The joint jump names its cumulative count');
+  for (const dot of p.get('activity-growth-chart').children.filter((child) => child.tagName === 'CIRCLE')) {
+    assert.equal('tabindex' in dot.attributes, false, 'Dots stay unfocusable — the table is the keyboard path');
+  }
+  list = [first, project(2, { createdOffset: 4 * DAY, milestones: [{ id: 'm-2', status: 'done', updated_at: doneB }] })];
+  p.clickRefresh();
+  await flush();
+  assert.equal(findTag(p.get('activity-growth'), 'TBODY').children.length, 5, 'The table follows the refreshed record');
 });
 
 test('the bounded record window marks its excerpt honestly', async () => {

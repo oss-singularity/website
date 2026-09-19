@@ -208,6 +208,43 @@
     return d;
   };
   let growthDrawn = false;
+  // Hover titles never reach a keyboard. The mission curve gets the same one
+  // collapsible event table as the journey chart: a single extra tab stop
+  // when closed, no focusable cells when open — no trap, no mandatory stops.
+  const growthHeaderCell = text => { const cell = element("th", text); cell.scope = "col"; return cell; };
+  const growthEventsBody = element("tbody");
+  const growthEvents = (() => {
+    const details = element("details");
+    details.className = "activity-details activity-growth-events";
+    details.append(element("summary", "Every point's moment — the full event table"));
+    const scroll = element("div");
+    scroll.className = "table-scroll";
+    const table = element("table");
+    table.append(element("caption", "The public records drawn above, moments in UTC — a snapshot of what is public right now"));
+    const head = element("thead");
+    const row = element("tr");
+    ["Moment", "Record", "Cumulative count"].forEach(label => row.append(growthHeaderCell(label)));
+    head.append(row);
+    table.append(head, growthEventsBody);
+    scroll.append(table);
+    details.append(scroll);
+    return details;
+  })();
+  const fillGrowthEvents = series => {
+    const rows = [];
+    for (const { key, label } of growthSeries) {
+      for (const point of series[key]) rows.push({ t: point.t, label, count: point.count });
+    }
+    rows.sort((a, b) => a.t - b.t);
+    growthEventsBody.replaceChildren(...rows.map(({ t, label, count }) => {
+      const tr = element("tr");
+      const when = element("th", moment(t));
+      when.scope = "row";
+      tr.append(when, element("td", label), element("td", count.toLocaleString("en")));
+      return tr;
+    }));
+  };
+  let growthEventsAttached = false;
   const renderGrowth = data => {
     const { series, totals, projects, complete, startedAt, readAt } = data;
     const every = growthSeries.flatMap(({ key }) => series[key].map(point => point.t));
@@ -247,6 +284,8 @@
     growthSummary.textContent = complete
       ? `${totals.milestones} milestones completed · ${totals.commitments} commitments accepted · ${totals.projects} projects coordinated — every point a public record in this snapshot.`
       : `At least ${totals.milestones} milestones completed · at least ${totals.commitments} commitments accepted · at least ${totals.projects} projects coordinated — the bounded window carries the newest ${projects.length} projects; older records exist beyond it.`;
+    if (!growthEventsAttached) { growthPanel.append(growthEvents); growthEventsAttached = true; }
+    fillGrowthEvents(series);
     growthPanel.hidden = false;
     growthDrawn = true;
   };

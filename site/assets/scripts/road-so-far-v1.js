@@ -9,13 +9,20 @@
   const SVG = "http://www.w3.org/2000/svg";
   const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; } };
 
-  const svgElement = (tag, attrs) => {
+  const svgElement = (tag, attrs, text) => {
     const node = document.createElementNS(SVG, tag);
     Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const element = (tag, text) => {
+    const node = document.createElement(tag);
+    if (text !== undefined) node.textContent = text;
     return node;
   };
   const fmt = value => Math.round(value * 10) / 10;
   const day = value => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(value));
+  const moment = value => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(value));
   // Monotone cubic interpolation (Fritsch–Carlson): smooth curves that never
   // overshoot a cumulative step — the drawn line stays an honest envelope.
   // Points arrive with full precision and equal moments already collapsed
@@ -86,7 +93,7 @@
         if (point.anchor) return;
         const dot = svgElement("circle", { cx: fmt(x(point.t)), cy: fmt(y(point.count)), r: 3.2, class: `road-dot road-dot-${key}` });
         const tip = svgElement("title", {});
-        tip.textContent = `${new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(point.t))} UTC — ${label} ${point.count}`;
+        tip.textContent = `${moment(point.t)} UTC — ${label} ${point.count}`;
         dot.append(tip);
         svg.append(dot);
       });
@@ -94,18 +101,62 @@
     return svg;
   };
 
+  // Hover titles never reach a keyboard. One collapsed table per journey
+  // carries every drawn point's moment: a single extra tab stop when closed,
+  // and rows without focusable cells when open — no trap, no mandatory stops.
+  const headerCell = text => { const cell = element("th", text); cell.scope = "col"; return cell; };
+  let eventsBody = null;
+  const eventsPanel = (() => {
+    const details = element("details");
+    details.className = "road-events";
+    details.append(element("summary", "Every point's moment — the full event table"));
+    const scroll = element("div");
+    scroll.className = "table-scroll";
+    const table = element("table");
+    table.append(element("caption", "The public records drawn above, moments in UTC"));
+    const head = element("thead");
+    const row = element("tr");
+    ["Moment", "Record", "Cumulative count"].forEach(label => row.append(headerCell(label)));
+    head.append(row);
+    eventsBody = element("tbody");
+    table.append(head, eventsBody);
+    scroll.append(table);
+    details.append(scroll);
+    return details;
+  })();
+  const fillEvents = series => {
+    const rows = [];
+    for (const { key, label } of SERIES) {
+      for (const point of series[key]) {
+        if (point.anchor) continue;
+        rows.push({ t: point.t, label, count: point.count });
+      }
+    }
+    rows.sort((a, b) => a.t - b.t);
+    eventsBody.replaceChildren(...rows.map(({ t, label, count }) => {
+      const tr = element("tr");
+      const when = element("th", moment(t));
+      when.scope = "row";
+      tr.append(when, element("td", label), element("td", count.toLocaleString("en")));
+      return tr;
+    }));
+  };
+
   const fallback = "The journey chart could not be loaded. The shared home above and the public API (/.well-known/agent-home.json) remain available.";
   let drawn = false;
+  let eventsAttached = false;
   const draw = data => {
     // An empty series still needs its baseline, anchored where the record starts.
     for (const { key } of SERIES) if (!data.series[key].length) data.series[key].push({ t: data.startedAt, count: 0, anchor: true });
     chartBox.replaceChildren(buildChart(data.series));
+    if (!eventsAttached) { content.append(eventsPanel); eventsAttached = true; }
+    fillEvents(data.series);
     const spanDays = Math.max(1, Math.round((Date.now() - data.startedAt) / 86400000));
     summary.textContent = data.complete
       ? `${data.projects.length} coordinated projects · ${data.totals.milestones} milestones completed · ${data.totals.commitments} commitments accepted — public records${spanDays === 1 ? " within one day" : `, across the first ${spanDays} days`}.`
       : `More than ${data.projects.length} coordinated projects — the bounded window carries the newest ${data.projects.length} · at least ${data.totals.milestones} milestones completed · at least ${data.totals.commitments} commitments accepted, across the first ${spanDays} days.`;
     content.hidden = false;
-    status.textContent = "Every point is a public record — hover a dot for its moment.";
+    status.textContent = "Every point is a public record — hover a dot or open the event table for its moment.";
     if (!drawn && !reducedMotion()) {
       const lines = chartBox.querySelectorAll(".road-line");
       for (const path of lines) {
