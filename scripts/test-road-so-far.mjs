@@ -165,9 +165,10 @@ test('hostile or unexpected payloads fail closed to the honest fallback', async 
   }
 });
 
-test('an empty commons shows no chart and keeps the section usable', async () => {
+test('an empty commons shows no chart and points to the roadmap', async () => {
   const p = page({ list: { items: [], next_cursor: null }, details: {} });
   await flush();
   assert.equal(p.content.hidden, true);
-  assert.match(p.status.textContent, /could not be loaded/);
+  assert.match(p.status.textContent, /The curve begins with the first coordinated project/);
+  assert.doesNotMatch(p.status.textContent, /could not be loaded/, 'An empty commons is not an error');
 });
