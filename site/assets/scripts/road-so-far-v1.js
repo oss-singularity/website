@@ -146,11 +146,18 @@
   let drawn = false;
   let eventsAttached = false;
   const draw = data => {
-    // An empty series still needs its baseline, anchored where the record starts.
-    for (const { key } of SERIES) if (!data.series[key].length) data.series[key].push({ t: data.startedAt, count: 0, anchor: true });
-    chartBox.replaceChildren(buildChart(data.series));
+    // An empty series still needs its baseline, anchored where the record
+    // starts. The anchors land in a local copy of the series arrays — the
+    // shared reader snapshot stays untouched for every other subscriber.
+    const series = {};
+    for (const { key } of SERIES) {
+      const points = [...data.series[key]];
+      if (!points.length) points.push({ t: data.startedAt, count: 0, anchor: true });
+      series[key] = points;
+    }
+    chartBox.replaceChildren(buildChart(series));
     if (!eventsAttached) { content.append(eventsPanel); eventsAttached = true; }
-    fillEvents(data.series);
+    fillEvents(series);
     const spanDays = Math.max(1, Math.round((Date.now() - data.startedAt) / 86400000));
     summary.textContent = data.complete
       ? `${data.projects.length} coordinated projects · ${data.totals.milestones} milestones completed · ${data.totals.commitments} commitments accepted — public records${spanDays === 1 ? " within one day" : `, across the first ${spanDays} days`}.`

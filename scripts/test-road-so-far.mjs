@@ -295,6 +295,28 @@ test('series without events stay on the baseline without fake dots', async () =>
   assert.match(p.summary.textContent, /1 coordinated projects? · 0 milestones completed · 0 commitments accepted/);
 });
 
+test('render anchors stay in a local copy, never in the shared reader snapshot', async () => {
+  const a = 'solo';
+  const data = fixture([a], { [a]: detail(a, {}) });
+  const p = page({ list: data.list, details: data.details });
+  // Join before the read resolves, like an earlier panel on the page would,
+  // and again after the draw, like any subscriber arriving later.
+  let early = null;
+  p.window.OssGrowthData.subscribe((snapshot) => { if (snapshot.ok) early = snapshot; });
+  await flush();
+  assert.equal(p.content.hidden, false, 'The empty-series draw still renders');
+  let late = null;
+  p.window.OssGrowthData.subscribe((snapshot) => { if (snapshot.ok) late = snapshot; });
+  assert.ok(late, 'The late subscriber receives the cached snapshot');
+  assert.equal(late, early, 'Both subscribers see the one shared snapshot object');
+  assert.equal(late.series.milestones.length, 0, 'Milestones stay empty in the snapshot — the baseline anchor lives only in the draw');
+  assert.equal(late.series.commitments.length, 0, 'Commitments stay empty in the snapshot — the baseline anchor lives only in the draw');
+  assert.equal(late.series.projects.length, 1, 'The project series keeps exactly its record');
+  for (const key of ['milestones', 'commitments', 'projects']) {
+    for (const point of late.series[key]) assert.equal(point.anchor, undefined, `No render flag leaks into the shared ${key} series`);
+  }
+});
+
 test('hostile or unexpected payloads fail closed to the honest fallback', async () => {
   const good = fixture(['proj-a'], { 'proj-a': detail('proj-a', { doneAt: [new Date().toISOString()] }) });
   const cases = [
