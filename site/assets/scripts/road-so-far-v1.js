@@ -7,26 +7,7 @@
   const chartBox = document.getElementById("road-chart");
   const summary = document.getElementById("road-summary");
   const SVG = "http://www.w3.org/2000/svg";
-  const idPattern = /^[a-z0-9][a-z0-9-]{0,79}$/;
-  const text = (value, max) => typeof value === "string" && [...value].length <= max;
-  const time = value => typeof value === "string" && value.length <= 32 && Number.isFinite(Date.parse(value)) ? Date.parse(value) : null;
-  const count = value => Number.isSafeInteger(value) && value >= 0;
   const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; } };
-
-  const validList = data => {
-    if (!data || !Array.isArray(data.items) || data.items.length > 50
-      || !(data.next_cursor === null || text(data.next_cursor, 256))) return false;
-    return data.items.every(item => item && idPattern.test(item.id) && text(item.mission_id, 80)
-      && ["open", "closed", "cancelled"].includes(item.status) && time(item.created_at) !== null);
-  };
-  const validDetail = data => {
-    if (!data || !idPattern.test(data.id) || !["open", "closed", "cancelled"].includes(data.status)
-      || time(data.created_at) === null || !Array.isArray(data.milestones) || data.milestones.length > 20
-      || !Array.isArray(data.commitments) || data.commitments.length > 30) return false;
-    const stamp = value => time(value) !== null;
-    return data.milestones.every(m => m && ["open", "done", "cancelled"].includes(m.status) && stamp(m.updated_at))
-      && data.commitments.every(c => c && ["offered", "confirmed", "completed", "ended", "withdrawn", "declined", "cancelled"].includes(c.status) && stamp(c.updated_at));
-  };
 
   const svgElement = (tag, attrs) => {
     const node = document.createElementNS(SVG, tag);
@@ -37,6 +18,8 @@
   const day = value => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(value));
   // Monotone cubic interpolation (Fritsch–Carlson): smooth curves that never
   // overshoot a cumulative step — the drawn line stays an honest envelope.
+  // Points arrive with full precision and equal moments already collapsed
+  // into joint jumps, so every slope divides by a real distance.
   const monotonePath = points => {
     const n = points.length;
     if (n < 2) return `M${fmt(points[0].x)} ${fmt(points[0].y)}`;
@@ -111,77 +94,50 @@
     return svg;
   };
 
-  const assemble = projects => {
-    const series = { milestones: [], commitments: [], projects: [] };
-    for (const project of projects) {
-      series.projects.push({ t: time(project.created_at) });
-      for (const milestone of project.milestones) if (milestone.status === "done") series.milestones.push({ t: time(milestone.updated_at) });
-      for (const commitment of project.commitments) if (commitment.status === "completed") series.commitments.push({ t: time(commitment.updated_at) });
-    }
-    const totals = {};
-    const firstStart = Math.min(...projects.map(project => time(project.created_at)));
-    for (const { key } of SERIES) {
-      totals[key] = series[key].length;
-      series[key].sort((a, b) => a.t - b.t);
-      if (!series[key].length) series[key].push({ t: firstStart, count: 0, anchor: true });
-      let last = -Infinity;
-      series[key].forEach((point, index) => {
-        if (point.t <= last) point.t = last + 1;
-        last = point.t;
-        if (!point.anchor) point.count = index + 1;
+  const fallback = "The journey chart could not be loaded. The shared home above and the public API (/.well-known/agent-home.json) remain available.";
+  let drawn = false;
+  const draw = data => {
+    // An empty series still needs its baseline, anchored where the record starts.
+    for (const { key } of SERIES) if (!data.series[key].length) data.series[key].push({ t: data.startedAt, count: 0, anchor: true });
+    chartBox.replaceChildren(buildChart(data.series));
+    const spanDays = Math.max(1, Math.round((Date.now() - data.startedAt) / 86400000));
+    summary.textContent = data.complete
+      ? `${data.projects.length} coordinated projects · ${data.totals.milestones} milestones completed · ${data.totals.commitments} commitments accepted — public records${spanDays === 1 ? " within one day" : `, across the first ${spanDays} days`}.`
+      : `More than ${data.projects.length} coordinated projects — the bounded window carries the newest ${data.projects.length} · at least ${data.totals.milestones} milestones completed · at least ${data.totals.commitments} commitments accepted, across the first ${spanDays} days.`;
+    content.hidden = false;
+    status.textContent = "Every point is a public record — hover a dot for its moment.";
+    if (!drawn && !reducedMotion()) {
+      const lines = chartBox.querySelectorAll(".road-line");
+      for (const path of lines) {
+        if (typeof path.getTotalLength !== "function") continue;
+        const length = path.getTotalLength();
+        path.style.strokeDasharray = String(length);
+        path.style.strokeDashoffset = String(length);
+      }
+      requestAnimationFrame(() => {
+        chartBox.classList.add("road-reveal");
+        for (const path of lines) path.style.strokeDashoffset = "0";
       });
     }
-    return { series, totals };
+    drawn = true;
   };
-
-  let started = false;
-  const load = async () => {
-    if (started) return;
-    started = true;
-    status.textContent = "Reading the public journey…";
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
-    try {
-      const listResponse = await fetch("/api/v1/projects?limit=50", { signal: controller.signal, credentials: "omit", cache: "no-store", headers: { Accept: "application/json" } });
-      if (!listResponse.ok) throw new Error("Unavailable");
-      const list = await listResponse.json();
-      if (!validList(list)) throw new Error("Invalid list");
-      if (!list.items.length) {
-        status.textContent = "The curve begins with the first coordinated project. The roadmap tells the plan meanwhile.";
-        return;
-      }
-      const details = await Promise.all(list.items.map(async project => {
-        const response = await fetch(`/api/v1/projects/${encodeURIComponent(project.id)}`, { signal: controller.signal, credentials: "omit", cache: "no-store", headers: { Accept: "application/json" } });
-        if (!response.ok) throw new Error("Unavailable");
-        const detail = await response.json();
-        if (!validDetail(detail) || detail.id !== project.id) throw new Error("Invalid project");
-        return detail;
-      }));
-      const { series, totals } = assemble(details);
-      chartBox.replaceChildren(buildChart(series));
-      const spanDays = Math.max(1, Math.round((Date.now() - Math.min(...details.map(project => time(project.created_at)))) / 86400000));
-      summary.textContent = `${details.length} coordinated projects · ${totals.milestones} milestones completed · ${totals.commitments} commitments accepted — public records${spanDays === 1 ? " within one day" : `, across the first ${spanDays} days`}.`;
-      content.hidden = false;
-      status.textContent = "Every point is a public record — hover a dot for its moment.";
-      if (!reducedMotion()) {
-        const lines = chartBox.querySelectorAll(".road-line");
-        for (const path of lines) {
-          if (typeof path.getTotalLength !== "function") continue;
-          const length = path.getTotalLength();
-          path.style.strokeDasharray = String(length);
-          path.style.strokeDashoffset = String(length);
-        }
-        requestAnimationFrame(() => {
-          chartBox.classList.add("road-reveal");
-          for (const path of lines) path.style.strokeDashoffset = "0";
-        });
-      }
-    } catch {
-      status.textContent = "The journey chart could not be loaded. The shared home above and the public API (/.well-known/agent-home.json) remain available.";
-    } finally { clearTimeout(timeout); }
-  };
-  // The home already reads the public activity eagerly; the journey chart
-  // joins that first wave instead of gating on scroll observation, so the
-  // curve is ready by the time a reader reaches it.
-  load();
+  // The home already reads the public record eagerly; the journey chart
+  // joins that first wave through the shared reader instead of gating on
+  // scroll observation, so the curve is ready by the time a reader reaches it.
+  status.textContent = "Reading the public journey…";
+  const reader = window.OssGrowthData;
+  if (!reader) { status.textContent = fallback; return; }
+  reader.subscribe(data => {
+    if (!data.ok) {
+      // A failed refresh keeps the drawn journey; only a failed first read falls back.
+      if (!drawn) status.textContent = fallback;
+      return;
+    }
+    if (!data.projects.length) {
+      content.hidden = true;
+      status.textContent = "The curve begins with the first coordinated project. The roadmap tells the plan meanwhile.";
+      return;
+    }
+    draw(data);
+  });
 })();

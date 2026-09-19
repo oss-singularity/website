@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const script = readFileSync(new URL('../site/assets/scripts/road-so-far-v1.js', import.meta.url), 'utf8');
+const sources = ['commons-growth-data-v1.js', 'road-so-far-v1.js']
+  .map((file) => [file, readFileSync(new URL(`../site/assets/scripts/${file}`, import.meta.url), 'utf8')]);
 
 const HOUR = 3600000, DAY = 86400000;
 
@@ -35,10 +36,12 @@ class FakeNode {
   }
 }
 
-// Exercise the real controller with fixture API payloads. The sandbox has no
-// IntersectionObserver, so the journey loads immediately; reduced motion is
-// the default so the drawn chart is in its final state for assertions.
-function page({ list, details, failList = false, failDetailId = null, reduced = true } = {}) {
+// Exercise the journey chart with fixture API payloads. The shared growth
+// reader joins the sandbox, so the chart consumes the same snapshot the
+// mission curve would. The sandbox has no IntersectionObserver, so the
+// journey loads immediately; reduced motion is the default so the drawn
+// chart is in its final state for assertions.
+function page({ list, details, failList = false, failDetailId = null, reduced = true, routes = null } = {}) {
   const nodes = new Map();
   for (const id of ['road-so-far', 'road-status', 'road-content', 'road-chart', 'road-summary']) nodes.set(id, new FakeNode('div'));
   nodes.get('road-content').hidden = true;
@@ -49,6 +52,7 @@ function page({ list, details, failList = false, failDetailId = null, reduced = 
   const requests = [];
   const fetch = async (url) => {
     requests.push(url);
+    if (routes) return routes(url, requests);
     if (failList && url.includes('/projects?')) return { ok: false, json: async () => ({}) };
     if (url.includes('/projects?')) return { ok: true, json: async () => list };
     const id = decodeURIComponent(url.split('/projects/')[1]);
@@ -58,17 +62,17 @@ function page({ list, details, failList = false, failDetailId = null, reduced = 
     return { ok: true, json: async () => detail };
   };
   const window = { matchMedia: () => ({ matches: reduced }) };
-  const sandbox = { document, window, fetch, requests, nodes,
-    setTimeout, clearTimeout, AbortController, requestAnimationFrame: (fn) => fn() };
-  vm.runInNewContext(script, sandbox, { filename: 'road-so-far-v1.js' });
+  const sandbox = { document, window, fetch, requests, nodes, URLSearchParams, AbortController,
+    setTimeout, clearTimeout, addEventListener: () => {}, requestAnimationFrame: (fn) => fn() };
+  for (const [filename, source] of sources) vm.runInNewContext(source, sandbox, { filename });
   return {
-    nodes, requests,
+    nodes, requests, window,
     status: nodes.get('road-status'), content: nodes.get('road-content'),
     chart: nodes.get('road-chart'), summary: nodes.get('road-summary'),
   };
 }
 
-const flush = async () => { for (let count = 0; count < 30; count += 1) await Promise.resolve(); };
+const flush = async () => { for (let count = 0; count < 120; count += 1) await Promise.resolve(); };
 
 const classesOf = (node) => new Set([
   ...node.classes,
@@ -110,13 +114,112 @@ test('the journey draws three cumulative series from public records', async () =
   assert.equal(withClass(svg, 'road-area').length, 3, 'One area per series');
   const lines = withClass(svg, 'road-line');
   assert.equal(lines.length, 3, 'One line per series');
-  for (const line of lines) assert.match(line.attributes.d, /^M-?[\d.]+ -?[\d.]+ C/, 'Lines are smooth monotone curves');
+  for (const line of lines) {
+    assert.match(line.attributes.d, /^M-?[\d.]+ -?[\d.]+ C/, 'Lines are smooth monotone curves');
+    assert.doesNotMatch(line.attributes.d, /NaN|Infinity/, 'No interpolation breakdown');
+  }
   const dots = withClass(svg, 'road-dot');
-  assert.equal(dots.length, 7, 'One glowing dot per real event across all three series, never for anchors');
+  assert.equal(dots.length, 6, 'One dot per distinct moment across all three series — the two projects share one created moment, milestones keep three, commitments two');
   for (const dot of dots) assert.equal(dot.children.length, 1, 'Each dot carries a tooltip');
   assert.match(p.summary.textContent, /2 coordinated projects · 3 milestones completed · 2 commitments accepted — public records, across the first \d+ days\./);
   assert.equal(p.status.textContent, 'Every point is a public record — hover a dot for its moment.');
   assert.deepEqual(p.requests.filter((url) => !url.includes('/projects?')).length, 2, 'One detail request per listed project');
+});
+
+test('simultaneous completions stay one honest joint jump, never a NaN path', async () => {
+  const shared = new Date(Date.now() - DAY).toISOString();
+  const data = fixture(['proj-a'], {
+    'proj-a': detail('proj-a', { doneAt: [shared], completedAt: [shared, shared] }),
+  });
+  const p = page({ list: data.list, details: data.details });
+  await flush();
+  assert.equal(p.content.hidden, false);
+  const svg = p.chart.children[0];
+  for (const line of [...withClass(svg, 'road-line'), ...withClass(svg, 'road-area')]) {
+    assert.doesNotMatch(line.attributes.d, /NaN|Infinity/, 'Equal moments produce finite paths');
+    assert.match(line.attributes.d, /^M-?[\d.]+ -?[\d.]+( C|$)/, 'The path still serializes');
+  }
+  assert.equal(withClass(svg, 'road-dot-commitments').length, 1, 'Two same-moment completions share one dot');
+  const tip = withClass(svg, 'road-dot-commitments')[0].children[0].textContent;
+  assert.match(tip, /Commitments accepted 2/, 'The shared dot carries the joint cumulative count');
+  assert.match(p.summary.textContent, /1 coordinated projects? · 1 milestones? completed · 2 commitments? accepted/);
+});
+
+test('a project with 61 terminal commitments still draws the full record', async () => {
+  const stamps = Array.from({ length: 61 }, (_, index) => new Date(Date.now() - 2 * DAY + index * 60000).toISOString());
+  const data = fixture(['proj-a'], { 'proj-a': detail('proj-a', { completedAt: stamps }) });
+  const p = page({ list: data.list, details: data.details });
+  await flush();
+  assert.equal(p.content.hidden, false, 'The invented 30/60 history caps are gone');
+  assert.match(p.summary.textContent, /61 commitments accepted/);
+  assert.equal(withClass(p.chart.children[0], 'road-dot-commitments').length, 61);
+});
+
+test('cursor pages are followed so 51 projects draw as 51, not a silent excerpt', async () => {
+  const projects = Array.from({ length: 51 }, (_, index) => project(`p-${index + 1}`, (index + 2) * HOUR));
+  const details = Object.fromEntries(projects.map(({ id }) => [id, detail(id)]));
+  const p = page({ routes: (url, requests) => {
+    if (!url.includes('/projects?')) {
+      const id = decodeURIComponent(url.split('/projects/')[1]);
+      return { ok: true, json: async () => details[id] };
+    }
+    const cursor = new URL(url, 'https://fixture.local').searchParams.get('cursor');
+    const offset = cursor ? 50 : 0;
+    const slice = projects.slice(offset, offset + 50);
+    const last = slice.at(-1);
+    return { ok: true, json: async () => ({ items: slice.map(({ milestones, commitments, ...item }) => item), next_cursor: offset === 0 ? `${Date.parse(last.created_at)}:${last.id}` : null }) };
+  } });
+  await flush();
+  assert.equal(p.content.hidden, false);
+  assert.match(p.summary.textContent, /51 coordinated projects/);
+  const cursored = p.requests.filter((url) => url.includes('cursor='));
+  assert.equal(cursored.length, 1, 'The waiting next_cursor page is read exactly once');
+});
+
+test('a truncated window says so instead of passing an excerpt off as the whole record', async () => {
+  const projects = Array.from({ length: 320 }, (_, index) => project(`p-${index + 1}`, (index + 2) * HOUR));
+  const details = Object.fromEntries(projects.map(({ id }) => [id, detail(id)]));
+  const p = page({ routes: (url) => {
+    if (!url.includes('/projects?')) {
+      const id = decodeURIComponent(url.split('/projects/')[1]);
+      return { ok: true, json: async () => details[id] };
+    }
+    const cursor = new URL(url, 'https://fixture.local').searchParams.get('cursor');
+    const offset = cursor ? Number(cursor.split(':')[1].slice(2)) : 0;
+    const slice = projects.slice(offset, offset + 100);
+    const last = slice.at(-1);
+    return { ok: true, json: async () => ({ items: slice.map(({ milestones, commitments, ...item }) => item), next_cursor: `${Date.parse(last.created_at)}:${last.id}` }) };
+  } });
+  await flush();
+  assert.equal(p.content.hidden, false);
+  assert.match(p.summary.textContent, /More than 300 coordinated projects/);
+  assert.match(p.summary.textContent, /at least \d+ milestones completed · at least \d+ commitments accepted/);
+  assert.doesNotMatch(p.summary.textContent, /— public records/, 'The truncated window never claims the complete record');
+});
+
+test('a refresh renews the journey and heals a failed first read', async () => {
+  let healthy = false;
+  const first = fixture(['proj-a'], { 'proj-a': detail('proj-a') });
+  const grown = fixture(['proj-a', 'proj-b'], { 'proj-a': detail('proj-a'), 'proj-b': detail('proj-b') });
+  let current = first;
+  const p = page({ routes: (url) => {
+    if (!url.includes('/projects?')) {
+      const id = decodeURIComponent(url.split('/projects/')[1]);
+      return { ok: true, json: async () => current.details[id] };
+    }
+    if (!healthy) return { ok: false, json: async () => ({}) };
+    return { ok: true, json: async () => current.list };
+  } });
+  await flush();
+  assert.equal(p.content.hidden, true, 'The failed first read keeps the chart hidden');
+  assert.match(p.status.textContent, /could not be loaded/);
+  healthy = true;
+  current = grown;
+  p.window.OssGrowthData.refresh();
+  await flush();
+  assert.equal(p.content.hidden, false, 'Refresh heals the transient failure');
+  assert.match(p.summary.textContent, /2 coordinated projects/);
+  assert.equal(p.requests.filter((url) => url.includes('/projects?')).length, 2, 'The chain re-read the record');
 });
 
 test('series without events stay on the baseline without fake dots', async () => {
@@ -151,9 +254,9 @@ test('hostile or unexpected payloads fail closed to the honest fallback', async 
       data.details['proj-a'].id = 'proj-b';
       return { list: data.list, details: data.details };
     })()],
-    ['oversized list', (() => {
+    ['oversized page beyond the API limit', (() => {
       const data = fixture(['proj-a'], { 'proj-a': detail('proj-a') });
-      data.list.items = Array.from({ length: 51 }, () => data.list.items[0]);
+      data.list.items = Array.from({ length: 101 }, () => data.list.items[0]);
       return { list: data.list, details: data.details };
     })()],
   ];

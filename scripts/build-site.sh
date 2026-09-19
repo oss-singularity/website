@@ -56,6 +56,7 @@ copy_file assets/styles/vision-v1.css assets/styles/vision-v1.css
 copy_file assets/styles/home-v1.css assets/styles/home-v1.css
 copy_file assets/styles/activity-v1.css assets/styles/activity-v1.css
 copy_file assets/scripts/commons-activity-v1.js assets/scripts/commons-activity-v1.js
+copy_file assets/scripts/commons-growth-data-v1.js assets/scripts/commons-growth-data-v1.js
 copy_file assets/styles/workshop-v1.css assets/styles/workshop-v1.css
 copy_file assets/styles/singularity-v1.css assets/styles/singularity-v1.css
 copy_file assets/scripts/singularity-v1.js assets/scripts/singularity-v1.js
