@@ -19,6 +19,7 @@ never holds funds and never gains custody.
     funded → delivered → disputed → resolved → released | refunded
     funded → refunded            (cancellation before delivery)
     any waiting state past its deadline → the outcome the agreement already fixed
+    from the outer deadline on → refund only; no new release can succeed
 
 ## States, named exactly as the design note names them
 
@@ -40,11 +41,11 @@ never holds funds and never gains custody.
 | `recordFunding()` | a call declaring the budget sits with the holder | that funding exists — a declaration about the holder's custody, never a transfer | holder only |
 | `recordDelivery(uint16 revision)` | a call naming the next revision number | that the contributor recorded revision N referencing the declared digest | contributor only |
 | `accept(uint16 revision)` | a call naming the newest revision | that acceptance binds exactly that revision before the review deadline — the release condition | coordinator only |
-| `release()` | a call executing the release | that the holder released the budget after acceptance satisfied its condition | holder only |
+| `release()` | a call executing the release | that the holder released the budget after acceptance satisfied its condition — before the outer deadline | holder only |
 | `openDispute(string calldata reason)` | a call naming the reason for the dispute | that one party opened the agreed dispute path while the work awaits review | contributor or coordinator only |
 | `resolveDispute(bool releases)` | a call declaring which way the resolution goes | that the holder recorded the resolution inside the dispute window | holder only |
-| `executeResolution()` | a call executing the recorded resolution | that the holder carried out the resolution: released or refunded, exactly as resolved | holder only |
-| `applyDisputeFallback()` | a call taking the agreed fallback | that a dispute unresolved past its window ends in the outcome the agreement fixed (refund) | anyone, once the dispute window has passed |
+| `executeResolution()` | a call executing the recorded resolution | that the holder carried out the resolution: released or refunded, exactly as resolved — a releasing execution only before the outer deadline | holder only |
+| `applyDisputeFallback()` | a call taking the agreed fallback | that a dispute unresolved past its window ends in the outcome the agreement fixed (refund) — a releasing fallback only before the outer deadline | anyone, once the dispute window has passed |
 | `refundAfterOuterDeadline()` | a call taking the refund path | that funds unreleased past the outer deadline flow back instead of sitting withheld | anyone, once the outer deadline has passed |
 | `refundOnCancellation()` | a call recording the cancellation refund | that a cancelled agreement refunds the budget before delivery | holder only |
 
@@ -61,6 +62,20 @@ Every waiting state names a deadline and a defined default outcome:
 - funds unreleased by `OUTER_DEADLINE` → the refund path via
   `refundAfterOuterDeadline`, from every non-terminal state
 
+**Refund priority from the outer deadline on** — the one precedence rule
+this machine fixes: the refund window and every release window are disjoint.
+Exactly from the outer deadline instant itself (inclusive — the moment
+`refundAfterOuterDeadline` becomes available,
+`block.timestamp >= OUTER_DEADLINE`), every release-minting transition is
+refused with `OuterDeadlinePassed` — `release`, a releasing
+`executeResolution`, and a releasing `applyDisputeFallback` alike. Before
+the deadline, releases remain possible and the refund is refused
+(`OuterDeadlineNotPassed`). At every timestamp exactly one direction can
+act, so a release can never race the refund for the same state, whichever
+transaction arrives first. Executions that already end in a refund stay
+allowed from the deadline on: they cannot compete with the refund outcome
+they share.
+
 A timeout produces a DEFINED outcome; it never mints authority. The timeout
 paths are permissionless on purpose: they can only ever reach the outcome the
 agreement already fixed, so no caller gains control over the settlement.
@@ -74,7 +89,8 @@ agreement already fixed, so no caller gains control over the settlement.
 - `NotNewestRevision` — stale revisions are refused, not silently superseded.
 - `DeadlinePassed` — acceptance after the review deadline and resolutions after the dispute deadline are refused.
 - `DisputeWindowStillOpen` — the agreed fallback exists only for a dispute that outlived its window.
-- `OuterDeadlineNotPassed` — the refund path exists only once the outer deadline has actually passed.
+- `OuterDeadlineNotPassed` — the refund path exists only from the outer deadline instant onward (inclusive).
+- `OuterDeadlinePassed` — every release path closes exactly from that instant on: once the refund is available, no new release can succeed.
 
 ## Honest boundaries
 

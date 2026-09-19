@@ -22,6 +22,16 @@ LAB = REPO / "design" / "solidity-lab"
 CONTRACT = LAB / "generated" / "FairSettlement.sol"
 MODEL = LAB / "fair_model.py"
 
+
+def _load_module(name: str):
+    spec = importlib.util.spec_from_file_location(name, LAB / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+PINNED_SOLC = _load_module("pinned_solc")
+
 CONTRIBUTOR = "0x0000000000000000000000000000000000000001"
 COORDINATOR = "0x0000000000000000000000000000000000000002"
 HOLDER = "0x0000000000000000000000000000000000000003"
@@ -141,6 +151,116 @@ class UnresponsiveParticipantTests(unittest.TestCase):
         self.assertIs(model.state, state.RELEASED)
 
 
+class OuterDeadlinePriorityTests(unittest.TestCase):
+    """Review A5: from the outer deadline instant ON (inclusive) the refund
+    has exclusive priority — the mandated deadline instant itself already
+    belongs to the refund.
+
+    The refund window and every release window are disjoint — proven at the
+    boundaries outer−1 / outer / outer+1 and in BOTH transaction orders for
+    each release path (accepted release, resolved release, release fallback).
+    """
+
+    def setUp(self) -> None:
+        self._fresh()
+
+    def _fresh(self, releases_fallback: bool = False) -> None:
+        # each _load_model() builds its own module, so model, Revert and State
+        # must always be reloaded together for assertIs/assertRaises to bind
+        self.model, self.revert, self.state = _load_model(releases_fallback)
+
+    def _refuses(self, action, failure: str) -> None:
+        with self.assertRaisesRegex(self.revert, failure):
+            action()
+
+    def test_accepted_release_boundaries_are_disjoint_from_the_refund(self) -> None:
+        with self.subTest("release still works one tick before the deadline"):
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE - 1
+            self.model.release(HOLDER)
+            self.assertIs(self.model.state, self.state.RELEASED)
+        with self.subTest("the deadline instant itself already refuses the release"):
+            self._fresh()
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE
+            self._refuses(lambda: self.model.release(HOLDER), "OuterDeadlinePassed")
+        with self.subTest("one tick later the same refusal holds"):
+            self._fresh()
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE + 1
+            self._refuses(lambda: self.model.release(HOLDER), "OuterDeadlinePassed")
+
+    def test_refund_boundaries_mirror_the_release_window(self) -> None:
+        deliver_and_accept(self.model)
+        self.model.now = OUTER_DEADLINE - 1
+        self._refuses(lambda: self.model.refund_after_outer_deadline(STRANGER), "OuterDeadlineNotPassed")
+        self.model.now = OUTER_DEADLINE
+        self.model.refund_after_outer_deadline(STRANGER)  # the instant itself refunds
+        self.assertIs(self.model.state, self.state.REFUNDED)
+
+    def test_release_cannot_race_the_refund_at_the_instant_in_either_order(self) -> None:
+        with self.subTest("release attempt first, refund second — at the deadline instant"):
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE
+            self._refuses(lambda: self.model.release(HOLDER), "OuterDeadlinePassed")
+            self.model.refund_after_outer_deadline(STRANGER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+            self._refuses(lambda: self.model.release(HOLDER), "WrongState")  # terminal is final
+        with self.subTest("refund first, release attempt second — one tick later"):
+            self._fresh()
+            deliver_and_accept(self.model)
+            self.model.now = OUTER_DEADLINE + 1
+            self.model.refund_after_outer_deadline(STRANGER)
+            self._refuses(lambda: self.model.release(HOLDER), "WrongState")
+
+    def test_resolved_release_is_refused_from_the_outer_deadline_on(self) -> None:
+        with self.subTest("the last moment for a releasing resolution is one tick before the deadline"):
+            deliver_and_dispute(self.model)
+            self.model.resolve_dispute(HOLDER, releases=True)
+            self.model.now = OUTER_DEADLINE - 1
+            self.model.execute_resolution(HOLDER)
+            self.assertIs(self.model.state, self.state.RELEASED)
+        with self.subTest("the deadline instant itself refuses it and the refund wins"):
+            self._fresh()
+            deliver_and_dispute(self.model)
+            self.model.resolve_dispute(HOLDER, releases=True)
+            self.model.now = OUTER_DEADLINE
+            self._refuses(lambda: self.model.execute_resolution(HOLDER), "OuterDeadlinePassed")
+            self.model.refund_after_outer_deadline(STRANGER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+
+    def test_release_fallback_is_refused_from_the_outer_deadline_on(self) -> None:
+        self._fresh(releases_fallback=True)
+        with self.subTest("a releasing fallback still works below the outer deadline"):
+            deliver_and_dispute(self.model)
+            self.model.now = DISPUTE_DEADLINE + 1
+            self.model.apply_dispute_fallback(STRANGER)
+            self.assertIs(self.model.state, self.state.RELEASED)
+        with self.subTest("the deadline instant itself outranks the agreed fallback"):
+            self._fresh(releases_fallback=True)
+            deliver_and_dispute(self.model)
+            self.model.now = OUTER_DEADLINE
+            self._refuses(lambda: self.model.apply_dispute_fallback(STRANGER), "OuterDeadlinePassed")
+            self.model.refund_after_outer_deadline(STRANGER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+
+    def test_refund_flavored_executions_survive_from_the_outer_deadline_on(self) -> None:
+        with self.subTest("a refunding resolution still executes at the instant"):
+            deliver_and_dispute(self.model)
+            self.model.resolve_dispute(HOLDER, releases=False)
+            self.model.now = OUTER_DEADLINE
+            self.model.execute_resolution(HOLDER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+            self.assertEqual(self.model.refund_reason, "dispute resolution")
+        with self.subTest("a refunding fallback still executes one tick later"):
+            self._fresh()
+            deliver_and_dispute(self.model)
+            self.model.now = OUTER_DEADLINE + 1
+            self.model.apply_dispute_fallback(STRANGER)
+            self.assertIs(self.model.state, self.state.REFUNDED)
+            self.assertEqual(self.model.refund_reason, "dispute fallback")
+
+
 class GuardTests(unittest.TestCase):
     """Role, replay, staleness and deadline guards mirror the contract."""
 
@@ -198,11 +318,11 @@ class GuardTests(unittest.TestCase):
 
     def test_outer_deadline_refund_needs_the_deadline_and_a_live_state(self) -> None:
         self.model.record_funding(HOLDER)
-        self.model.now = OUTER_DEADLINE
+        self.model.now = OUTER_DEADLINE - 1
         with self.assertRaises(self.revert):
             self.model.refund_after_outer_deadline(STRANGER)  # not yet
-        self.model.now = OUTER_DEADLINE + 1
-        self.model.refund_after_outer_deadline(STRANGER)
+        self.model.now = OUTER_DEADLINE
+        self.model.refund_after_outer_deadline(STRANGER)  # from the instant itself
         with self.assertRaises(self.revert):
             self.model.refund_after_outer_deadline(STRANGER)  # terminal is final
 
@@ -240,28 +360,38 @@ class ParityTests(unittest.TestCase):
         source = CONTRACT.read_text()
         model_source = MODEL.read_text()
         failures = re.findall(r"error (\w+)\(", source)
-        self.assertEqual(len(failures), 10)
+        self.assertEqual(len(failures), 11)
         for failure in failures:
             self.assertIn(f'"{failure}"', model_source, f"model must name the failure {failure}")
 
 
 class CompilerTests(unittest.TestCase):
-    """The pinned compiler must accept the committed settlement example."""
+    """The pinned compiler must accept the committed settlement example.
 
-    SOLC_VERSION = "0.8.37"
+    Fail-closed (review A3): tool availability is probed separately; compiler
+    and artifact errors always fail, and missing tooling fails in CI.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        PINNED_SOLC.enforce_availability()
 
     def _compile(self) -> tuple[bytes, bytes]:
         with tempfile.TemporaryDirectory() as folder:
-            result = subprocess.run(
-                ["npx", "--yes", f"solc@{self.SOLC_VERSION}", "--bin", "--abi", str(CONTRACT)],
-                capture_output=True, text=True, timeout=300, cwd=folder)
-            if result.returncode != 0:
-                self.skipTest(f"pinned solc unavailable in this environment: {result.stderr[:120]}")
-            binaries = sorted(Path(folder).glob("*_FairSettlement.bin"))
-            abis = sorted(Path(folder).glob("*_FairSettlement.abi"))
-            if not binaries or not abis:
-                self.fail(f"pinned solc wrote no artifacts: {result.stdout[:160]}")
-            return binaries[0].read_bytes(), abis[0].read_bytes()
+            try:
+                artifacts = PINNED_SOLC.compile_with_artifacts(CONTRACT, Path(folder), "FairSettlement")
+            except PINNED_SOLC.CompileFailed as error:
+                self.fail(str(error))
+            return artifacts["bin"], artifacts["abi"]
+
+    def test_compiler_rejection_fails_the_gate_instead_of_skipping(self) -> None:
+        # Mutation proof (review A3): a source the compiler rejects must turn
+        # this gate red — never a green skip.
+        with tempfile.TemporaryDirectory() as folder:
+            broken = Path(folder) / "Broken.sol"
+            broken.write_text("contract Broken { this is not solidity }\n", encoding="utf-8")
+            with self.assertRaises(PINNED_SOLC.CompileFailed):
+                PINNED_SOLC.compile_with_artifacts(broken, Path(folder), "Broken")
 
     def test_pinned_compiler_compiles_with_stable_bytecode(self) -> None:
         import hashlib

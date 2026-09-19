@@ -6,6 +6,13 @@ paths for unresponsive participants, can be exercised without any chain,
 compiler or network. When the contract changes, this model must change
 with it; the walkthrough tests keep both honest against each other.
 Synthetic model only; it never touches funds, wallets or networks.
+
+Deadline priority (the architecture decision this machine fixes): from the
+outer deadline instant ON, inclusive (``now >= outer_deadline`` — exactly
+when the permissionless refund becomes available), the refund path has
+EXCLUSIVE priority. Every release-minting transition is refused from that
+moment on, so a release can never race the refund for the same state; the
+guards before and from the deadline on are disjoint.
 """
 
 from __future__ import annotations
@@ -101,9 +108,13 @@ class FairSettlementModel:
         self.state = State.ACCEPTED
 
     def release(self, sender: str) -> None:
-        """The holder executes the release its custody rules require."""
+        """The holder executes the release its custody rules require — but
+        only before the outer deadline: from the deadline instant on (the
+        moment the refund path opens), no new release can succeed."""
         self._only(sender, self.holder, "NotHolder")
         self._require_state(State.ACCEPTED)
+        if self.now >= self.outer_deadline:
+            raise Revert("OuterDeadlinePassed")
         self.state = State.RELEASED
 
     def open_dispute(self, sender: str, reason: str) -> None:
@@ -124,9 +135,14 @@ class FairSettlementModel:
         self.state = State.RESOLVED
 
     def execute_resolution(self, sender: str) -> None:
-        """The holder executes the recorded resolution: released or refunded."""
+        """The holder executes the recorded resolution: released or refunded.
+        A releasing execution is refused from the outer deadline instant on —
+        the refund path has priority from then on; a refunding execution
+        still reaches its (already refund) outcome."""
         self._only(sender, self.holder, "NotHolder")
         self._require_state(State.RESOLVED)
+        if self.resolution_releases and self.now >= self.outer_deadline:
+            raise Revert("OuterDeadlinePassed")
         if self.resolution_releases:
             self.state = State.RELEASED
         else:
@@ -134,20 +150,25 @@ class FairSettlementModel:
 
     def apply_dispute_fallback(self, sender: str) -> None:
         """Past the dispute window the agreed fallback replaces a silent
-        holder — permissionless on purpose, it only reaches the fixed outcome."""
+        holder — permissionless on purpose, it only reaches the fixed outcome.
+        A releasing fallback is refused from the outer deadline instant on;
+        the refund priority outranks even the agreed fallback."""
         self._require_state(State.DISPUTED)
         if self.now <= self.dispute_deadline:
             raise Revert("DisputeWindowStillOpen")
+        if self.dispute_fallback_releases and self.now >= self.outer_deadline:
+            raise Revert("OuterDeadlinePassed")
         if self.dispute_fallback_releases:
             self.state = State.RELEASED
         else:
             self._refund("dispute fallback")
 
     def refund_after_outer_deadline(self, sender: str) -> None:
-        """Past the outer deadline, unreleased funds take the refund path
-        from every non-terminal state — permissionless, refund only."""
+        """From the outer deadline instant on (inclusive), unreleased funds
+        take the refund path from every non-terminal state — permissionless,
+        refund only."""
         self._require_state(*NON_TERMINAL)
-        if self.now <= self.outer_deadline:
+        if self.now < self.outer_deadline:
             raise Revert("OuterDeadlineNotPassed")
         self._refund("outer deadline")
 
