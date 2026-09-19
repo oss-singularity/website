@@ -317,7 +317,7 @@ test('challenge-only traffic opportunistically drains expired rate counters with
   assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM rate_limits').get().n, 1);
 });
 
-test('a configured read token authenticates GitHub reads and a rejected token degrades to one anonymous retry', async t => {
+test('a configured read token authenticates GitHub reads and a 403-rejected token degrades to one anonymous retry', async t => {
   const env = setup(t);
   env.GITHUB_READ_TOKEN = 'test_read_token_0123456789abcdef';
   const seen = [];
@@ -331,6 +331,70 @@ test('a configured read token authenticates GitHub reads and a rejected token de
   const enrollment = await verify(env, challenge);
   assert.equal(enrollment.status, 201, JSON.stringify(enrollment.body).slice(0, 200));
   assert.deepEqual(seen, [`Bearer ${env.GITHUB_READ_TOKEN}`, null, `Bearer ${env.GITHUB_READ_TOKEN}`]);
+});
+
+test('a 401-rejected read token degrades to exactly one anonymous retry and enrolls', async t => {
+  const env = setup(t);
+  env.GITHUB_READ_TOKEN = 'test_read_token_0123456789abcdef';
+  const seen = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    seen.push(options.headers.Authorization ?? null);
+    if (url.includes('/users/')) return new Response(JSON.stringify({ id: 42, login: 'builder', created_at: new Date(NOW - 40 * DAY).toISOString() }));
+    if (seen.length === 1) return new Response('bad credentials', { status: 401 });
+    return new Response(JSON.stringify(proofFixture(challenge)));
+  });
+  const challenge = (await send(env, '/identity-challenges', 'POST', { github_login: 'builder' })).body;
+  const enrollment = await verify(env, challenge);
+  assert.equal(enrollment.status, 201, JSON.stringify(enrollment.body).slice(0, 200));
+  assert.deepEqual(seen, [`Bearer ${env.GITHUB_READ_TOKEN}`, null, `Bearer ${env.GITHUB_READ_TOKEN}`]);
+});
+
+test('a 429-rejected read token degrades to exactly one anonymous retry and enrolls', async t => {
+  const env = setup(t);
+  env.GITHUB_READ_TOKEN = 'test_read_token_0123456789abcdef';
+  const seen = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    seen.push(options.headers.Authorization ?? null);
+    if (url.includes('/users/')) return new Response(JSON.stringify({ id: 42, login: 'builder', created_at: new Date(NOW - 40 * DAY).toISOString() }));
+    if (seen.length === 1) return new Response('too many requests', { status: 429 });
+    return new Response(JSON.stringify(proofFixture(challenge)));
+  });
+  const challenge = (await send(env, '/identity-challenges', 'POST', { github_login: 'builder' })).body;
+  const enrollment = await verify(env, challenge);
+  assert.equal(enrollment.status, 201, JSON.stringify(enrollment.body).slice(0, 200));
+  assert.deepEqual(seen, [`Bearer ${env.GITHUB_READ_TOKEN}`, null, `Bearer ${env.GITHUB_READ_TOKEN}`]);
+});
+
+test('a 401-rejected read token fails closed when the anonymous retry is also refused', async t => {
+  const env = setup(t);
+  env.GITHUB_READ_TOKEN = 'test_read_token_0123456789abcdef';
+  const seen = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    seen.push(options.headers.Authorization ?? null);
+    return new Response('refused', { status: 401 });
+  });
+  const challenge = (await send(env, '/identity-challenges', 'POST', { github_login: 'builder' })).body;
+  const enrollment = await verify(env, challenge);
+  assert.equal(enrollment.status, 503);
+  assert.equal(enrollment.body.error.code, 'upstream_unavailable');
+  assert.deepEqual(seen, [`Bearer ${env.GITHUB_READ_TOKEN}`, null],
+    'the anonymous retry is the last attempt; no further retries follow');
+  assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM identities').get().n, 0,
+    'no identity is written from a failed enrollment');
+});
+
+test('without a token an anonymous 401 fails closed with one honest attempt', async t => {
+  const env = setup(t);
+  const seen = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    seen.push(options.headers.Authorization ?? null);
+    return new Response('unauthorized', { status: 401 });
+  });
+  const challenge = (await send(env, '/identity-challenges', 'POST', { github_login: 'builder' })).body;
+  const enrollment = await verify(env, challenge);
+  assert.equal(enrollment.status, 503);
+  assert.equal(enrollment.body.error.code, 'upstream_unavailable');
+  assert.deepEqual(seen, [null], 'an anonymous 401 has no earlier authenticated attempt to degrade from');
 });
 
 test('without a token a persistent rate limit still fails closed with one honest attempt', async t => {
